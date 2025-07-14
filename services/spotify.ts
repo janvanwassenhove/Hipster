@@ -2,15 +2,32 @@ import * as AuthSession from 'expo-auth-session';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SpotifyTrack } from '@/types/game';
 
-const CLIENT_ID = 'your_spotify_client_id'; // Replace with your Spotify Client ID
-const REDIRECT_URI = AuthSession.makeRedirectUri({ useProxy: true });
+// TODO: Replace with your actual Spotify Client ID from https://developer.spotify.com/dashboard
+const CLIENT_ID = 'your_spotify_client_id'; 
+
+// Generate redirect URI for your app
+const REDIRECT_URI = AuthSession.makeRedirectUri({ 
+  scheme: 'myapp', // This should match the scheme in your app.json
+  path: 'spotify-auth'
+});
+
 const SCOPES = ['user-read-private', 'user-read-email'];
+
+// Log the redirect URI for debugging
+console.log('Spotify Redirect URI:', REDIRECT_URI);
 
 class SpotifyService {
   private accessToken: string | null = null;
 
   async authenticate(): Promise<boolean> {
     try {
+      // Check if CLIENT_ID is still the placeholder
+      if (CLIENT_ID === 'your_spotify_client_id') {
+        console.error('Spotify CLIENT_ID not configured. Please set your actual Spotify Client ID.');
+        alert('Spotify configuration error: Client ID not set. Check the console for details.');
+        return false;
+      }
+
       const request = new AuthSession.AuthRequest({
         clientId: CLIENT_ID,
         scopes: SCOPES,
@@ -27,10 +44,14 @@ class SpotifyService {
         this.accessToken = result.params.access_token;
         await AsyncStorage.setItem('spotify_token', this.accessToken);
         return true;
+      } else if (result.type === 'error') {
+        console.error('Spotify authentication error:', result.error);
+        alert(`Spotify login failed: ${result.error?.message || 'Unknown error'}`);
       }
       return false;
     } catch (error) {
       console.error('Spotify authentication error:', error);
+      alert('Failed to authenticate with Spotify. Please try again.');
       return false;
     }
   }
