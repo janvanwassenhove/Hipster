@@ -41,6 +41,8 @@ class SpotifyService {
     // Store code verifier in localStorage for later use
     localStorage.setItem('spotify_code_verifier', codeVerifier)
 
+    console.log('Spotify redirect URI:', SPOTIFY_REDIRECT_URI)
+
     const params = new URLSearchParams({
       response_type: 'code',
       client_id: SPOTIFY_CLIENT_ID,
@@ -59,9 +61,19 @@ class SpotifyService {
     const urlParams = new URLSearchParams(window.location.search)
     const code = urlParams.get('code')
     const error = urlParams.get('error')
+    const errorDescription = urlParams.get('error_description')
 
     if (error) {
-      console.error('Spotify auth error:', error)
+      console.error('Spotify auth error:', error, errorDescription)
+      
+      // Show user-friendly error message
+      if (error === 'invalid_client') {
+        alert(`Spotify configuration error: Invalid redirect URI. 
+Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`)
+      } else {
+        alert(`Spotify login failed: ${errorDescription || error}`)
+      }
+      
       return false
     }
 
