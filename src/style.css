@@ -1,0 +1,162 @@
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+
+/* Custom components */
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center px-4 py-2 rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2;
+  }
+  
+  .btn-primary {
+    @apply btn bg-green-500 hover:bg-green-600 text-white focus:ring-green-500;
+  }
+  
+  .btn-secondary {
+    @apply btn bg-gray-200 hover:bg-gray-300 text-gray-800 focus:ring-gray-500;
+  }
+  
+  .btn-danger {
+    @apply btn bg-red-500 hover:bg-red-600 text-white focus:ring-red-500;
+  }
+  
+  .btn-lg {
+    @apply px-6 py-3 text-lg;
+  }
+  
+  .card {
+    @apply bg-white rounded-xl shadow-lg p-6;
+  }
+  
+  .input {
+    @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent;
+  }
+  
+  .select {
+    @apply input appearance-none bg-white;
+  }
+}
+
+/* Custom animations */
+@keyframes bounce-in {
+  0% {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  70% {
+    transform: scale(0.9);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slide-in-left {
+  from {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.bounce-in {
+  animation: bounce-in 0.6s ease-out;
+}
+
+.slide-in-right {
+  animation: slide-in-right 0.5s ease-out;
+}
+
+.slide-in-left {
+  animation: slide-in-left 0.5s ease-out;
+}
+
+/* Touch-friendly styles */
+@media (hover: none) {
+  .btn:hover {
+    transform: none;
+  }
+  
+  .btn:active {
+    transform: scale(0.95);
+  }
+}
+
+/* Drag and drop styles */
+.timeline-slot {
+  @apply border-2 border-dashed border-gray-300 rounded-lg p-4 min-h-[100px] transition-colors;
+}
+
+.timeline-slot.drag-over {
+  @apply border-green-500 bg-green-50;
+}
+
+.track-card {
+  @apply bg-white rounded-lg shadow-md p-3 cursor-move transition-transform;
+}
+
+.track-card:hover {
+  @apply transform scale-105;
+}
+
+.track-card.dragging {
+  @apply opacity-50 transform rotate-2;
+}
+
+/* Music player styles */
+.music-player {
+  @apply bg-black text-white rounded-lg p-4;
+}
+
+.progress-bar {
+  @apply w-full h-1 bg-gray-600 rounded-full overflow-hidden;
+}
+
+.progress-fill {
+  @apply h-full bg-green-500 transition-all duration-100;
+}
+
+/* Responsive typography */
+@media (max-width: 640px) {
+  html {
+    font-size: 14px;
+  }
+}
+
+/* PWA specific styles */
+@media (display-mode: standalone) {
+  body {
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .card {
+    @apply bg-gray-800 text-white;
+  }
+  
+  .input {
+    @apply bg-gray-700 border-gray-600 text-white;
+  }
+}
