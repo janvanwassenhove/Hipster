@@ -217,44 +217,29 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
   // Get recommendations based on theme
   async getRecommendations(theme?: Theme, limit: number = 50): Promise<Track[]> {
     try {
-      // First, try to get available genres
-      const availableGenres = await this.getAvailableGenres()
+      console.log('Attempting to get recommendations for theme:', theme)
       
-      let endpoint = '/recommendations?limit=' + Math.min(limit, 100) // Spotify max is 100
+      // Try simple recommendations first
+      let endpoint = '/recommendations?limit=' + Math.min(limit, 50)
       
-      if (theme && availableGenres.length > 0) {
-        const genreMap: Record<Theme, string[]> = {
-          '90s': ['pop', 'rock', 'dance', 'disco'],
-          'guilty-pleasures': ['pop', 'dance', 'disco'],
-          'schlager': ['pop', 'country', 'folk'],
-          'tiktok': ['pop', 'hip-hop', 'electronic', 'dance'],
-          'rock': ['rock', 'alternative', 'metal', 'indie'],
-          'pop': ['pop', 'dance'],
-          'hip-hop': ['hip-hop', 'rap'],
-          'electronic': ['electronic', 'techno', 'house', 'dance'],
-          'indie': ['indie', 'alternative', 'rock'],
-          'country': ['country', 'folk']
+      if (theme) {
+        // Use only the most basic genres that are almost always available
+        const basicGenreMap: Record<Theme, string[]> = {
+          '90s': ['pop'],
+          'guilty-pleasures': ['pop'],
+          'schlager': ['pop'], 
+          'tiktok': ['pop'],
+          'rock': ['rock'],
+          'pop': ['pop'],
+          'hip-hop': ['hip-hop'],
+          'electronic': ['electronic'],
+          'indie': ['indie'],
+          'country': ['country']
         }
         
-        const preferredGenres = genreMap[theme] || ['pop']
-        // Filter to only use available genres
-        const validGenres = preferredGenres.filter(genre => availableGenres.includes(genre))
-        
-        if (validGenres.length > 0) {
-          // Use up to 3 genres for seed (Spotify limit is 5 total seeds)
-          const seedGenres = validGenres.slice(0, 3)
-          endpoint += '&seed_genres=' + seedGenres.join(',')
-          
-          // Add year filters for specific themes
-          if (theme === '90s') {
-            endpoint += '&min_year=1990&max_year=1999'
-          }
-        } else {
-          // Fallback to basic genres
-          endpoint += '&seed_genres=pop'
-        }
+        const genres = basicGenreMap[theme] || ['pop']
+        endpoint += '&seed_genres=' + genres[0] // Use only one genre to be safe
       } else {
-        // Default fallback - use simple approach
         endpoint += '&seed_genres=pop'
       }
 
@@ -268,12 +253,14 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
       
       // Filter tracks with preview URLs and add year information
       const tracksWithPreviews = data.tracks
-        .filter(track => track.preview_url)
+        .filter(track => track && track.preview_url && track.album)
         .map(track => ({
           ...track,
-          year: new Date(track.album.release_date).getFullYear(),
-          images: track.album.images || track.images || []
+          year: track.album.release_date ? new Date(track.album.release_date).getFullYear() : new Date().getFullYear(),
+          images: track.album?.images || track.images || []
         }))
+
+      console.log(`Recommendations returned ${tracksWithPreviews.length} tracks with previews`)
 
       if (tracksWithPreviews.length === 0) {
         console.warn('No tracks with previews found, trying fallback')
@@ -306,18 +293,23 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
     }
   }
 
-  // Fallback method using search instead of recommendations
+  // Fallback method using simple search queries
   private async getFallbackTracks(limit: number = 20): Promise<Track[]> {
     try {
-      console.log('Trying fallback: search queries')
+      console.log('Trying fallback: simple search queries')
       
-      // Use popular search terms to get tracks
+      // Use simple, popular search terms that should always return results
       const searchQueries = [
-        'year:2020-2024',
-        'year:2015-2019', 
-        'year:2010-2014',
-        'year:2000-2009',
-        'year:1990-1999'
+        'the',
+        'love',
+        'time',
+        'song',
+        'night',
+        'day',
+        'you',
+        'me',
+        'one',
+        'way'
       ]
       
       const allTracks: Track[] = []
@@ -326,27 +318,88 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
         if (allTracks.length >= limit) break
         
         try {
-          const tracks = await this.searchTracks(query, Math.min(10, limit - allTracks.length))
-          allTracks.push(...tracks)
+          const tracks = await this.searchTracks(query, Math.min(5, limit - allTracks.length))
+          if (tracks.length > 0) {
+            allTracks.push(...tracks)
+            console.log(`Found ${tracks.length} tracks for query: ${query}`)
+          }
         } catch (error) {
           console.warn('Search query failed:', query, error)
         }
       }
       
-      // If search didn't work, try featured playlists
+      // If still no tracks, try very basic queries
       if (allTracks.length === 0) {
-        console.log('Trying fallback: featured playlists')
-        const playlistTracks = await this.getTracksFromFeaturedPlaylists(limit)
-        allTracks.push(...playlistTracks)
+        console.log('Trying even simpler queries')
+        const basicQueries = ['a', 'e', 'i', 'o', 'u']
+        
+        for (const query of basicQueries) {
+          if (allTracks.length >= limit) break
+          
+          try {
+            const tracks = await this.searchTracks(query, 5)
+            if (tracks.length > 0) {
+              allTracks.push(...tracks)
+              console.log(`Found ${tracks.length} tracks for basic query: ${query}`)
+              break // Stop after first successful query
+            }
+          } catch (error) {
+            console.warn('Basic search query failed:', query, error)
+          }
+        }
       }
+      
+      // If still no tracks, use demo mode
+      if (allTracks.length === 0) {
+        console.warn('All Spotify API calls failed, using demo tracks')
+        return this.getDemoTracks().slice(0, limit)
+      }
+      
+      console.log(`Total tracks found in fallback: ${allTracks.length}`)
       
       // Shuffle and return requested amount
       const shuffled = allTracks.sort(() => Math.random() - 0.5)
       return shuffled.slice(0, limit)
     } catch (error) {
-      console.error('All fallback methods failed:', error)
-      return []
+      console.error('All fallback methods failed, using demo tracks:', error)
+      return this.getDemoTracks().slice(0, limit)
     }
+  }
+
+  // Demo tracks for when Spotify API fails completely
+  private getDemoTracks(): Track[] {
+    const demoTracks = [
+      { id: 'demo1', name: 'Bohemian Rhapsody', artist: 'Queen', year: 1975, date: '1975-10-31' },
+      { id: 'demo2', name: 'Billie Jean', artist: 'Michael Jackson', year: 1982, date: '1982-11-30' },
+      { id: 'demo3', name: 'Sweet Child O\' Mine', artist: 'Guns N\' Roses', year: 1987, date: '1987-07-21' },
+      { id: 'demo4', name: 'Smells Like Teen Spirit', artist: 'Nirvana', year: 1991, date: '1991-09-24' },
+      { id: 'demo5', name: 'Wonderwall', artist: 'Oasis', year: 1995, date: '1995-10-02' },
+      { id: 'demo6', name: 'Hotel California', artist: 'Eagles', year: 1976, date: '1976-12-08' },
+      { id: 'demo7', name: 'Imagine', artist: 'John Lennon', year: 1971, date: '1971-09-09' },
+      { id: 'demo8', name: 'Like a Rolling Stone', artist: 'Bob Dylan', year: 1965, date: '1965-08-30' }
+    ]
+
+    return demoTracks.map(track => ({
+      id: track.id,
+      name: track.name,
+      artists: [{ 
+        id: track.id + '-artist', 
+        name: track.artist,
+        external_urls: { spotify: '' }
+      }],
+      album: {
+        id: track.id + '-album',
+        name: track.name, // Use track name as album name for simplicity
+        release_date: track.date,
+        release_date_precision: 'day',
+        images: []
+      },
+      preview_url: null,
+      external_urls: { spotify: '' },
+      release_date: track.date,
+      year: track.year,
+      images: []
+    }))
   }
 
   // Get tracks from featured playlists as another fallback
@@ -397,7 +450,8 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
   async searchTracks(query: string, limit: number = 20): Promise<Track[]> {
     try {
       const encodedQuery = encodeURIComponent(query)
-      const endpoint = `/search?q=${encodedQuery}&type=track&limit=${Math.min(limit, 50)}&market=US`
+      // Remove market parameter as it might be causing issues
+      const endpoint = `/search?q=${encodedQuery}&type=track&limit=${Math.min(limit, 50)}`
       
       console.log('Search endpoint:', endpoint)
       const data: SpotifySearchResponse = await this.apiRequest(endpoint)
@@ -407,13 +461,25 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
         return []
       }
       
-      return data.tracks.items
-        .filter(track => track.preview_url && track.album && track.album.release_date)
+      const validTracks = data.tracks.items
+        .filter(track => {
+          // More lenient filtering
+          return track && 
+                 track.preview_url && 
+                 track.album && 
+                 track.album.release_date &&
+                 track.name &&
+                 track.artists &&
+                 track.artists.length > 0
+        })
         .map(track => ({
           ...track,
-          year: new Date(track.album.release_date).getFullYear(),
-          images: track.album.images || track.images || []
+          year: track.album.release_date ? new Date(track.album.release_date).getFullYear() : new Date().getFullYear(),
+          images: track.album?.images || track.images || []
         }))
+
+      console.log(`Search for "${query}" returned ${validTracks.length} valid tracks`)
+      return validTracks
     } catch (error) {
       console.error('Error searching tracks:', error)
       return []
