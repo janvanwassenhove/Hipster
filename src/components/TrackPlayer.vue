@@ -35,9 +35,14 @@
 
         <!-- Audio Player -->
         <div class="mb-4">
+          <div v-if="!track.preview_url" class="bg-gray-100 border border-gray-300 rounded-lg p-4 text-center">
+            <p class="text-gray-600">🎵 {{ $t('game.demoMode') }}</p>
+            <p class="text-sm text-gray-500">{{ $t('game.noPreview') }}</p>
+          </div>
           <audio
+            v-else
             ref="audioPlayer"
-            :src="track.preview_url || undefined"
+            :src="track.preview_url"
             controls
             class="w-full"
             @ended="onAudioEnded"
@@ -140,7 +145,11 @@ const isPlaying = ref(false)
 
 // Computed
 const trackImage = computed(() => {
-  return props.track.images?.[0]?.url || props.track.album.images?.[0]?.url || '/placeholder-album.png'
+  // First try track images, then album images, then placeholder
+  const trackImg = props.track.images?.[0]?.url
+  const albumImg = props.track.album.images?.[0]?.url
+  
+  return trackImg || albumImg || 'https://via.placeholder.com/300x300/6B7280/FFFFFF?text=No+Image'
 })
 
 const artistNames = computed(() => {

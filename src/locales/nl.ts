@@ -51,6 +51,8 @@ export default {
     getTrack: 'Volgende Nummer',
     points: 'punten',
     audioNotSupported: 'Audio niet ondersteund',
+    demoMode: 'Demo Modus',
+    noPreview: 'Geen audio voorvertoning beschikbaar voor dit nummer',
     play: 'Afspelen',
     pause: 'Pauzeren',
     restart: 'Opnieuw',

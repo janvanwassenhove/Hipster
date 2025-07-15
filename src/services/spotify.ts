@@ -1,10 +1,17 @@
 import CryptoJS from 'crypto-js'
 import type { Track, SpotifyAuthState, SpotifyRecommendationsResponse, SpotifySearchResponse, Theme } from '@/types'
+import songsData from '@/data/songs_by_category.json'
 
 // Spotify API configuration
 const SPOTIFY_CLIENT_ID = '67125c0389b247c1b3b221ff4a5fb2ef' // Replace with your Spotify Client ID
 const SPOTIFY_REDIRECT_URI = `${window.location.origin}/Hipster/`
 const SPOTIFY_SCOPES = 'user-read-private user-read-email user-top-read user-library-read'
+
+interface SongData {
+  jaar: number
+  uitvoerder: string
+  titel: string
+}
 
 class SpotifyService {
   private authState: SpotifyAuthState = {
@@ -214,71 +221,151 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
     return response.json()
   }
 
+  // Convert SongData to Track format
+  private convertSongToTrack(song: SongData): Track {
+    const artistColors = [
+      '#8B5CF6', '#EF4444', '#F59E0B', '#10B981', '#3B82F6', 
+      '#F97316', '#EC4899', '#6366F1', '#84CC16', '#06B6D4'
+    ]
+    const colorIndex = song.uitvoerder.length % artistColors.length
+    const color = artistColors[colorIndex]
+
+    return {
+      id: `song-${song.jaar}-${song.uitvoerder.replace(/\s+/g, '-')}-${song.titel.replace(/\s+/g, '-')}`,
+      name: song.titel,
+      artists: [{
+        id: `artist-${song.uitvoerder.replace(/\s+/g, '-')}`,
+        name: song.uitvoerder,
+        external_urls: { spotify: '' }
+      }],
+      album: {
+        id: `album-${song.jaar}-${song.titel.replace(/\s+/g, '-')}`,
+        name: song.titel,
+        release_date: `${song.jaar}-01-01`,
+        release_date_precision: 'year',
+        images: [
+          { url: `https://via.placeholder.com/300x300/${color.slice(1)}/FFFFFF?text=${encodeURIComponent(song.uitvoerder)}`, height: 300, width: 300 },
+          { url: `https://via.placeholder.com/64x64/${color.slice(1)}/FFFFFF?text=${encodeURIComponent(song.uitvoerder)}`, height: 64, width: 64 }
+        ]
+      },
+      preview_url: null, // Will be filled if we can get real Spotify data
+      external_urls: { spotify: '' },
+      release_date: `${song.jaar}-01-01`,
+      year: song.jaar,
+      images: [
+        { url: `https://via.placeholder.com/300x300/${color.slice(1)}/FFFFFF?text=${encodeURIComponent(song.uitvoerder)}`, height: 300, width: 300 },
+        { url: `https://via.placeholder.com/64x64/${color.slice(1)}/FFFFFF?text=${encodeURIComponent(song.uitvoerder)}`, height: 64, width: 64 }
+      ]
+    }
+  }
+
+  // Get tracks from JSON data based on theme
+  private getTracksFromJson(theme?: Theme, limit: number = 50): Track[] {
+    console.log('Getting tracks from JSON for theme:', theme)
+    
+    let categoryData: SongData[] = []
+    
+    // Map themes to JSON categories
+    const themeMapping: Record<Theme, keyof typeof songsData> = {
+      '90s': 'classics', // Use classics for 90s as closest match
+      'guilty-pleasures': 'guilty-pleasures',
+      'schlager': 'vlaams', // Use vlaams for schlager
+      'tiktok': 'popular', // Use popular for tiktok
+      'rock': 'pop-rock',
+      'pop': 'popular',
+      'hip-hop': 'popular', // Use popular for hip-hop
+      'electronic': 'popular', // Use popular for electronic
+      'indie': 'pop-rock', // Use pop-rock for indie
+      'country': 'classics' // Use classics for country
+    }
+    
+    if (theme && themeMapping[theme]) {
+      const category = themeMapping[theme]
+      categoryData = songsData[category] || []
+      console.log(`Found ${categoryData.length} songs in category: ${category}`)
+    } else {
+      // Mix from all categories
+      const allCategories = Object.values(songsData).flat()
+      categoryData = allCategories
+      console.log(`Using all categories, found ${categoryData.length} total songs`)
+    }
+    
+    if (categoryData.length === 0) {
+      console.warn('No songs found for theme, falling back to popular')
+      categoryData = songsData.popular || []
+    }
+    
+    // Shuffle and limit
+    const shuffled = [...categoryData].sort(() => Math.random() - 0.5)
+    const selected = shuffled.slice(0, limit)
+    
+    console.log(`Selected ${selected.length} songs for theme: ${theme}`)
+    
+    return selected.map(song => this.convertSongToTrack(song))
+  }
+
+  // Enhanced search function to try to get real Spotify data
+  private async tryGetSpotifyPreview(track: Track): Promise<Track> {
+    if (!this.isAuthenticated()) {
+      return track
+    }
+
+    try {
+      // Search for the track on Spotify to get preview URL
+      const query = `track:"${track.name}" artist:"${track.artists[0].name}"`
+      const encodedQuery = encodeURIComponent(query)
+      const searchResponse = await this.apiRequest(`/search?q=${encodedQuery}&type=track&limit=1`)
+      
+      if (searchResponse.tracks?.items?.length > 0) {
+        const spotifyTrack = searchResponse.tracks.items[0]
+        if (spotifyTrack.preview_url) {
+          console.log(`Found Spotify preview for: ${track.name} by ${track.artists[0].name}`)
+          return {
+            ...track,
+            preview_url: spotifyTrack.preview_url,
+            external_urls: spotifyTrack.external_urls,
+            images: spotifyTrack.album?.images || track.images
+          }
+        }
+      }
+    } catch (error) {
+      console.warn(`Could not get Spotify data for: ${track.name}`, error)
+    }
+    
+    return track
+  }
+
   // Get recommendations based on theme
   async getRecommendations(theme?: Theme, limit: number = 50): Promise<Track[]> {
-    try {
-      console.log('Attempting to get recommendations for theme:', theme)
+    console.log('Getting recommendations for theme:', theme, 'limit:', limit)
+    
+    // Always use JSON data as primary source
+    const jsonTracks = this.getTracksFromJson(theme, limit)
+    
+    // If user is authenticated, try to enhance some tracks with real Spotify previews
+    if (this.isAuthenticated()) {
+      console.log('User authenticated, trying to enhance some tracks with Spotify previews')
       
-      // Try simple recommendations first
-      let endpoint = '/recommendations?limit=' + Math.min(limit, 50)
+      // Enhance first 10 tracks with Spotify data (to avoid too many API calls)
+      const enhancedTracks = await Promise.allSettled(
+        jsonTracks.slice(0, 10).map(track => this.tryGetSpotifyPreview(track))
+      )
       
-      if (theme) {
-        // Use only the most basic genres that are almost always available
-        const basicGenreMap: Record<Theme, string[]> = {
-          '90s': ['pop'],
-          'guilty-pleasures': ['pop'],
-          'schlager': ['pop'], 
-          'tiktok': ['pop'],
-          'rock': ['rock'],
-          'pop': ['pop'],
-          'hip-hop': ['hip-hop'],
-          'electronic': ['electronic'],
-          'indie': ['indie'],
-          'country': ['country']
+      const enhancedResults = enhancedTracks.map((result, index) => {
+        if (result.status === 'fulfilled') {
+          return result.value
+        } else {
+          console.warn(`Failed to enhance track ${index}:`, result.reason)
+          return jsonTracks[index]
         }
-        
-        const genres = basicGenreMap[theme] || ['pop']
-        endpoint += '&seed_genres=' + genres[0] // Use only one genre to be safe
-      } else {
-        endpoint += '&seed_genres=pop'
-      }
-
-      console.log('Recommendations endpoint:', endpoint)
-      const data: SpotifyRecommendationsResponse = await this.apiRequest(endpoint)
+      })
       
-      if (!data.tracks || data.tracks.length === 0) {
-        console.warn('No tracks returned from recommendations, trying fallback')
-        return await this.getFallbackTracks(limit)
-      }
-      
-      // Filter tracks with preview URLs and add year information
-      const tracksWithPreviews = data.tracks
-        .filter(track => track && track.preview_url && track.album)
-        .map(track => ({
-          ...track,
-          year: track.album.release_date ? new Date(track.album.release_date).getFullYear() : new Date().getFullYear(),
-          images: track.album?.images || track.images || []
-        }))
-
-      console.log(`Recommendations returned ${tracksWithPreviews.length} tracks with previews`)
-
-      if (tracksWithPreviews.length === 0) {
-        console.warn('No tracks with previews found, trying fallback')
-        return await this.getFallbackTracks(limit)
-      }
-
-      return tracksWithPreviews
-    } catch (error) {
-      console.error('Error getting recommendations:', error)
-      
-      // Try fallback approach
-      try {
-        return await this.getFallbackTracks(limit)
-      } catch (fallbackError) {
-        console.error('Fallback also failed:', fallbackError)
-        return []
-      }
+      // Combine enhanced tracks with remaining unenhanced tracks
+      return [...enhancedResults, ...jsonTracks.slice(10)]
     }
+    
+    console.log(`Returning ${jsonTracks.length} tracks from JSON data`)
+    return jsonTracks
   }
 
   // Get available genres from Spotify
@@ -369,14 +456,79 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
   // Demo tracks for when Spotify API fails completely
   private getDemoTracks(): Track[] {
     const demoTracks = [
-      { id: 'demo1', name: 'Bohemian Rhapsody', artist: 'Queen', year: 1975, date: '1975-10-31' },
-      { id: 'demo2', name: 'Billie Jean', artist: 'Michael Jackson', year: 1982, date: '1982-11-30' },
-      { id: 'demo3', name: 'Sweet Child O\' Mine', artist: 'Guns N\' Roses', year: 1987, date: '1987-07-21' },
-      { id: 'demo4', name: 'Smells Like Teen Spirit', artist: 'Nirvana', year: 1991, date: '1991-09-24' },
-      { id: 'demo5', name: 'Wonderwall', artist: 'Oasis', year: 1995, date: '1995-10-02' },
-      { id: 'demo6', name: 'Hotel California', artist: 'Eagles', year: 1976, date: '1976-12-08' },
-      { id: 'demo7', name: 'Imagine', artist: 'John Lennon', year: 1971, date: '1971-09-09' },
-      { id: 'demo8', name: 'Like a Rolling Stone', artist: 'Bob Dylan', year: 1965, date: '1965-08-30' }
+      { 
+        id: 'demo1', 
+        name: 'Bohemian Rhapsody', 
+        artist: 'Queen', 
+        year: 1975, 
+        date: '1975-10-31',
+        // Use a placeholder audio file or sample
+        preview: 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav',
+        image: 'https://via.placeholder.com/300x300/8B5CF6/FFFFFF?text=Queen'
+      },
+      { 
+        id: 'demo2', 
+        name: 'Billie Jean', 
+        artist: 'Michael Jackson', 
+        year: 1982, 
+        date: '1982-11-30',
+        preview: 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav',
+        image: 'https://via.placeholder.com/300x300/EF4444/FFFFFF?text=MJ'
+      },
+      { 
+        id: 'demo3', 
+        name: 'Sweet Child O\' Mine', 
+        artist: 'Guns N\' Roses', 
+        year: 1987, 
+        date: '1987-07-21',
+        preview: 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav',
+        image: 'https://via.placeholder.com/300x300/F59E0B/FFFFFF?text=GNR'
+      },
+      { 
+        id: 'demo4', 
+        name: 'Smells Like Teen Spirit', 
+        artist: 'Nirvana', 
+        year: 1991, 
+        date: '1991-09-24',
+        preview: 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav',
+        image: 'https://via.placeholder.com/300x300/10B981/FFFFFF?text=Nirvana'
+      },
+      { 
+        id: 'demo5', 
+        name: 'Wonderwall', 
+        artist: 'Oasis', 
+        year: 1995, 
+        date: '1995-10-02',
+        preview: 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav',
+        image: 'https://via.placeholder.com/300x300/3B82F6/FFFFFF?text=Oasis'
+      },
+      { 
+        id: 'demo6', 
+        name: 'Hotel California', 
+        artist: 'Eagles', 
+        year: 1976, 
+        date: '1976-12-08',
+        preview: 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav',
+        image: 'https://via.placeholder.com/300x300/F97316/FFFFFF?text=Eagles'
+      },
+      { 
+        id: 'demo7', 
+        name: 'Imagine', 
+        artist: 'John Lennon', 
+        year: 1971, 
+        date: '1971-09-09',
+        preview: 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav',
+        image: 'https://via.placeholder.com/300x300/EC4899/FFFFFF?text=Lennon'
+      },
+      { 
+        id: 'demo8', 
+        name: 'Like a Rolling Stone', 
+        artist: 'Bob Dylan', 
+        year: 1965, 
+        date: '1965-08-30',
+        preview: 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav',
+        image: 'https://via.placeholder.com/300x300/6366F1/FFFFFF?text=Dylan'
+      }
     ]
 
     return demoTracks.map(track => ({
@@ -392,13 +544,19 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
         name: track.name, // Use track name as album name for simplicity
         release_date: track.date,
         release_date_precision: 'day',
-        images: []
+        images: [
+          { url: track.image, height: 300, width: 300 },
+          { url: track.image, height: 64, width: 64 }
+        ]
       },
-      preview_url: null,
+      preview_url: track.preview, // Use placeholder audio
       external_urls: { spotify: '' },
       release_date: track.date,
       year: track.year,
-      images: []
+      images: [
+        { url: track.image, height: 300, width: 300 },
+        { url: track.image, height: 64, width: 64 }
+      ]
     }))
   }
 
@@ -448,42 +606,44 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
 
   // Search for tracks
   async searchTracks(query: string, limit: number = 20): Promise<Track[]> {
-    try {
-      const encodedQuery = encodeURIComponent(query)
-      // Remove market parameter as it might be causing issues
-      const endpoint = `/search?q=${encodedQuery}&type=track&limit=${Math.min(limit, 50)}`
-      
-      console.log('Search endpoint:', endpoint)
-      const data: SpotifySearchResponse = await this.apiRequest(endpoint)
-      
-      if (!data.tracks || !data.tracks.items) {
-        console.warn('No tracks found in search response')
-        return []
+    console.log('Searching tracks with query:', query)
+    
+    // Search in JSON data first
+    const allSongs = Object.values(songsData).flat()
+    const matchingSongs = allSongs.filter(song => 
+      song.titel.toLowerCase().includes(query.toLowerCase()) ||
+      song.uitvoerder.toLowerCase().includes(query.toLowerCase())
+    ).slice(0, limit)
+    
+    const jsonResults = matchingSongs.map(song => this.convertSongToTrack(song))
+    
+    console.log(`Found ${jsonResults.length} matching tracks in JSON data`)
+    
+    // If authenticated and want more results, try Spotify API
+    if (this.isAuthenticated() && jsonResults.length < limit) {
+      try {
+        const remainingLimit = limit - jsonResults.length
+        const encodedQuery = encodeURIComponent(query)
+        const searchResponse = await this.apiRequest(`/search?q=${encodedQuery}&type=track&limit=${remainingLimit}`)
+        
+        if (searchResponse.tracks?.items) {
+          const spotifyTracks = searchResponse.tracks.items
+            .filter((track: any) => track && track.name && track.artists)
+            .map((track: any) => ({
+              ...track,
+              year: track.album?.release_date ? new Date(track.album.release_date).getFullYear() : new Date().getFullYear(),
+              images: track.album?.images || []
+            }))
+          
+          console.log(`Found ${spotifyTracks.length} additional tracks from Spotify API`)
+          return [...jsonResults, ...spotifyTracks]
+        }
+      } catch (error) {
+        console.warn('Spotify search failed, using only JSON results:', error)
       }
-      
-      const validTracks = data.tracks.items
-        .filter(track => {
-          // More lenient filtering
-          return track && 
-                 track.preview_url && 
-                 track.album && 
-                 track.album.release_date &&
-                 track.name &&
-                 track.artists &&
-                 track.artists.length > 0
-        })
-        .map(track => ({
-          ...track,
-          year: track.album.release_date ? new Date(track.album.release_date).getFullYear() : new Date().getFullYear(),
-          images: track.album?.images || track.images || []
-        }))
-
-      console.log(`Search for "${query}" returned ${validTracks.length} valid tracks`)
-      return validTracks
-    } catch (error) {
-      console.error('Error searching tracks:', error)
-      return []
     }
+    
+    return jsonResults
   }
 
   // Get user profile

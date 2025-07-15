@@ -51,6 +51,8 @@ export default {
     getTrack: 'Get Next Track',
     points: 'points',
     audioNotSupported: 'Audio not supported',
+    demoMode: 'Demo Mode',
+    noPreview: 'No audio preview available for this track',
     play: 'Play',
     pause: 'Pause',
     restart: 'Restart',
