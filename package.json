@@ -1,11 +1,15 @@
 {
-  "name": "bolt-expo-starter",
+  "name": "hipster-web",
   "main": "expo-router/entry",
   "version": "1.0.0",
   "private": true,
+  "homepage": "https://janvanwassenhove.github.io/hipster",
   "scripts": {
-    "dev": "EXPO_NO_TELEMETRY=1 expo start",
+    "dev": "expo start --web --https",
+    "dev:http": "expo start --web",
+    "build": "expo export --platform web",
     "build:web": "expo export --platform web",
+    "deploy": "npm run build && gh-pages -d dist",
     "lint": "expo lint"
   },
   "dependencies": {
@@ -47,6 +51,7 @@
   "devDependencies": {
     "@babel/core": "^7.25.2",
     "@types/react": "~19.0.10",
+    "gh-pages": "^6.3.0",
     "typescript": "~5.8.3"
   }
 }

@@ -1,4 +1,4 @@
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Alert } from 'react-native';
 import { useState, useEffect } from 'react';
 import { GameState, Player } from '@/types/game';
 import { spotifyService } from '@/services/spotify';
@@ -23,11 +23,28 @@ export default function GameTab() {
 
   useEffect(() => {
     checkSpotifyLogin();
+    checkForAuthError();
   }, []);
 
   const checkSpotifyLogin = async () => {
     const token = await spotifyService.getStoredToken();
     setIsLoggedIn(!!token);
+  };
+
+  const checkForAuthError = () => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const error = urlParams.get('error');
+      
+      if (error === 'auth_failed') {
+        Alert.alert('Authentication Failed', 'Spotify login was cancelled or failed. Please try again.');
+        // Clear the error from URL
+        window.history.replaceState(null, '', window.location.pathname);
+      } else if (error === 'no_token') {
+        Alert.alert('Authentication Error', 'No access token received from Spotify. Please try again.');
+        window.history.replaceState(null, '', window.location.pathname);
+      }
+    }
   };
 
   const handleLoginSuccess = () => {
