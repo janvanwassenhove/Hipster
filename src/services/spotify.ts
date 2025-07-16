@@ -218,7 +218,9 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
       throw new Error(`Spotify API error: ${response.status} - ${errorText}`)
     }
 
-    return response.json()
+    const data = await response.json()
+    console.log('Spotify API response successful, data keys:', Object.keys(data))
+    return data
   }
 
   // Convert SongData to Track format
@@ -307,7 +309,10 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
 
   // Enhanced search function to try to get real Spotify data
   private async tryGetSpotifyPreview(track: Track): Promise<Track> {
+    console.log(`Trying to get Spotify preview for: ${track.name} by ${track.artists[0].name}`)
+    
     if (!this.isAuthenticated()) {
+      console.log('Not authenticated, returning original track')
       return track
     }
 
@@ -315,19 +320,29 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
       // Search for the track on Spotify to get preview URL
       const query = `track:"${track.name}" artist:"${track.artists[0].name}"`
       const encodedQuery = encodeURIComponent(query)
+      console.log(`Spotify search query: ${query}`)
+      
       const searchResponse = await this.apiRequest(`/search?q=${encodedQuery}&type=track&limit=1`)
+      console.log(`Search response for "${track.name}":`, searchResponse?.tracks?.items?.length || 0, 'results')
       
       if (searchResponse.tracks?.items?.length > 0) {
         const spotifyTrack = searchResponse.tracks.items[0]
+        console.log(`Found track "${spotifyTrack.name}" by ${spotifyTrack.artists[0]?.name}`)
+        console.log(`Preview URL available:`, !!spotifyTrack.preview_url)
+        
         if (spotifyTrack.preview_url) {
-          console.log(`Found Spotify preview for: ${track.name} by ${track.artists[0].name}`)
+          console.log(`✅ Found Spotify preview for: ${track.name} by ${track.artists[0].name}`)
           return {
             ...track,
             preview_url: spotifyTrack.preview_url,
             external_urls: spotifyTrack.external_urls,
             images: spotifyTrack.album?.images || track.images
           }
+        } else {
+          console.log(`❌ No preview URL for: ${track.name} by ${track.artists[0].name}`)
         }
+      } else {
+        console.log(`❌ No search results for: ${track.name} by ${track.artists[0].name}`)
       }
     } catch (error) {
       console.warn(`Could not get Spotify data for: ${track.name}`, error)
@@ -339,13 +354,39 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
   // Get recommendations based on theme
   async getRecommendations(theme?: Theme, limit: number = 50): Promise<Track[]> {
     console.log('Getting recommendations for theme:', theme, 'limit:', limit)
+    console.log('Authentication state:', this.isAuthenticated())
+    console.log('Access token exists:', !!this.authState.accessToken)
     
-    // Always use JSON data as primary source
-    const jsonTracks = this.getTracksFromJson(theme, limit)
-    
-    // If user is authenticated, try to enhance some tracks with real Spotify previews
+    // If user is authenticated, try to get tracks directly from Spotify first
     if (this.isAuthenticated()) {
-      console.log('User authenticated, trying to enhance some tracks with Spotify previews')
+      console.log('User authenticated, trying to get tracks directly from Spotify')
+      
+      try {
+        const spotifyTracks = await this.getTracksFromSpotify(Math.min(limit, 30))
+        
+        if (spotifyTracks.length > 0) {
+          console.log(`✅ Got ${spotifyTracks.length} tracks with preview URLs from Spotify`)
+          
+          // If we have enough Spotify tracks, return them
+          if (spotifyTracks.length >= limit * 0.5) { // At least 50% of requested
+            return spotifyTracks.slice(0, limit)
+          }
+          
+          // Otherwise, supplement with JSON tracks
+          const jsonTracks = this.getTracksFromJson(theme, limit - spotifyTracks.length)
+          console.log(`Supplementing with ${jsonTracks.length} tracks from JSON`)
+          return [...spotifyTracks, ...jsonTracks]
+        }
+      } catch (error) {
+        console.warn('Failed to get tracks from Spotify, falling back to JSON + enhancement', error)
+      }
+      
+      // Fallback: Try to enhance JSON tracks with Spotify data
+      console.log('Falling back to JSON tracks with Spotify enhancement')
+      const jsonTracks = this.getTracksFromJson(theme, limit)
+      console.log(`Got ${jsonTracks.length} tracks from JSON`)
+      
+      console.log(`First track to enhance: ${jsonTracks[0]?.name} by ${jsonTracks[0]?.artists[0]?.name}`)
       
       // Enhance first 10 tracks with Spotify data (to avoid too many API calls)
       const enhancedTracks = await Promise.allSettled(
@@ -365,6 +406,8 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
       return [...enhancedResults, ...jsonTracks.slice(10)]
     }
     
+    // Always use JSON data as primary source
+    const jsonTracks = this.getTracksFromJson(theme, limit)
     console.log(`Returning ${jsonTracks.length} tracks from JSON data`)
     return jsonTracks
   }
@@ -586,6 +629,86 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
         console.error('Error loading auth state:', error)
         this.logout()
       }
+    }
+  }
+
+  // Get tracks directly from Spotify when authenticated (better for audio previews)
+  private async getTracksFromSpotify(limit: number = 20): Promise<Track[]> {
+    if (!this.isAuthenticated()) {
+      return []
+    }
+
+    try {
+      console.log('Getting tracks directly from Spotify search')
+      
+      // Use popular search terms to get tracks with preview URLs
+      const searchTerms = [
+        'year:2000-2020 genre:pop',
+        'year:1990-2010 genre:rock', 
+        'year:1980-2000 genre:dance',
+        'year:2010-2024 genre:hip-hop',
+        'year:1970-1990 genre:pop'
+      ]
+      
+      const allTracks: Track[] = []
+      
+      for (const term of searchTerms) {
+        try {
+          const searchResponse = await this.apiRequest(`/search?q=${encodeURIComponent(term)}&type=track&limit=${Math.ceil(limit / searchTerms.length)}`)
+          
+          if (searchResponse.tracks?.items) {
+            const tracks = searchResponse.tracks.items
+              .filter((item: any) => item.preview_url && item.album) // Only tracks with preview URLs
+              .map((item: any) => this.convertSpotifyTrackToTrack(item))
+            
+            allTracks.push(...tracks)
+            console.log(`Got ${tracks.length} tracks from Spotify for term: ${term}`)
+          }
+        } catch (error) {
+          console.warn(`Failed to search for term: ${term}`, error)
+        }
+      }
+      
+      // Shuffle and limit results
+      const shuffled = allTracks.sort(() => Math.random() - 0.5)
+      const limited = shuffled.slice(0, limit)
+      
+      console.log(`Returning ${limited.length} tracks from Spotify with preview URLs`)
+      return limited
+      
+    } catch (error) {
+      console.error('Error getting tracks from Spotify:', error)
+      return []
+    }
+  }
+
+  // Convert Spotify API track to our Track format
+  private convertSpotifyTrackToTrack(spotifyTrack: any): Track {
+    const releaseYear = spotifyTrack.album.release_date 
+      ? parseInt(spotifyTrack.album.release_date.split('-')[0]) 
+      : new Date().getFullYear()
+
+    return {
+      id: spotifyTrack.id,
+      name: spotifyTrack.name,
+      artists: spotifyTrack.artists.map((artist: any) => ({
+        id: artist.id,
+        name: artist.name,
+        external_urls: artist.external_urls
+      })),
+      album: {
+        id: spotifyTrack.album.id,
+        name: spotifyTrack.album.name,
+        release_date: spotifyTrack.album.release_date,
+        release_date_precision: spotifyTrack.album.release_date_precision,
+        images: spotifyTrack.album.images || []
+      },
+      preview_url: spotifyTrack.preview_url,
+      external_urls: spotifyTrack.external_urls,
+      release_date: spotifyTrack.album.release_date,
+      year: releaseYear,
+      revealed: false,
+      images: spotifyTrack.album.images || []
     }
   }
 }
