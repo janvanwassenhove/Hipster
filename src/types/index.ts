@@ -19,6 +19,7 @@ export interface Track {
   }
   images: SpotifyImage[]
   revealed?: boolean // Whether album cover should be shown (after final placement)
+  uri?: string // Spotify URI for Web Playback SDK
 }
 
 export interface Artist {

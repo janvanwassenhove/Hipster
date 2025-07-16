@@ -5,12 +5,42 @@ import songsData from '@/data/songs_by_category.json'
 // Spotify API configuration
 const SPOTIFY_CLIENT_ID = '67125c0389b247c1b3b221ff4a5fb2ef' // Replace with your Spotify Client ID
 const SPOTIFY_REDIRECT_URI = `${window.location.origin}/Hipster/`
-const SPOTIFY_SCOPES = 'user-read-private user-read-email user-top-read user-library-read'
+const SPOTIFY_SCOPES = 'user-read-private user-read-email user-top-read user-library-read streaming user-read-playback-state user-modify-playback-state'
 
 interface SongData {
   jaar: number
   uitvoerder: string
   titel: string
+}
+
+interface SpotifyPlayer {
+  connect(): Promise<boolean>
+  disconnect(): void
+  addListener(event: string, callback: (...args: any[]) => void): void
+  removeListener(event: string, callback?: (...args: any[]) => void): void
+  getCurrentState(): Promise<any>
+  setName(name: string): Promise<void>
+  getVolume(): Promise<number>
+  setVolume(volume: number): Promise<void>
+  pause(): Promise<void>
+  resume(): Promise<void>
+  togglePlay(): Promise<void>
+  seek(position: number): Promise<void>
+  previousTrack(): Promise<void>
+  nextTrack(): Promise<void>
+}
+
+declare global {
+  interface Window {
+    onSpotifyWebPlaybackSDKReady: () => void
+    Spotify: {
+      Player: new (options: {
+        name: string
+        getOAuthToken: (callback: (token: string) => void) => void
+        volume?: number
+      }) => SpotifyPlayer
+    }
+  }
 }
 
 class SpotifyService {
@@ -20,9 +50,15 @@ class SpotifyService {
     expiresAt: null,
     isAuthenticated: false
   }
+  
+  private player: SpotifyPlayer | null = null
+  private deviceId: string | null = null
+  private isSDKReady = false
+  private currentTrackUri: string | null = null
 
   constructor() {
     this.loadAuthState()
+    this.initializeWebPlaybackSDK()
   }
 
   // Generate PKCE code verifier and challenge
@@ -330,13 +366,14 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
         console.log(`Found track "${spotifyTrack.name}" by ${spotifyTrack.artists[0]?.name}`)
         console.log(`Preview URL available:`, !!spotifyTrack.preview_url)
         
-        if (spotifyTrack.preview_url) {
-          console.log(`✅ Found Spotify preview for: ${track.name} by ${track.artists[0].name}`)
+        if (spotifyTrack.preview_url || spotifyTrack.uri) {
+          console.log(`✅ Found Spotify data for: ${track.name} by ${track.artists[0].name}`)
           return {
             ...track,
             preview_url: spotifyTrack.preview_url,
             external_urls: spotifyTrack.external_urls,
-            images: spotifyTrack.album?.images || track.images
+            images: spotifyTrack.album?.images || track.images,
+            uri: spotifyTrack.uri // Add Spotify URI
           }
         } else {
           console.log(`❌ No preview URL for: ${track.name} by ${track.artists[0].name}`)
@@ -658,7 +695,7 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
           
           if (searchResponse.tracks?.items) {
             const tracks = searchResponse.tracks.items
-              .filter((item: any) => item.preview_url && item.album) // Only tracks with preview URLs
+              .filter((item: any) => item.uri && item.album) // Only tracks with URIs (for full playback)
               .map((item: any) => this.convertSpotifyTrackToTrack(item))
             
             allTracks.push(...tracks)
@@ -703,13 +740,220 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
         release_date_precision: spotifyTrack.album.release_date_precision,
         images: spotifyTrack.album.images || []
       },
-      preview_url: spotifyTrack.preview_url,
+      preview_url: spotifyTrack.preview_url, // Keep for fallback
       external_urls: spotifyTrack.external_urls,
       release_date: spotifyTrack.album.release_date,
       year: releaseYear,
       revealed: false,
-      images: spotifyTrack.album.images || []
+      images: spotifyTrack.album.images || [],
+      uri: spotifyTrack.uri // Add Spotify URI for Web Playback
     }
+  }
+
+  // Initialize Spotify Web Playback SDK
+  private initializeWebPlaybackSDK() {
+    // Load the SDK script if not already loaded
+    if (!document.querySelector('script[src="https://sdk.scdn.co/spotify-player.js"]')) {
+      const script = document.createElement('script')
+      script.src = 'https://sdk.scdn.co/spotify-player.js'
+      script.async = true
+      document.body.appendChild(script)
+    }
+
+    // Set up the ready callback
+    window.onSpotifyWebPlaybackSDKReady = () => {
+      this.isSDKReady = true
+      console.log('Spotify Web Playback SDK ready')
+      
+      if (this.isAuthenticated()) {
+        this.initializePlayer()
+      }
+    }
+  }
+
+  // Initialize the Spotify player
+  private async initializePlayer() {
+    if (!this.isSDKReady || !this.isAuthenticated() || this.player) {
+      return
+    }
+
+    try {
+      this.player = new window.Spotify.Player({
+        name: 'Hitster Music Game',
+        getOAuthToken: (callback) => {
+          callback(this.authState.accessToken!)
+        },
+        volume: 0.7
+      })
+
+      // Error handling
+      this.player.addListener('initialization_error', ({ message }) => {
+        console.error('Spotify Player initialization error:', message)
+      })
+
+      this.player.addListener('authentication_error', ({ message }) => {
+        console.error('Spotify Player authentication error:', message)
+      })
+
+      this.player.addListener('account_error', ({ message }) => {
+        console.error('Spotify Player account error (Premium required):', message)
+      })
+
+      this.player.addListener('playback_error', ({ message }) => {
+        console.error('Spotify Player playback error:', message)
+      })
+
+      // Ready event
+      this.player.addListener('ready', ({ device_id }) => {
+        console.log('Spotify Player ready with Device ID:', device_id)
+        this.deviceId = device_id
+      })
+
+      // Not ready event
+      this.player.addListener('not_ready', ({ device_id }) => {
+        console.log('Spotify Player device has gone offline:', device_id)
+        this.deviceId = null
+      })
+
+      // Player state changed
+      this.player.addListener('player_state_changed', (state) => {
+        if (!state) return
+        
+        console.log('Player state changed:', {
+          paused: state.paused,
+          position: state.position,
+          duration: state.duration,
+          track: state.track_window.current_track?.name
+        })
+      })
+
+      // Connect to the player
+      const connected = await this.player.connect()
+      if (connected) {
+        console.log('✅ Successfully connected to Spotify Player')
+      } else {
+        console.error('❌ Failed to connect to Spotify Player')
+      }
+
+    } catch (error) {
+      console.error('Error initializing Spotify Player:', error)
+    }
+  }
+
+  // Public method to initialize player when component is ready
+  async initializePlayerIfReady(): Promise<void> {
+    if (this.isAuthenticated()) {
+      await this.initializePlayer()
+    }
+  }
+
+  // Play a track using Spotify Web API
+  async playTrack(trackUri: string): Promise<boolean> {
+    if (!this.isAuthenticated() || !this.deviceId) {
+      console.warn('Cannot play track: not authenticated or no device available')
+      return false
+    }
+
+    try {
+      console.log('Playing track:', trackUri, 'on device:', this.deviceId)
+      
+      const response = await fetch('https://api.spotify.com/v1/me/player/play', {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${this.authState.accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          device_id: this.deviceId,
+          uris: [trackUri]
+        })
+      })
+
+      if (response.ok || response.status === 204) {
+        this.currentTrackUri = trackUri
+        console.log('✅ Successfully started playing track')
+        return true
+      } else {
+        const errorText = await response.text()
+        console.error('❌ Failed to play track:', response.status, errorText)
+        
+        if (response.status === 403) {
+          console.error('Premium subscription required to play full tracks')
+        }
+        return false
+      }
+    } catch (error) {
+      console.error('Error playing track:', error)
+      return false
+    }
+  }
+
+  // Pause playback
+  async pausePlayback(): Promise<boolean> {
+    if (!this.player) return false
+
+    try {
+      await this.player.pause()
+      return true
+    } catch (error) {
+      console.error('Error pausing playback:', error)
+      return false
+    }
+  }
+
+  // Resume playback
+  async resumePlayback(): Promise<boolean> {
+    if (!this.player) return false
+
+    try {
+      await this.player.resume()
+      return true
+    } catch (error) {
+      console.error('Error resuming playback:', error)
+      return false
+    }
+  }
+
+  // Stop playback
+  async stopPlayback(): Promise<boolean> {
+    if (!this.isAuthenticated()) return false
+
+    try {
+      const response = await fetch('https://api.spotify.com/v1/me/player/pause', {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${this.authState.accessToken}`,
+        }
+      })
+
+      this.currentTrackUri = null
+      return response.ok || response.status === 204
+    } catch (error) {
+      console.error('Error stopping playback:', error)
+      return false
+    }
+  }
+
+  // Get current playback state
+  async getPlaybackState(): Promise<any> {
+    if (!this.player) return null
+
+    try {
+      return await this.player.getCurrentState()
+    } catch (error) {
+      console.error('Error getting playback state:', error)
+      return null
+    }
+  }
+
+  // Check if player is ready
+  isPlayerReady(): boolean {
+    return this.isSDKReady && !!this.player && !!this.deviceId
+  }
+
+  // Get the current playing track URI
+  getCurrentTrackUri(): string | null {
+    return this.currentTrackUri
   }
 }
 

@@ -252,6 +252,11 @@ function refreshSpotifyAuth() {
     currentValue: spotifyAuthState.value
   })
   spotifyAuthState.value = isAuth
+  
+  // Initialize player if authenticated
+  if (isAuth) {
+    spotifyService.initializePlayerIfReady()
+  }
 }
 
 // Lifecycle

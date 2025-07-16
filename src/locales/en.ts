@@ -52,8 +52,11 @@ export default {
     points: 'points',
     audioNotSupported: 'Audio not supported',
     demoMode: 'Demo Mode',
+    premiumRequired: 'Premium Required',
     noPreview: 'No audio preview available for this track',
+    needsPremium: 'Spotify Premium is required to play full tracks',
     needSpotifyForAudio: 'Connect to Spotify to hear music previews!',
+    premiumNeededForFullPlay: 'Upgrade to Spotify Premium to play full tracks!',
     demoModeInstructions: 'In demo mode, you can still play the game by guessing based on track information.',
     demoModeActive: 'Playing in demo mode - no audio previews available.',
     play: 'Play',
@@ -135,7 +138,7 @@ export default {
     language: 'Language',
     changeLanguage: 'Change Language',
     about: 'About',
-    aboutText: 'A music timeline guessing game inspired by the party game Hitster.',
-    madeWith: 'Made with Vue.js and Spotify API'
+    aboutText: 'A music timeline guessing game.',
+    madeWith: 'Made with lots of fun and love for music and games!'
   }
 }

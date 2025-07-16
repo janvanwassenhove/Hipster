@@ -41,25 +41,29 @@
 
         <!-- Custom Audio Player -->
         <div class="mb-4">
-          <div v-if="!track.preview_url" class="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
+          <div v-if="!canPlayFullTrack" class="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
             <div class="flex items-center justify-center mb-2">
               <svg class="w-8 h-8 text-blue-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path>
               </svg>
-              <h3 class="text-lg font-semibold text-blue-800">{{ $t('game.demoMode') }}</h3>
+              <h3 class="text-lg font-semibold text-blue-800">
+                {{ hasSpotifyUri ? $t('game.premiumRequired') : $t('game.demoMode') }}
+              </h3>
             </div>
-            <p class="text-blue-700 mb-2">{{ $t('game.noPreview') }}</p>
+            <p class="text-blue-700 mb-2">
+              {{ hasSpotifyUri ? $t('game.needsPremium') : $t('game.noPreview') }}
+            </p>
             <p class="text-sm text-blue-600">
-              <strong>{{ $t('game.needSpotifyForAudio') }}</strong>
+              <strong>{{ hasSpotifyUri ? $t('game.premiumNeededForFullPlay') : $t('game.needSpotifyForAudio') }}</strong>
             </p>
             <p class="text-xs text-blue-500 mt-1">{{ $t('game.demoModeInstructions') }}</p>
           </div>
           
-          <!-- Hidden Audio Element -->
+          <!-- Hidden Audio Element (for preview fallback) -->
           <audio
-            v-if="track.preview_url"
+            v-if="canPlayPreview && !canPlayFullTrack"
             ref="audioPlayer"
-            :src="track.preview_url"
+            :src="track.preview_url || undefined"
             @ended="onAudioEnded"
             @timeupdate="onTimeUpdate"
             @loadedmetadata="onLoadedMetadata"
@@ -71,13 +75,13 @@
           </audio>
 
           <!-- Custom Player Interface -->
-          <div v-if="track.preview_url" class="music-player-controls bg-gray-900 rounded-lg p-4">
+          <div v-if="canPlayAudio" class="music-player-controls bg-gray-900 rounded-lg p-4">
             <!-- Main Controls -->
             <div class="flex items-center justify-center space-x-6 mb-4">
               <button
                 @click="restartTrack"
                 class="control-btn"
-                :disabled="!track.preview_url"
+                :disabled="!canPlayAudio"
                 title="Restart"
               >
                 <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
@@ -88,7 +92,7 @@
               <button
                 @click="togglePlayback"
                 class="play-btn"
-                :disabled="!track.preview_url"
+                :disabled="!canPlayAudio"
               >
                 <div v-if="isLoading" class="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
                 <svg v-else-if="isPlaying" class="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
@@ -102,7 +106,7 @@
               <button
                 @click="toggleMute"
                 class="control-btn"
-                :disabled="!track.preview_url"
+                :disabled="!canPlayAudio"
                 title="Mute/Unmute"
               >
                 <svg v-if="isMuted || volume === 0" class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
@@ -204,6 +208,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { spotifyService } from '@/services/spotify'
 import type { Track } from '@/types'
 
 interface Props {
@@ -270,31 +275,102 @@ const progressPercent = computed(() => {
   return (currentTime.value / duration.value) * 100
 })
 
+const hasSpotifyUri = computed(() => {
+  return !!props.track.uri
+})
+
+const canPlayFullTrack = computed(() => {
+  return hasSpotifyUri.value && spotifyService.isPlayerReady()
+})
+
+const canPlayPreview = computed(() => {
+  return !!props.track.preview_url
+})
+
+const canPlayAudio = computed(() => {
+  return canPlayFullTrack.value || canPlayPreview.value
+})
+
 // Methods
-function togglePlayback() {
-  if (!audioPlayer.value) return
+async function togglePlayback() {
+  console.log('Toggle playback called, isPlaying:', isPlaying.value)
+  console.log('Can play full track:', canPlayFullTrack.value)
+  console.log('Can play preview:', canPlayPreview.value)
   
-  console.log('Toggle playback called, isPlaying:', isPlaying.value, 'canPlay:', canPlay.value)
-  
-  if (isPlaying.value) {
-    audioPlayer.value.pause()
-  } else {
-    audioPlayer.value.play().catch(error => {
-      console.error('Error playing audio:', error)
-    })
+  if (canPlayFullTrack.value) {
+    // Use Spotify Web Playback SDK for full tracks
+    if (isPlaying.value) {
+      await spotifyService.pausePlayback()
+      isPlaying.value = false
+    } else {
+      const success = await spotifyService.playTrack(props.track.uri!)
+      if (success) {
+        isPlaying.value = true
+        // Start monitoring playback state
+        monitorSpotifyPlayback()
+      }
+    }
+  } else if (canPlayPreview.value && audioPlayer.value) {
+    // Fallback to HTML5 audio for previews
+    if (isPlaying.value) {
+      audioPlayer.value.pause()
+    } else {
+      audioPlayer.value.play().catch(error => {
+        console.error('Error playing audio:', error)
+      })
+    }
   }
 }
 
-function restartTrack() {
-  if (!audioPlayer.value) return
-  
+async function restartTrack() {
   console.log('Restart track called')
-  audioPlayer.value.currentTime = 0
-  if (isPlaying.value) {
-    audioPlayer.value.play().catch(error => {
-      console.error('Error playing audio after restart:', error)
-    })
+  
+  if (canPlayFullTrack.value) {
+    // Restart full track
+    const success = await spotifyService.playTrack(props.track.uri!)
+    if (success) {
+      isPlaying.value = true
+      monitorSpotifyPlayback()
+    }
+  } else if (audioPlayer.value) {
+    // Restart preview
+    audioPlayer.value.currentTime = 0
+    if (isPlaying.value) {
+      audioPlayer.value.play().catch(error => {
+        console.error('Error playing audio after restart:', error)
+      })
+    }
   }
+}
+
+async function stopPlayback() {
+  if (canPlayFullTrack.value) {
+    await spotifyService.stopPlayback()
+  } else if (audioPlayer.value) {
+    audioPlayer.value.pause()
+    audioPlayer.value.currentTime = 0
+  }
+  isPlaying.value = false
+}
+
+// Monitor Spotify playback state
+function monitorSpotifyPlayback() {
+  const checkPlayback = async () => {
+    if (!canPlayFullTrack.value) return
+    
+    const state = await spotifyService.getPlaybackState()
+    if (state) {
+      isPlaying.value = !state.paused
+      currentTime.value = state.position / 1000 // Convert to seconds
+      duration.value = state.duration / 1000 // Convert to seconds
+      
+      if (isPlaying.value) {
+        setTimeout(checkPlayback, 1000) // Check again in 1 second
+      }
+    }
+  }
+  
+  checkPlayback()
 }
 
 function toggleMute() {
@@ -373,6 +449,13 @@ function onAudioEnded() {
 
 // Lifecycle
 onMounted(() => {
+  // Initialize Spotify player if authenticated
+  if (spotifyService.isAuthenticated()) {
+    nextTick(() => {
+      spotifyService.initializePlayerIfReady()
+    })
+  }
+  
   // Use nextTick to ensure the DOM is fully rendered
   nextTick(() => {
     if (audioPlayer.value) {
@@ -404,7 +487,10 @@ function setupAudioEventListeners() {
 }
 
 onUnmounted(() => {
-  if (audioPlayer.value) {
+  // Stop any playback when component unmounts
+  if (canPlayFullTrack.value) {
+    spotifyService.stopPlayback()
+  } else if (audioPlayer.value) {
     audioPlayer.value.pause()
   }
 })

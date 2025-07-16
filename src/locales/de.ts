@@ -69,6 +69,8 @@ export default {
   },
   settings: {
     language: 'Sprache',
-    changeLanguage: 'Sprache Ändern'
+    changeLanguage: 'Sprache Ändern',
+    aboutText: 'Ein Musik-Zeitstrahl-Ratespiel.',
+    madeWith: 'Mit viel Freude und Liebe zur Musik und zu Spielen gemacht!'
   }
 }

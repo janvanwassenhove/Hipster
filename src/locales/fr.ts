@@ -69,6 +69,8 @@ export default {
   },
   settings: {
     language: 'Langue',
-    changeLanguage: 'Changer de Langue'
+    changeLanguage: 'Changer de Langue',
+    aboutText: 'Un jeu de devinette de chronologie musicale.',
+    madeWith: 'Fait avec beaucoup de plaisir et d\'amour pour la musique et les jeux!'
   }
 }

@@ -127,7 +127,7 @@ export default {
     language: 'Taal',
     changeLanguage: 'Taal Wijzigen',
     about: 'Over',
-    aboutText: 'Een muziek tijdlijn raadspel geïnspireerd op het partyspel Hitster.',
-    madeWith: 'Gemaakt met Vue.js en Spotify API'
+    aboutText: 'Een muziek tijdlijn raadspel.',
+    madeWith: 'Gemaakt veel plezier en liefde voor muziek en spelletjes!'
   }
 }
