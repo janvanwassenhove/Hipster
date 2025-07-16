@@ -238,9 +238,9 @@ const gameStore = useGameStore()
 
 // Reactive state
 const isLoadingTrack = ref(false)
-const spotifyAuthState = ref(spotifyService.isAuthenticated())
 const showHintDialog = ref(false)
 const hintMessage = ref('')
+const authUpdateTrigger = ref(0) // Force reactivity for auth state
 
 // Computed
 const players = computed(() => gameStore.players)
@@ -250,7 +250,11 @@ const gamePhase = computed(() => gameStore.gamePhase)
 const round = computed(() => gameStore.round)
 const settings = computed(() => gameStore.settings)
 const winner = computed(() => gameStore.winner)
-const isSpotifyConnected = computed(() => spotifyAuthState.value)
+const isSpotifyConnected = computed(() => {
+  // Access the trigger to make this reactive
+  authUpdateTrigger.value
+  return spotifyService.isAuthenticated()
+})
 const needsReauth = computed(() => {
   // Show reauth warning if connected but player isn't ready after some time
   return isSpotifyConnected.value && !spotifyService.isPlayerReady()
@@ -336,9 +340,11 @@ function refreshSpotifyAuth() {
   console.log('Spotify auth check:', {
     isAuthenticated: isAuth,
     authStateInStorage: authState ? JSON.parse(authState) : null,
-    currentValue: spotifyAuthState.value
+    currentValue: isAuth
   })
-  spotifyAuthState.value = isAuth
+  
+  // Trigger reactivity update
+  authUpdateTrigger.value++
   
   // Initialize player if authenticated
   if (isAuth) {
