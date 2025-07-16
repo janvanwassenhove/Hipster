@@ -38,7 +38,9 @@ export default {
     premiumNeededForFullPlay: 'Passez à Spotify Premium pour jouer des pistes complètes!',
     demoModeInstructions: 'En mode démo, vous pouvez toujours jouer en devinant basé sur les informations de la piste.',
     demoModeActive: 'Jouer en mode démo - aucun aperçu audio disponible.',
-    mobileSpotifyRedirect: 'Sur les appareils mobiles, ouvrez cette piste dans Spotify pour la meilleure expérience audio.',
+    mobileListening: 'Écouter & Deviner',
+    mobileGameMode: 'Sur mobile, écoutez attentivement la musique d\'ambiance et devinez quand cette piste est sortie!',
+    listenCarefully: 'Utilisez vos connaissances musicales et votre intuition pour placer cette piste sur votre chronologie',
     playInSpotify: 'Jouer dans Spotify',
     openInSpotify: 'Ouvrir dans Spotify',
     spotify: {

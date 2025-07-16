@@ -46,29 +46,25 @@
 
         <!-- Custom Audio Player -->
         <div class="mb-6">
-          <div v-if="!canPlayAudio && isMobileDevice && hasSpotifyUri" class="bg-gradient-to-r from-green-900/50 to-emerald-900/50 border border-green-400/30 rounded-2xl p-6 text-center backdrop-blur-sm">
+          <div v-if="!canPlayAudio && isMobileDevice && hasSpotifyUri" class="bg-gradient-to-r from-blue-900/50 to-purple-900/50 border border-blue-400/30 rounded-2xl p-6 text-center backdrop-blur-sm">
             <div class="flex items-center justify-center mb-3">
-              <div class="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center mr-3 shadow-lg">
-                <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm-1 15l-5-5 1.414-1.414L11 14.172l7.586-7.586L20 8l-9 9z"/>
+              <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mr-3 shadow-lg">
+                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path>
                 </svg>
               </div>
-              <h3 class="text-xl font-bold bg-gradient-to-r from-green-300 to-emerald-300 bg-clip-text text-transparent">
-                {{ $t('game.openInSpotify') }}
+              <h3 class="text-xl font-bold bg-gradient-to-r from-blue-300 to-purple-300 bg-clip-text text-transparent">
+                {{ $t('game.mobileListening') }}
               </h3>
             </div>
-            <p class="text-green-200 mb-4 font-medium">
-              {{ $t('game.mobileSpotifyRedirect') }}
+            <p class="text-blue-200 mb-4 font-medium">
+              {{ $t('game.mobileGameMode') }}
             </p>
-            <button
-              @click="openInSpotify"
-              class="inline-flex items-center px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-bold rounded-full transition-all duration-300 shadow-lg hover:shadow-green-500/25 hover:scale-105"
-            >
-              <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 0C5.376 0 0 5.376 0 12s5.376 12 12 12 12-5.376 12-12S18.624 0 12 0zm5.568 17.504c-.24.384-.768.504-1.152.264-3.168-1.944-7.152-2.376-11.856-1.296-.456.12-.912-.192-1.032-.648-.12-.456.192-.912.648-1.032 5.136-1.176 9.6-.624 13.056 1.512.384.24.504.768.264 1.152zm1.632-3.624c-.288.456-.912.6-1.368.312-3.624-2.232-9.168-2.88-13.464-1.584-.552.168-1.128-.192-1.296-.744-.168-.552.192-1.128.744-1.296 4.896-1.488 11.04-.768 15.168 1.8.456.288.6.912.312 1.368zm.144-3.792c-4.344-2.592-11.52-2.832-15.672-1.56-.672.204-1.368-.168-1.572-.84-.204-.672.168-1.368.84-1.572 4.776-1.464 12.624-1.176 17.736 1.8.528.312.696 1.008.384 1.536-.312.528-1.008.696-1.536.384z"/>
-              </svg>
-              {{ $t('game.playInSpotify') }}
-            </button>
+            <div class="bg-blue-800/30 rounded-xl p-4 border border-blue-500/30">
+              <p class="text-blue-100 text-sm font-medium">
+                {{ $t('game.listenCarefully') }}
+              </p>
+            </div>
           </div>
           
           <div v-else-if="!canPlayFullTrack" class="bg-gradient-to-r from-blue-900/50 to-purple-900/50 border border-blue-400/30 rounded-2xl p-6 text-center backdrop-blur-sm">
@@ -429,16 +425,10 @@ async function togglePlayback() {
         }
       }
     }
-  } else if (isMobile && hasSpotifyUri.value) {
-    // On mobile, fallback to opening Spotify app/web player
-    openInSpotify()
+  } else {
+    // On mobile without audio capabilities, show visual-only mode message
+    console.log('Mobile device without audio playback - visual mode only')
   }
-}
-
-function openInSpotify() {
-  console.log('Opening track in Spotify')
-  const spotifyUrl = props.track.external_urls?.spotify || `https://open.spotify.com/track/${props.track.id}`
-  window.open(spotifyUrl, '_blank')
 }
 
 async function restartTrack() {
