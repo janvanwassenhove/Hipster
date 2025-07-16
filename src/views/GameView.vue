@@ -66,7 +66,7 @@
         </div>
 
         <!-- Spotify Status Warning (when not connected) -->
-        <div v-if="!isSpotifyConnected" class="card bg-yellow-50 border-yellow-200">
+        <div v-if="showDemoWarning" class="card bg-yellow-50 border-yellow-200">
           <div class="flex items-center space-x-3">
             <div class="flex-shrink-0">
               <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -97,7 +97,7 @@
         </div>
 
         <!-- Spotify Permissions Warning (when connected but can't play) -->
-        <div v-else-if="isSpotifyConnected && needsReauth" class="card bg-orange-50 border-orange-200">
+        <div v-else-if="isSpotifyConnected === true && needsReauth" class="card bg-orange-50 border-orange-200">
           <div class="flex items-center space-x-3">
             <div class="flex-shrink-0">
               <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -260,6 +260,10 @@ const winner = computed(() => gameStore.winner)
 const needsReauth = computed(() => {
   // Show reauth warning if connected but player isn't ready after some time
   return isSpotifyConnected.value && !spotifyService.isPlayerReady()
+})
+const showDemoWarning = computed(() => {
+  console.log('🔧 COMPUTED: showDemoWarning - isSpotifyConnected.value:', isSpotifyConnected.value)
+  return isSpotifyConnected.value === false
 })
 const sortedPlayers = computed(() => 
   [...players.value].sort((a, b) => {
