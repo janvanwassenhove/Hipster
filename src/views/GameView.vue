@@ -45,11 +45,11 @@
       <div v-else-if="gamePhase === 'playing'" class="space-y-6">
         
         <!-- Current Player Turn -->
-        <div class="card text-center bg-green-50 border-green-200">
-          <h2 class="text-2xl font-bold text-green-800 mb-2">
+        <div class="card text-center bg-gradient-to-br from-purple-900/80 to-blue-900/80 border-purple-500/30">
+          <h2 class="text-2xl font-bold text-white mb-2">
             {{ $t('game.turn.currentPlayer', { player: currentPlayer?.name }) }}
           </h2>
-          <p class="text-green-700">{{ $t('game.turn.ready') }}</p>
+          <p class="text-purple-200">{{ $t('game.turn.ready') }}</p>
           
           <div v-if="!currentTrack && !isLoadingTrack" class="mt-4">
             <button @click="loadNextTrack" class="btn btn-primary btn-lg">
@@ -59,7 +59,7 @@
           
           <div v-if="isLoadingTrack" class="mt-4">
             <div class="flex items-center justify-center space-x-2">
-              <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-green-500"></div>
+              <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-purple-400"></div>
               <span>{{ $t('common.loading') }}</span>
             </div>
           </div>
@@ -138,12 +138,12 @@
               v-for="player in players"
               :key="player.id"
               class="text-center p-3 rounded-lg"
-              :class="player.id === currentPlayer?.id ? 'bg-green-100' : 'bg-gray-50'"
+              :class="player.id === currentPlayer?.id ? 'bg-gradient-to-br from-purple-900/80 to-blue-900/80 border-purple-500/30 border' : 'bg-gray-800/50 border border-gray-600/30'"
             >
-              <p class="font-semibold">{{ player.name }}</p>
-              <p class="text-2xl font-bold text-green-600">{{ player.tokens }}</p>
-              <p class="text-sm text-gray-600">{{ $t('game.score.tokens', { count: player.tokens }) }}</p>
-              <p class="text-xs text-gray-500">{{ $t('game.score.total', { score: player.score }) }}</p>
+              <p class="font-semibold text-white">{{ player.name }}</p>
+              <p class="text-2xl font-bold text-white">{{ player.tokens }}</p>
+              <p class="text-sm text-gray-300">{{ $t('game.score.tokens', { count: player.tokens }) }}</p>
+              <p class="text-xs text-gray-400">{{ $t('game.score.total', { score: player.score }) }}</p>
             </div>
           </div>
         </div>
@@ -152,7 +152,7 @@
       <!-- Game Finished -->
       <div v-else-if="gamePhase === 'finished'" class="max-w-2xl mx-auto">
         <div class="card text-center">
-          <h2 class="text-3xl font-bold mb-4 text-green-600">{{ $t('game.end.title') }}</h2>
+          <h2 class="text-3xl font-bold mb-4 text-white">{{ $t('game.end.title') }}</h2>
           <p class="text-xl mb-6">{{ $t('game.end.winner', { player: winner?.name, score: winner?.timeline.length }) }}</p>
           
           <div class="mb-6">
@@ -162,10 +162,10 @@
                 v-for="(player, index) in sortedPlayers"
                 :key="player.id"
                 class="flex justify-between items-center p-3 rounded-lg"
-                :class="index === 0 ? 'bg-yellow-100' : 'bg-gray-50'"
+                :class="index === 0 ? 'bg-gradient-to-r from-yellow-600/80 to-amber-600/80 border border-yellow-500/30' : 'bg-gray-800/50 border border-gray-600/30'"
               >
-                <span class="font-medium">{{ index + 1 }}. {{ player.name }}</span>
-                <span class="font-bold">{{ player.timeline.length }} {{ $t('game.songs') }} | {{ player.tokens }} {{ $t('game.score.tokens', { count: player.tokens }) }}</span>
+                <span class="font-medium text-white">{{ index + 1 }}. {{ player.name }}</span>
+                <span class="font-bold text-white">{{ player.timeline.length }} {{ $t('game.songs') }} | {{ player.tokens }} {{ $t('game.score.tokens', { count: player.tokens }) }}</span>
               </div>
             </div>
           </div>
