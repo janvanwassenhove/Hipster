@@ -11,6 +11,7 @@ interface SongData {
   jaar: number
   uitvoerder: string
   titel: string
+  uri?: string
 }
 
 interface SpotifyPlayer {
@@ -293,7 +294,8 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
       images: [
         { url: `https://via.placeholder.com/300x300/${color.slice(1)}/FFFFFF?text=${encodeURIComponent(song.uitvoerder)}`, height: 300, width: 300 },
         { url: `https://via.placeholder.com/64x64/${color.slice(1)}/FFFFFF?text=${encodeURIComponent(song.uitvoerder)}`, height: 64, width: 64 }
-      ]
+      ],
+      uri: song.uri // Include Spotify URI from JSON data
     }
   }
 
