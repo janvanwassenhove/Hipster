@@ -2,14 +2,22 @@
   <div class="min-h-screen flex flex-col">
     <!-- Game Header -->
     <header class="bg-white/10 backdrop-blur-sm p-4">
-      <div class="flex justify-between items-center">
+      <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-2 sm:space-y-0">
         <div class="flex items-center space-x-4">
           <button @click="$router.push('/')" class="btn btn-secondary">
             ← {{ $t('common.back') }}
           </button>
           <div class="text-white">
             <h1 class="text-xl font-bold">{{ $t('game.title') }}</h1>
-            <p class="text-sm opacity-80">{{ $t('game.round') }} {{ round }}</p>
+            <div class="flex flex-wrap items-center gap-2 sm:gap-4 text-sm opacity-80">
+              <span>{{ $t('game.round') }} {{ round }}</span>
+              <span v-if="settings.theme" class="px-2 py-1 bg-purple-500/30 rounded-full border border-purple-400/50 whitespace-nowrap">
+                🎵 {{ $t(`game.themes.${settings.theme}`) }}
+              </span>
+              <span v-else class="px-2 py-1 bg-gray-500/30 rounded-full border border-gray-400/50 whitespace-nowrap">
+                🎵 {{ $t('game.allMusic') }}
+              </span>
+            </div>
           </div>
         </div>
         
