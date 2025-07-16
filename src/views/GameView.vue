@@ -69,9 +69,14 @@
               <h3 class="text-lg font-semibold text-yellow-800">{{ $t('game.spotify.notConnected') }}</h3>
               <p class="text-yellow-700 text-sm">{{ $t('game.demoModeActive') }}</p>
             </div>
-            <button @click="goToLogin" class="btn btn-sm bg-yellow-600 hover:bg-yellow-700 text-white">
-              {{ $t('game.spotify.login') }}
-            </button>
+            <div class="flex space-x-2">
+              <button @click="goToLogin" class="btn btn-sm bg-yellow-600 hover:bg-yellow-700 text-white">
+                {{ $t('game.spotify.login') }}
+              </button>
+              <button @click="refreshSpotifyAuth" class="btn btn-sm bg-blue-600 hover:bg-blue-700 text-white">
+                🔄 Refresh
+              </button>
+            </div>
           </div>
         </div>
 
@@ -152,7 +157,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useGameStore } from '@/stores/game'
 import { spotifyService } from '@/services/spotify'
@@ -165,6 +170,7 @@ const gameStore = useGameStore()
 
 // Reactive state
 const isLoadingTrack = ref(false)
+const spotifyAuthState = ref(spotifyService.isAuthenticated())
 
 // Computed
 const players = computed(() => gameStore.players)
@@ -174,7 +180,7 @@ const gamePhase = computed(() => gameStore.gamePhase)
 const round = computed(() => gameStore.round)
 const settings = computed(() => gameStore.settings)
 const winner = computed(() => gameStore.winner)
-const isSpotifyConnected = computed(() => spotifyService.isAuthenticated())
+const isSpotifyConnected = computed(() => spotifyAuthState.value)
 const sortedPlayers = computed(() => 
   [...players.value].sort((a, b) => {
     // Sort by tokens first (official Hitster rule)
@@ -237,11 +243,35 @@ function goToLogin() {
   router.push('/')
 }
 
+function refreshSpotifyAuth() {
+  const isAuth = spotifyService.isAuthenticated()
+  const authState = localStorage.getItem('spotify_auth')
+  console.log('Spotify auth check:', {
+    isAuthenticated: isAuth,
+    authStateInStorage: authState ? JSON.parse(authState) : null,
+    currentValue: spotifyAuthState.value
+  })
+  spotifyAuthState.value = isAuth
+}
+
 // Lifecycle
 onMounted(() => {
   // If no game state, redirect to home
   if (gameStore.gamePhase === 'setup' && gameStore.players.length === 0) {
     router.push('/')
   }
+  
+  // Refresh Spotify auth state
+  refreshSpotifyAuth()
+  
+  // Check auth state periodically in case it changes
+  const authCheckInterval = setInterval(() => {
+    refreshSpotifyAuth()
+  }, 2000) // Check every 2 seconds
+  
+  // Clean up interval on unmount
+  onUnmounted(() => {
+    clearInterval(authCheckInterval)
+  })
 })
 </script>
