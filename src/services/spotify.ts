@@ -436,10 +436,10 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
         }
       }
       
-      // If still no tracks, use demo mode
+      // If still no tracks, return empty array
       if (allTracks.length === 0) {
-        console.warn('All Spotify API calls failed, using demo tracks')
-        return this.getDemoTracks().slice(0, limit)
+        console.warn('All Spotify API calls failed, no tracks available')
+        return []
       }
       
       console.log(`Total tracks found in fallback: ${allTracks.length}`)
@@ -448,116 +448,9 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
       const shuffled = allTracks.sort(() => Math.random() - 0.5)
       return shuffled.slice(0, limit)
     } catch (error) {
-      console.error('All fallback methods failed, using demo tracks:', error)
-      return this.getDemoTracks().slice(0, limit)
+      console.error('All fallback methods failed:', error)
+      return []
     }
-  }
-
-  // Demo tracks for when Spotify API fails completely
-  private getDemoTracks(): Track[] {
-    const demoTracks = [
-      { 
-        id: 'demo1', 
-        name: 'Bohemian Rhapsody', 
-        artist: 'Queen', 
-        year: 1975, 
-        date: '1975-10-31',
-        // Use a placeholder audio file or sample
-        preview: 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav',
-        image: 'https://via.placeholder.com/300x300/8B5CF6/FFFFFF?text=Queen'
-      },
-      { 
-        id: 'demo2', 
-        name: 'Billie Jean', 
-        artist: 'Michael Jackson', 
-        year: 1982, 
-        date: '1982-11-30',
-        preview: 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav',
-        image: 'https://via.placeholder.com/300x300/EF4444/FFFFFF?text=MJ'
-      },
-      { 
-        id: 'demo3', 
-        name: 'Sweet Child O\' Mine', 
-        artist: 'Guns N\' Roses', 
-        year: 1987, 
-        date: '1987-07-21',
-        preview: 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav',
-        image: 'https://via.placeholder.com/300x300/F59E0B/FFFFFF?text=GNR'
-      },
-      { 
-        id: 'demo4', 
-        name: 'Smells Like Teen Spirit', 
-        artist: 'Nirvana', 
-        year: 1991, 
-        date: '1991-09-24',
-        preview: 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav',
-        image: 'https://via.placeholder.com/300x300/10B981/FFFFFF?text=Nirvana'
-      },
-      { 
-        id: 'demo5', 
-        name: 'Wonderwall', 
-        artist: 'Oasis', 
-        year: 1995, 
-        date: '1995-10-02',
-        preview: 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav',
-        image: 'https://via.placeholder.com/300x300/3B82F6/FFFFFF?text=Oasis'
-      },
-      { 
-        id: 'demo6', 
-        name: 'Hotel California', 
-        artist: 'Eagles', 
-        year: 1976, 
-        date: '1976-12-08',
-        preview: 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav',
-        image: 'https://via.placeholder.com/300x300/F97316/FFFFFF?text=Eagles'
-      },
-      { 
-        id: 'demo7', 
-        name: 'Imagine', 
-        artist: 'John Lennon', 
-        year: 1971, 
-        date: '1971-09-09',
-        preview: 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav',
-        image: 'https://via.placeholder.com/300x300/EC4899/FFFFFF?text=Lennon'
-      },
-      { 
-        id: 'demo8', 
-        name: 'Like a Rolling Stone', 
-        artist: 'Bob Dylan', 
-        year: 1965, 
-        date: '1965-08-30',
-        preview: 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav',
-        image: 'https://via.placeholder.com/300x300/6366F1/FFFFFF?text=Dylan'
-      }
-    ]
-
-    return demoTracks.map(track => ({
-      id: track.id,
-      name: track.name,
-      artists: [{ 
-        id: track.id + '-artist', 
-        name: track.artist,
-        external_urls: { spotify: '' }
-      }],
-      album: {
-        id: track.id + '-album',
-        name: track.name, // Use track name as album name for simplicity
-        release_date: track.date,
-        release_date_precision: 'day',
-        images: [
-          { url: track.image, height: 300, width: 300 },
-          { url: track.image, height: 64, width: 64 }
-        ]
-      },
-      preview_url: track.preview, // Use placeholder audio
-      external_urls: { spotify: '' },
-      release_date: track.date,
-      year: track.year,
-      images: [
-        { url: track.image, height: 300, width: 300 },
-        { url: track.image, height: 64, width: 64 }
-      ]
-    }))
   }
 
   // Get tracks from featured playlists as another fallback
