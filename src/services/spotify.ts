@@ -390,58 +390,43 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
     console.log('Authentication state:', this.isAuthenticated())
     console.log('Access token exists:', !!this.authState.accessToken)
     
-    // If user is authenticated, try to get tracks directly from Spotify first
+    // Always use JSON data as primary source for category-based gameplay
+    console.log('Getting tracks from JSON data for selected category')
+    const jsonTracks = this.getTracksFromJson(theme, limit)
+    console.log(`Got ${jsonTracks.length} tracks from JSON for theme: ${theme}`)
+    
+    // If user is authenticated, try to enhance JSON tracks with Spotify preview URLs
     if (this.isAuthenticated()) {
-      console.log('User authenticated, trying to get tracks directly from Spotify')
+      console.log('User authenticated, enhancing JSON tracks with Spotify data')
       
       try {
-        const spotifyTracks = await this.getTracksFromSpotify(Math.min(limit, 30))
+        console.log(`First track to enhance: ${jsonTracks[0]?.name} by ${jsonTracks[0]?.artists[0]?.name}`)
         
-        if (spotifyTracks.length > 0) {
-          console.log(`✅ Got ${spotifyTracks.length} tracks with preview URLs from Spotify`)
-          
-          // If we have enough Spotify tracks, return them
-          if (spotifyTracks.length >= limit * 0.5) { // At least 50% of requested
-            return spotifyTracks.slice(0, limit)
+        // Enhance first 10 tracks with Spotify data (to avoid too many API calls)
+        const enhancedTracks = await Promise.allSettled(
+          jsonTracks.slice(0, 10).map(track => this.tryGetSpotifyPreview(track))
+        )
+        
+        const enhancedResults = enhancedTracks.map((result, index) => {
+          if (result.status === 'fulfilled') {
+            return result.value
+          } else {
+            console.warn(`Failed to enhance track ${index}:`, result.reason)
+            return jsonTracks[index]
           }
-          
-          // Otherwise, supplement with JSON tracks
-          const jsonTracks = this.getTracksFromJson(theme, limit - spotifyTracks.length)
-          console.log(`Supplementing with ${jsonTracks.length} tracks from JSON`)
-          return [...spotifyTracks, ...jsonTracks]
-        }
+        })
+        
+        // Combine enhanced tracks with remaining unenhanced tracks
+        console.log(`Enhanced ${enhancedResults.length} tracks, returning total of ${enhancedResults.length + jsonTracks.slice(10).length}`)
+        return [...enhancedResults, ...jsonTracks.slice(10)]
       } catch (error) {
-        console.warn('Failed to get tracks from Spotify, falling back to JSON + enhancement', error)
+        console.warn('Failed to enhance JSON tracks with Spotify data, returning original tracks', error)
+        return jsonTracks
       }
-      
-      // Fallback: Try to enhance JSON tracks with Spotify data
-      console.log('Falling back to JSON tracks with Spotify enhancement')
-      const jsonTracks = this.getTracksFromJson(theme, limit)
-      console.log(`Got ${jsonTracks.length} tracks from JSON`)
-      
-      console.log(`First track to enhance: ${jsonTracks[0]?.name} by ${jsonTracks[0]?.artists[0]?.name}`)
-      
-      // Enhance first 10 tracks with Spotify data (to avoid too many API calls)
-      const enhancedTracks = await Promise.allSettled(
-        jsonTracks.slice(0, 10).map(track => this.tryGetSpotifyPreview(track))
-      )
-      
-      const enhancedResults = enhancedTracks.map((result, index) => {
-        if (result.status === 'fulfilled') {
-          return result.value
-        } else {
-          console.warn(`Failed to enhance track ${index}:`, result.reason)
-          return jsonTracks[index]
-        }
-      })
-      
-      // Combine enhanced tracks with remaining unenhanced tracks
-      return [...enhancedResults, ...jsonTracks.slice(10)]
     }
     
-    // Always use JSON data as primary source
-    const jsonTracks = this.getTracksFromJson(theme, limit)
-    console.log(`Returning ${jsonTracks.length} tracks from JSON data`)
+    // Return JSON data when not authenticated
+    console.log(`Returning ${jsonTracks.length} tracks from JSON data (not authenticated)`)
     return jsonTracks
   }
 
