@@ -12,7 +12,7 @@ const routes: RouteRecordRaw[] = [
     name: 'home',
     component: HomeView,
     meta: {
-      title: 'Hitster - Music Timeline Game'
+      title: 'Hipster - Music Timeline Game'
     }
   },
   {
@@ -20,7 +20,7 @@ const routes: RouteRecordRaw[] = [
     name: 'game',
     component: GameView,
     meta: {
-      title: 'Hitster - Game'
+      title: 'Hipster - Game'
     }
   },
   {
@@ -28,7 +28,7 @@ const routes: RouteRecordRaw[] = [
     name: 'settings',
     component: SettingsView,
     meta: {
-      title: 'Hitster - Settings'
+      title: 'Hipster - Settings'
     }
   },
   {
@@ -44,5 +44,5 @@ export const router = createRouter({
 
 // Update page title based on route
 router.beforeEach((to) => {
-  document.title = to.meta?.title as string || 'Hitster'
+  document.title = to.meta?.title as string || 'Hipster'
 })

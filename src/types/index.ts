@@ -45,7 +45,7 @@ export interface SpotifyImage {
 }
 
 export interface GameSettings {
-  difficulty: 'original' | 'pro' | 'expert'
+  targetSongs: number
   theme?: Theme
   maxRounds: number
   targetScore: number

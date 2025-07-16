@@ -15,8 +15,8 @@ export default defineConfig({
       },
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
       manifest: {
-        name: 'Hitster - Music Timeline Game',
-        short_name: 'Hitster',
+        name: 'Hipster - Music Timeline Game',
+        short_name: 'Hipster',
         description: 'A music timeline guessing game inspired by the party game Hitster',
         theme_color: '#1db954',
         background_color: '#ffffff',

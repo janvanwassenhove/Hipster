@@ -20,23 +20,10 @@
       <!-- Track Info and Controls -->
       <div class="flex-1 text-center md:text-left">
         
-        <!-- Track Info (based on difficulty) -->
-        <div v-if="difficulty === 'original'" class="mb-4">
+        <!-- Track Info -->
+        <div class="mb-4">
           <p class="text-gray-600">{{ $t('game.turn.listening') }}</p>
-          <p class="text-sm text-gray-500">{{ $t('game.difficulties.originalHint') }}</p>
-        </div>
-        
-        <div v-else-if="difficulty === 'pro'" class="mb-4">
-          <h3 class="text-xl font-bold text-gray-800">{{ track.name }}</h3>
-          <p class="text-lg text-gray-600">{{ artistNames }}</p>
-          <p class="text-sm text-gray-500">{{ $t('game.difficulties.proHint') }}</p>
-        </div>
-        
-        <div v-else-if="difficulty === 'expert'" class="mb-4">
-          <h3 class="text-xl font-bold text-gray-800">{{ track.name }}</h3>
-          <p class="text-lg text-gray-600">{{ artistNames }}</p>
-          <p class="text-gray-600">{{ track.album.name }}</p>
-          <p class="text-sm text-gray-500">{{ $t('game.difficulties.expertHint') }}</p>
+          <p class="text-sm text-gray-500">{{ $t('game.turn.placeOnTimeline') }}</p>
         </div>
 
         <!-- Custom Audio Player -->
@@ -127,7 +114,13 @@
               <div class="flex items-center space-x-3 text-xs text-gray-300">
                 <span class="w-12 text-right">{{ formatTime(currentTime) }}</span>
                 <div class="flex-1 relative">
-                  <div class="progress-track" @click="seekTo($event)">
+                  <div 
+                    class="progress-track" 
+                    @click="seekTo($event)" 
+                    @touchstart="startProgressDrag($event)"
+                    @touchmove="updateProgressDrag($event)"
+                    @touchend="endProgressDrag($event)"
+                  >
                     <div 
                       class="progress-fill" 
                       :style="{ width: progressPercent + '%' }"
@@ -155,6 +148,9 @@
                   step="0.1"
                   :value="volume"
                   @input="updateVolume"
+                  @touchstart="handleVolumeTouch"
+                  @touchmove="handleVolumeTouch"
+                  @touchend="handleVolumeTouch"
                   class="volume-slider"
                   :disabled="!track.preview_url"
                 />
@@ -213,7 +209,6 @@ import type { Track } from '@/types'
 
 interface Props {
   track: Track
-  difficulty: 'original' | 'pro' | 'expert'
   showAnswer?: boolean
   showResult?: boolean
   isCorrect?: boolean
@@ -242,6 +237,8 @@ const currentTime = ref(0)
 const duration = ref(0)
 const volume = ref(0.7)
 const isMuted = ref(false)
+const isDraggingProgress = ref(false)
+const isDraggingVolume = ref(false)
 
 // Computed
 const trackImage = computed(() => {
@@ -412,12 +409,69 @@ function updateVolume(event: Event) {
   }
 }
 
-function seekTo(event: MouseEvent) {
+function handleVolumeTouch(event: TouchEvent) {
+  // Let the default range input handle touch events
+  // This prevents conflicts with our custom touch handling
+  event.stopPropagation()
+}
+
+function seekTo(event: MouseEvent | TouchEvent) {
   if (!audioPlayer.value || !props.track.preview_url) return
   
   const progressTrack = event.currentTarget as HTMLElement
   const rect = progressTrack.getBoundingClientRect()
-  const percent = (event.clientX - rect.left) / rect.width
+  
+  // Handle both mouse and touch events
+  let clientX: number
+  if ('touches' in event) {
+    if (event.touches.length > 0) {
+      clientX = event.touches[0].clientX
+    } else if (event.changedTouches.length > 0) {
+      clientX = event.changedTouches[0].clientX
+    } else {
+      return
+    }
+  } else {
+    clientX = event.clientX
+  }
+  
+  const percent = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
+  const newTime = percent * duration.value
+  
+  audioPlayer.value.currentTime = newTime
+}
+
+// Progress bar touch drag functions
+function startProgressDrag(event: TouchEvent) {
+  if (!audioPlayer.value || !props.track.preview_url) return
+  event.preventDefault()
+  isDraggingProgress.value = true
+  updateProgressFromTouch(event)
+}
+
+function updateProgressDrag(event: TouchEvent) {
+  if (!isDraggingProgress.value) return
+  event.preventDefault()
+  updateProgressFromTouch(event)
+}
+
+function endProgressDrag(event: TouchEvent) {
+  if (!isDraggingProgress.value) return
+  event.preventDefault()
+  isDraggingProgress.value = false
+  updateProgressFromTouch(event)
+}
+
+function updateProgressFromTouch(event: TouchEvent) {
+  if (!audioPlayer.value || !props.track.preview_url) return
+  
+  const progressTrack = event.currentTarget as HTMLElement
+  const rect = progressTrack.getBoundingClientRect()
+  
+  const touch = event.touches[0] || event.changedTouches[0]
+  if (!touch) return
+  
+  const percent = Math.max(0, Math.min(1, (touch.clientX - rect.left) / rect.width))
   const newTime = percent * duration.value
   
   audioPlayer.value.currentTime = newTime

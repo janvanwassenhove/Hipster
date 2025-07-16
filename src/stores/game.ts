@@ -12,7 +12,7 @@ export const useGameStore = defineStore('game', () => {
   const gamePhase = ref<GameState['gamePhase']>('setup')
   const round = ref(1)
   const settings = ref<GameSettings>({
-    difficulty: 'original',
+    targetSongs: 10,
     theme: undefined,
     maxRounds: 20,
     targetScore: 10
@@ -21,16 +21,21 @@ export const useGameStore = defineStore('game', () => {
   // Computed
   const currentPlayer = computed(() => players.value[currentPlayerIndex.value])
   const isGameFinished = computed(() => {
-    // Game ends when someone reaches target tokens (official Hitster rule)
-    return players.value.some(player => player.tokens >= settings.value.targetScore)
+    // Game ends when someone reaches target songs correctly placed on timeline
+    return players.value.some(player => player.timeline.length >= settings.value.targetSongs)
   })
   const winner = computed(() => {
-    // Winner is determined by tokens only (official Hitster rule)
+    // Winner is determined by timeline length (songs correctly placed)
     return players.value.reduce((prev, current) => {
-      if (current.tokens > prev.tokens) return current
-      if (current.tokens === prev.tokens) {
-        // In case of tie, use score as tiebreaker
-        return current.score > prev.score ? current : prev
+      if (current.timeline.length > prev.timeline.length) return current
+      if (current.timeline.length === prev.timeline.length) {
+        // In case of tie, use tokens as tiebreaker
+        if (current.tokens > prev.tokens) return current
+        if (current.tokens === prev.tokens) {
+          // Final tiebreaker: score
+          return current.score > prev.score ? current : prev
+        }
+        return prev
       }
       return prev
     })
@@ -112,8 +117,10 @@ export const useGameStore = defineStore('game', () => {
       
       // Award points for statistics/tiebreaker only
       let points = 1
-      if (settings.value.difficulty === 'pro') points = 2
-      else if (settings.value.difficulty === 'expert') points = 3
+      
+      // Bonus points based on timeline length milestones
+      if (player.timeline.length >= 5) points = 2
+      if (player.timeline.length >= 8) points = 3
       
       player.score += points
       
@@ -171,7 +178,7 @@ export const useGameStore = defineStore('game', () => {
     gamePhase.value = 'setup'
     round.value = 1
     settings.value = {
-      difficulty: 'original',
+      targetSongs: 10,
       theme: undefined,
       maxRounds: 20,
       targetScore: 10 // Target tokens to win (official Hitster rule)

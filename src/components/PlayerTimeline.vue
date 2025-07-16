@@ -50,6 +50,7 @@
           @dragover.prevent="dragOverFirst = true"
           @dragleave.prevent="dragOverFirst = false"
           @drop.prevent="handleDrop(0)"
+          :data-drop-zone="0"
         >
           <p class="text-center text-gray-500">{{ $t('game.timeline.placeHere') }}</p>
         </div>
@@ -65,6 +66,7 @@
           @dragover.prevent="dragOverPositions[0] = true"
           @dragleave.prevent="dragOverPositions[0] = false"
           @drop.prevent="handleDrop(0)"
+          :data-drop-zone="0"
         >
           <p class="text-center text-gray-500 text-sm">{{ $t('game.placeEarlier') }}</p>
         </div>
@@ -110,6 +112,7 @@
             @dragover.prevent="dragOverPositions[index + 1] = true"
             @dragleave.prevent="dragOverPositions[index + 1] = false"
             @drop.prevent="handleDrop(index + 1)"
+            :data-drop-zone="index + 1"
           >
             <p class="text-center text-gray-500 text-sm">{{ $t('game.placeBetween') }}</p>
           </div>
@@ -123,6 +126,7 @@
           @dragover.prevent="dragOverPositions[player.timeline.length] = true"
           @dragleave.prevent="dragOverPositions[player.timeline.length] = false"
           @drop.prevent="handleDrop(player.timeline.length)"
+          :data-drop-zone="player.timeline.length"
         >
           <p class="text-center text-gray-500 text-sm">{{ $t('game.placeLater') }}</p>
         </div>
@@ -132,10 +136,14 @@
     <!-- Current Track (draggable) -->
     <div
       v-if="canPlace && currentTrack"
-      class="p-4 bg-blue-50 border-2 border-blue-200 rounded-lg cursor-move"
+      class="p-4 bg-blue-50 border-2 border-blue-200 rounded-lg cursor-move touch-manipulation select-none"
       draggable="true"
       @dragstart="handleDragStart"
       @dragend="handleDragEnd"
+      @touchstart="handleTouchStart"
+      @touchmove="handleTouchMove"
+      @touchend="handleTouchEnd"
+      :style="{ touchAction: 'none' }"
     >
       <div class="flex items-center space-x-3">
         <!-- Hidden Album Cover - show placeholder instead -->
@@ -185,6 +193,12 @@ const emit = defineEmits<{
 // Reactive state
 const dragOverFirst = ref(false)
 const dragOverPositions = ref<boolean[]>([])
+
+// Touch state for mobile drag and drop
+const isDragging = ref(false)
+const touchStartPos = ref({ x: 0, y: 0 })
+const currentTouchPos = ref({ x: 0, y: 0 })
+const dragClone = ref<HTMLElement | null>(null)
 
 // Computed
 const timelineSpan = computed(() => {
@@ -238,10 +252,173 @@ function useTokenAbility(ability: string) {
   emit('useToken', ability)
 }
 
+// Touch event handlers for mobile drag and drop
+function handleTouchStart(event: TouchEvent) {
+  if (!props.currentTrack || !props.canPlace) return
+  
+  try {
+    event.preventDefault()
+    isDragging.value = true
+    
+    const touch = event.touches[0]
+    if (!touch) return
+    
+    touchStartPos.value = { x: touch.clientX, y: touch.clientY }
+    currentTouchPos.value = { x: touch.clientX, y: touch.clientY }
+    
+    // Create visual clone for dragging
+    const target = event.target as HTMLElement
+    const rect = target.getBoundingClientRect()
+    
+    dragClone.value = target.cloneNode(true) as HTMLElement
+    dragClone.value.style.position = 'fixed'
+    dragClone.value.style.top = `${rect.top}px`
+    dragClone.value.style.left = `${rect.left}px`
+    dragClone.value.style.width = `${rect.width}px`
+    dragClone.value.style.height = `${rect.height}px`
+    dragClone.value.style.zIndex = '9999'
+    dragClone.value.style.opacity = '0.8'
+    dragClone.value.style.transform = 'rotate(2deg)'
+    dragClone.value.style.pointerEvents = 'none'
+    dragClone.value.classList.add('dragging')
+    
+    document.body.appendChild(dragClone.value)
+    
+    // Add dragging class to original
+    target.classList.add('dragging')
+    
+    // Add visual feedback with slight vibration effect (if supported)
+    if ('vibrate' in navigator) {
+      navigator.vibrate(50)
+    }
+  } catch (error) {
+    console.warn('Touch start error:', error)
+    cleanupTouchState()
+  }
+}
+
+function handleTouchMove(event: TouchEvent) {
+  if (!isDragging.value || !dragClone.value) return
+  
+  try {
+    event.preventDefault()
+    
+    const touch = event.touches[0]
+    if (!touch) return
+    
+    currentTouchPos.value = { x: touch.clientX, y: touch.clientY }
+    
+    // Move the clone with better offset
+    const offsetX = 50
+    const offsetY = 50
+    dragClone.value.style.left = `${touch.clientX - offsetX}px`
+    dragClone.value.style.top = `${touch.clientY - offsetY}px`
+    
+    // Check for drop zones
+    const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY)
+    const dropZone = elementBelow?.closest('[data-drop-zone]')
+    
+    // Reset all drag over states
+    dragOverFirst.value = false
+    dragOverPositions.value.fill(false)
+    
+    if (dropZone) {
+      const position = parseInt(dropZone.getAttribute('data-drop-zone') || '0')
+      if (position === 0) {
+        dragOverFirst.value = true
+      } else if (position <= dragOverPositions.value.length) {
+        dragOverPositions.value[position] = true
+      }
+    }
+  } catch (error) {
+    console.warn('Touch move error:', error)
+  }
+}
+
+function handleTouchEnd(event: TouchEvent) {
+  if (!isDragging.value) return
+  
+  try {
+    event.preventDefault()
+    isDragging.value = false
+    
+    // Find drop target
+    const touch = event.changedTouches[0]
+    if (!touch) {
+      cleanupTouchState()
+      return
+    }
+    
+    const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY)
+    const dropZone = elementBelow?.closest('[data-drop-zone]')
+    
+    // Clean up visual elements
+    if (dragClone.value) {
+      // Add a smooth fade-out effect before removing
+      dragClone.value.style.transition = 'opacity 0.2s ease-out'
+      dragClone.value.style.opacity = '0'
+      
+      setTimeout(() => {
+        if (dragClone.value && document.body.contains(dragClone.value)) {
+          document.body.removeChild(dragClone.value)
+        }
+        dragClone.value = null
+      }, 200)
+    }
+    
+    // Remove dragging class from original
+    const draggingElement = document.querySelector('.dragging')
+    if (draggingElement) {
+      draggingElement.classList.remove('dragging')
+    }
+    
+    // Reset drag over states
+    dragOverFirst.value = false
+    dragOverPositions.value.fill(false)
+    
+    // Handle drop if valid
+    if (dropZone && props.currentTrack) {
+      const dropPosition = parseInt(dropZone.getAttribute('data-drop-zone') || '0')
+      
+      // Add haptic feedback for successful drop
+      if ('vibrate' in navigator) {
+        navigator.vibrate(100)
+      }
+      
+      emit('placeTrack', props.currentTrack, dropPosition)
+    }
+  } catch (error) {
+    console.warn('Touch end error:', error)
+    cleanupTouchState()
+  }
+}
+
 // Initialize drag over positions array
 function initializeDragOverPositions() {
   dragOverPositions.value = new Array(props.player.timeline.length + 1).fill(false)
 }
+
+// Cleanup function for touch interactions
+function cleanupTouchState() {
+  isDragging.value = false
+  dragOverFirst.value = false
+  dragOverPositions.value.fill(false)
+  
+  if (dragClone.value && document.body.contains(dragClone.value)) {
+    document.body.removeChild(dragClone.value)
+    dragClone.value = null
+  }
+  
+  // Remove dragging class from any elements
+  const draggingElements = document.querySelectorAll('.dragging')
+  draggingElements.forEach(el => el.classList.remove('dragging'))
+}
+
+// Clean up on component unmount
+import { onUnmounted } from 'vue'
+onUnmounted(() => {
+  cleanupTouchState()
+})
 
 // Watch for timeline changes to update drag over positions
 import { watch } from 'vue'

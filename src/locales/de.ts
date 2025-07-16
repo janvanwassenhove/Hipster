@@ -11,16 +11,14 @@ export default {
     retry: 'Wiederholen'
   },
   game: {
-    title: 'Hitster',
+    title: 'Hipster',
     subtitle: 'Musik-Zeitstrahl-Spiel',
     playerCount: 'Anzahl Spieler (2-4)',
     playerName: 'Spieler {number} Name',
-    difficulty: 'Schwierigkeit',
-    difficulties: {
-      original: 'Original (Zeitstrahl)',
-      pro: 'Pro (Titel + Künstler)',
-      expert: 'Expert (Exaktes Jahr)'
-    },
+    allMusic: 'Alle Musik',
+    targetSongs: 'Lieder zum Gewinnen',
+    songs: 'Lieder',
+    default: 'Standard',
     theme: 'Thema (Optional)',
     themes: {
       '90s': '90er Hits',
@@ -45,6 +43,7 @@ export default {
       passDevice: 'Gerät an {player} weitergeben',
       ready: 'Bereit zu spielen?',
       listening: 'Höre den Track und platziere ihn auf deiner Zeitlinie',
+      placeOnTimeline: 'Höre genau zu und platziere richtig auf deiner Zeitlinie',
       placing: 'Ziehe die Karte an die richtige Position',
       correct: 'Richtig! Veröffentlicht in {year}',
       incorrect: 'Falsch! Dies wurde in {year} veröffentlicht',
@@ -56,14 +55,14 @@ export default {
       placeHere: 'Hier platzieren'
     },
     score: {
-      title: 'Hitster Token',
+      title: 'Hipster Token',
       tokens: 'Token: {count}',
       total: 'Bonus Punkte: {score}'
     },
     end: {
       title: 'Spiel Beendet!',
-      winner: '{player} gewinnt mit {score} Token!',
-      finalScores: 'Endstand Token',
+      winner: '{player} gewinnt mit {score} richtig platzierten Liedern!',
+      finalScores: 'Endergebnisse',
       playAgain: 'Nochmal Spielen'
     }
   },

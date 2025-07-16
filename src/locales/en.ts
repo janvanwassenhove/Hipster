@@ -12,7 +12,7 @@ export default {
     retry: 'Retry'
   },
   game: {
-    title: 'Hitster',
+    title: 'Hipster',
     subtitle: 'Music Timeline Game',
     newGame: 'New Game',
     continue: 'Continue Game',
@@ -22,15 +22,9 @@ export default {
     playerNames: 'Player Names',
     playerName: 'Player {number} name',
     allMusic: 'All Music',
-    difficulty: 'Difficulty',
-    difficulties: {
-      original: 'Original (Timeline)',
-      pro: 'Pro (Title + Artist)',
-      expert: 'Expert (Exact Year)',
-      originalHint: 'Place this track on your timeline',
-      proHint: 'You know the title and artist, when was it released?',
-      expertHint: 'You have all the info, what year exactly?'
-    },
+    targetSongs: 'Songs to Win',
+    songs: 'songs',
+    default: 'default',
     theme: 'Theme (Optional)',
     themes: {
       '90s': '90s Hits',
@@ -66,9 +60,9 @@ export default {
     unmute: 'Unmute',
     volume: 'Volume',
     openInSpotify: 'Open in Spotify',
-    dragToTimeline: 'Drag the card to your timeline',
+    dragToTimeline: 'Drag the card to your timeline (or tap and hold to drag on mobile)',
     newTrack: 'New Track',
-    dragToPlace: 'Drag to place on timeline',
+    dragToPlace: 'Drag to place on timeline (or tap and hold)',
     placeEarlier: 'Place before this track',
     placeBetween: 'Place between tracks',
     placeLater: 'Place after this track',
@@ -111,6 +105,7 @@ export default {
       passDevice: 'Pass the device to {player}',
       ready: 'Ready to play?',
       listening: 'Listen to the track and place it on your timeline',
+      placeOnTimeline: 'Listen carefully and place it correctly on your timeline',
       placing: 'Drag the card to the correct position',
       correct: 'Correct! Released in {year}',
       incorrect: 'Incorrect! This was released in {year}',
@@ -122,14 +117,14 @@ export default {
       placeHere: 'Place here'
     },
     score: {
-      title: 'Hitster Tokens',
+      title: 'Hipster Tokens',
       tokens: 'Tokens: {count}',
       total: 'Bonus points: {score}'
     },
     end: {
       title: 'Game Over!',
-      winner: '{player} wins with {score} tokens!',
-      finalScores: 'Final Token Count',
+      winner: '{player} wins with {score} songs correctly placed!',
+      finalScores: 'Final Results',
       playAgain: 'Play Again'
     }
   },

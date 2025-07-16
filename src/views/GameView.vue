@@ -107,7 +107,6 @@
         <TrackPlayer
           v-if="currentTrack"
           :track="currentTrack"
-          :difficulty="settings.difficulty"
           @place-track="handlePlaceTrack"
         />
 
@@ -148,7 +147,7 @@
       <div v-else-if="gamePhase === 'finished'" class="max-w-2xl mx-auto">
         <div class="card text-center">
           <h2 class="text-3xl font-bold mb-4 text-green-600">{{ $t('game.end.title') }}</h2>
-          <p class="text-xl mb-6">{{ $t('game.end.winner', { player: winner?.name, score: winner?.tokens }) }}</p>
+          <p class="text-xl mb-6">{{ $t('game.end.winner', { player: winner?.name, score: winner?.timeline.length }) }}</p>
           
           <div class="mb-6">
             <h3 class="text-lg font-semibold mb-3">{{ $t('game.end.finalScores') }}</h3>
@@ -160,7 +159,7 @@
                 :class="index === 0 ? 'bg-yellow-100' : 'bg-gray-50'"
               >
                 <span class="font-medium">{{ index + 1 }}. {{ player.name }}</span>
-                <span class="font-bold">{{ player.tokens }} {{ $t('game.score.tokens', { count: player.tokens }) }}</span>
+                <span class="font-bold">{{ player.timeline.length }} {{ $t('game.songs') }} | {{ player.tokens }} {{ $t('game.score.tokens', { count: player.tokens }) }}</span>
               </div>
             </div>
           </div>
@@ -210,9 +209,11 @@ const needsReauth = computed(() => {
 })
 const sortedPlayers = computed(() => 
   [...players.value].sort((a, b) => {
-    // Sort by tokens first (official Hitster rule)
+    // Sort by timeline length first (main winning condition)
+    if (b.timeline.length !== a.timeline.length) return b.timeline.length - a.timeline.length
+    // Sort by tokens as tiebreaker
     if (b.tokens !== a.tokens) return b.tokens - a.tokens
-    // Use score as tiebreaker
+    // Use score as final tiebreaker
     return b.score - a.score
   })
 )

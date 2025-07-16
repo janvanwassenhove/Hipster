@@ -1,10 +1,10 @@
-# Hitster - Music Timeline Game
+# Hipster - Music Timeline Game
 
-A Progressive Web App inspired by the party game Hitster, built with Vue.js 3 and integrated with Spotify's Web API.
+A Progressive Web App inspired by the party game Hipster, built with Vue.js 3 and integrated with Spotify's Web API.
 
 ## 🎵 About
 
-Hitster is a music guessing game where players take turns listening to song previews and placing them correctly on their personal timeline based on release year. The game supports 2-4 players in a "pass & play" format on a single device.
+Hipster is a music guessing game where players take turns listening to song previews and placing them correctly on their personal timeline based on release year. The game supports 2-4 players in a "pass & play" format on a single device.
 
 ## ✨ Features
 

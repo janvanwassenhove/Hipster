@@ -12,7 +12,7 @@ export default {
     retry: 'Opnieuw proberen'
   },
   game: {
-    title: 'Hitster',
+    title: 'Hipster',
     subtitle: 'Muziek Tijdlijn Spel',
     newGame: 'Nieuw Spel',
     continue: 'Spel Voortzetten',
@@ -22,15 +22,9 @@ export default {
     playerNames: 'Spelersnamen',
     playerName: 'Speler {number} naam',
     allMusic: 'Alle Muziek',
-    difficulty: 'Moeilijkheidsgraad',
-    difficulties: {
-      original: 'Original (Tijdlijn)',
-      pro: 'Pro (Titel + Artiest)',
-      expert: 'Expert (Exact Jaar)',
-      originalHint: 'Plaats dit nummer op je tijdlijn',
-      proHint: 'Je kent de titel en artiest, wanneer werd het uitgebracht?',
-      expertHint: 'Je hebt alle info, welk jaar precies?'
-    },
+    targetSongs: 'Nummers om te Winnen',
+    songs: 'nummers',
+    default: 'standaard',
     theme: 'Thema (Optioneel)',
     themes: {
       '90s': 'Jaren 90 Hits',
@@ -63,9 +57,9 @@ export default {
     unmute: 'Dempen Uitschakelen',
     volume: 'Volume',
     openInSpotify: 'Openen in Spotify',
-    dragToTimeline: 'Sleep de kaart naar je tijdlijn',
+    dragToTimeline: 'Sleep de kaart naar je tijdlijn (of tik en houd vast op mobiel)',
     newTrack: 'Nieuw Nummer',
-    dragToPlace: 'Sleep om op tijdlijn te plaatsen',
+    dragToPlace: 'Sleep om op tijdlijn te plaatsen (of tik en houd vast)',
     placeEarlier: 'Plaats voor dit nummer',
     placeBetween: 'Plaats tussen nummers',
     placeLater: 'Plaats na dit nummer',
@@ -100,6 +94,7 @@ export default {
       passDevice: 'Geef het apparaat door aan {player}',
       ready: 'Klaar om te spelen?',
       listening: 'Luister naar het nummer en plaats het op je tijdlijn',
+      placeOnTimeline: 'Luister goed en plaats het correct op je tijdlijn',
       placing: 'Sleep de kaart naar de juiste positie',
       correct: 'Correct! Uitgebracht in {year}',
       incorrect: 'Fout! Dit werd uitgebracht in {year}',
@@ -111,14 +106,14 @@ export default {
       placeHere: 'Plaats hier'
     },
     score: {
-      title: 'Hitster Tokens',
+      title: 'Hipster Tokens',
       tokens: 'Tokens: {count}',
       total: 'Bonus punten: {score}'
     },
     end: {
       title: 'Spel Afgelopen!',
-      winner: '{player} wint met {score} tokens!',
-      finalScores: 'Eindstand Tokens',
+      winner: '{player} wint met {score} correct geplaatste nummers!',
+      finalScores: 'Eindresultaten',
       playAgain: 'Opnieuw Spelen'
     }
   },

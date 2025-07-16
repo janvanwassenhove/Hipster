@@ -11,16 +11,15 @@ export default {
     retry: 'Réessayer'
   },
   game: {
-    title: 'Hitster',
+    title: 'Hipster',
     subtitle: 'Jeu de Chronologie Musicale',
     playerCount: 'Nombre de joueurs (2-4)',
+    playerNames: 'Noms des Joueurs',
     playerName: 'Nom du joueur {number}',
-    difficulty: 'Difficulté',
-    difficulties: {
-      original: 'Original (Chronologie)',
-      pro: 'Pro (Titre + Artiste)',
-      expert: 'Expert (Année Exacte)'
-    },
+    allMusic: 'Toute la Musique',
+    targetSongs: 'Chansons pour Gagner',
+    songs: 'chansons',
+    default: 'défaut',
     theme: 'Thème (Optionnel)',
     themes: {
       '90s': 'Hits des Années 90',
@@ -45,6 +44,7 @@ export default {
       passDevice: 'Passez l\'appareil à {player}',
       ready: 'Prêt à jouer?',
       listening: 'Écoutez la piste et placez-la sur votre chronologie',
+      placeOnTimeline: 'Écoutez attentivement et placez correctement sur votre chronologie',
       placing: 'Glissez la carte à la bonne position',
       correct: 'Correct! Sorti en {year}',
       incorrect: 'Incorrect! Ceci est sorti en {year}',
@@ -56,14 +56,14 @@ export default {
       placeHere: 'Placer ici'
     },
     score: {
-      title: 'Jetons Hitster',
+      title: 'Jetons Hipster',
       tokens: 'Jetons: {count}',
       total: 'Points bonus: {score}'
     },
     end: {
       title: 'Jeu Terminé!',
-      winner: '{player} gagne avec {score} jetons!',
-      finalScores: 'Décompte Final Jetons',
+      winner: '{player} gagne avec {score} chansons correctement placées!',
+      finalScores: 'Résultats Finaux',
       playAgain: 'Rejouer'
     }
   },

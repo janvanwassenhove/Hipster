@@ -810,7 +810,7 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
 
     try {
       this.player = new window.Spotify.Player({
-        name: 'Hitster Music Game',
+        name: 'Hipster Music Game',
         getOAuthToken: (callback) => {
           callback(this.authState.accessToken!)
         },

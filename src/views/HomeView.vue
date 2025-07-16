@@ -89,15 +89,18 @@
               </div>
             </div>
 
-            <!-- Difficulty -->
+            <!-- Target Songs -->
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">
-                {{ $t('game.difficulty') }}
+                {{ $t('game.targetSongs') }}
               </label>
-              <select v-model="difficulty" class="select">
-                <option value="original">{{ $t('game.difficulties.original') }}</option>
-                <option value="pro">{{ $t('game.difficulties.pro') }}</option>
-                <option value="expert">{{ $t('game.difficulties.expert') }}</option>
+              <select v-model="targetSongs" class="select">
+                <option value="5">5 {{ $t('game.songs') }}</option>
+                <option value="6">6 {{ $t('game.songs') }}</option>
+                <option value="7">7 {{ $t('game.songs') }}</option>
+                <option value="8">8 {{ $t('game.songs') }}</option>
+                <option value="9">9 {{ $t('game.songs') }}</option>
+                <option value="10">10 {{ $t('game.songs') }} ({{ $t('game.default') }})</option>
               </select>
             </div>
 
@@ -149,7 +152,7 @@ const gameStore = useGameStore()
 // Reactive state
 const playerCount = ref(2)
 const playerNames = ref<string[]>(['', '', '', ''])
-const difficulty = ref<'original' | 'pro' | 'expert'>('original')
+const targetSongs = ref(10)
 const selectedTheme = ref<Theme | ''>('')
 const isLoggingIn = ref(false)
 const isSpotifyAuthenticated = ref(false)
@@ -185,10 +188,10 @@ function startGame() {
   const names = playerNames.value.slice(0, playerCount.value).map(name => name.trim())
   
   gameStore.updateSettings({
-    difficulty: difficulty.value,
+    targetSongs: targetSongs.value,
     theme: selectedTheme.value || undefined,
     maxRounds: 20,
-    targetScore: 10 // Target tokens to win (official Hitster rule)
+    targetScore: 10 // Keep for backwards compatibility, but use targetSongs for winning
   })
   
   gameStore.initializePlayers(names)
