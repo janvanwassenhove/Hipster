@@ -316,9 +316,11 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
     
     if (theme && themeMapping[theme]) {
       const category = themeMapping[theme]
+      console.log('Mapped theme to category:', theme, '->', category)
       categoryData = songsData[category] || []
       console.log(`Found ${categoryData.length} songs in category: ${category}`)
     } else {
+      console.log('No theme provided or theme not found, using all categories')
       // Mix from all categories
       const allCategories = Object.values(songsData).flat()
       categoryData = allCategories

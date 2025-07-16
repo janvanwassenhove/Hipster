@@ -2,7 +2,6 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Player, Track, GameSettings, GameState, Theme } from '@/types'
 import { spotifyService } from '@/services/spotify'
-import songsByCategory from '@/data/songs_by_category.json'
 
 export const useGameStore = defineStore('game', () => {
   // State
@@ -64,17 +63,14 @@ export const useGameStore = defineStore('game', () => {
 
   async function getNextTrack(): Promise<Track | null> {
     try {
-      const category = settings.value.theme
+      console.log('Getting next track for theme:', settings.value.theme)
       
-      // If no category is selected, pick a random category
-      const availableCategories = Object.keys(songsByCategory) as Theme[]
-      const selectedCategory = category || availableCategories[Math.floor(Math.random() * availableCategories.length)]
+      // Use spotify service to get tracks from the selected category
+      const tracks = await spotifyService.getRecommendations(settings.value.theme, 50)
+      console.log(`Got ${tracks.length} tracks from selected category: ${settings.value.theme || 'all categories'}`)
       
-      // Get songs from the selected category
-      const categorySongs = songsByCategory[selectedCategory as keyof typeof songsByCategory]
-      
-      if (!categorySongs || categorySongs.length === 0) {
-        console.error(`No songs found for category: ${selectedCategory}`)
+      if (tracks.length === 0) {
+        console.error('No tracks available from spotify service')
         return null
       }
 
@@ -84,51 +80,30 @@ export const useGameStore = defineStore('game', () => {
         player.timeline.forEach(track => usedTrackIds.add(track.id))
       })
       
-      // Convert JSON songs to Track format and filter unused ones
-      const availableTracks: Track[] = categorySongs
-        .map(song => convertJSONSongToTrack(song, selectedCategory))
-        .filter(track => !usedTrackIds.has(track.id))
-      
-      if (availableTracks.length === 0) {
-        console.error('All songs in category have been used')
-        return null
-      }
+      const availableTracks = tracks.filter(track => !usedTrackIds.has(track.id))
 
-      // Pick a random available track
-      currentTrack.value = availableTracks[Math.floor(Math.random() * availableTracks.length)]
+      if (availableTracks.length === 0) {
+        // If all tracks from current batch are used, get more tracks
+        console.log('All tracks used, getting more from spotify service')
+        const moreTracks = await spotifyService.getRecommendations(settings.value.theme, 100)
+        const newAvailableTracks = moreTracks.filter(track => !usedTrackIds.has(track.id))
+        
+        if (newAvailableTracks.length === 0) {
+          console.error('All available tracks have been used')
+          return null
+        }
+        
+        currentTrack.value = newAvailableTracks[Math.floor(Math.random() * newAvailableTracks.length)]
+      } else {
+        currentTrack.value = availableTracks[Math.floor(Math.random() * availableTracks.length)]
+      }
+      
+      console.log(`Selected: "${currentTrack.value.name}" by ${currentTrack.value.artists[0].name} (${currentTrack.value.year})`)
       
       return currentTrack.value
     } catch (error) {
       console.error('Error getting next track:', error)
       return null
-    }
-  }
-
-  // Helper function to convert JSON song format to Track interface
-  function convertJSONSongToTrack(song: any, category: string): Track {
-    const trackId = `${category}-${song.uitvoerder}-${song.titel}-${song.jaar}`.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()
-    
-    return {
-      id: trackId,
-      name: song.titel,
-      artists: [{
-        id: song.uitvoerder.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase(),
-        name: song.uitvoerder,
-        external_urls: { spotify: '' }
-      }],
-      album: {
-        id: `${song.uitvoerder}-album`.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase(),
-        name: song.titel, // Use song title as album name for simplicity
-        images: [],
-        release_date: `${song.jaar}-01-01`,
-        release_date_precision: 'year'
-      },
-      preview_url: null, // No preview URL available from JSON
-      release_date: `${song.jaar}-01-01`,
-      year: song.jaar,
-      external_urls: { spotify: '' },
-      images: [],
-      revealed: false
     }
   }
 
