@@ -22,16 +22,12 @@ export default {
     default: 'défaut',
     theme: 'Thème (Optionnel)',
     themes: {
-      '90s': 'Hits des Années 90',
       'guilty-pleasures': 'Guilty Pleasures',
-      'schlager': 'Schlager',
-      'tiktok': 'Hits TikTok',
-      'rock': 'Rock',
-      'pop': 'Pop',
-      'hip-hop': 'Hip-Hop',
-      'electronic': 'Électronique',
-      'indie': 'Indie',
-      'country': 'Country'
+      'belgian': 'Musique Belge',
+      'classics': 'Classiques',
+      'popular': 'Hits Populaires',
+      'vlaams': 'Musique Flamande',
+      'pop-rock': 'Pop & Rock'
     },
     spotify: {
       login: 'Se connecter avec Spotify',

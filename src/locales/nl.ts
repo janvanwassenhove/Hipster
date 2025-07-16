@@ -27,16 +27,12 @@ export default {
     default: 'standaard',
     theme: 'Thema (Optioneel)',
     themes: {
-      '90s': 'Jaren 90 Hits',
       'guilty-pleasures': 'Guilty Pleasures',
-      'schlager': 'Schlager',
-      'tiktok': 'TikTok Hits',
-      'rock': 'Rock',
-      'pop': 'Pop',
-      'hip-hop': 'Hip-Hop',
-      'electronic': 'Electronic',
-      'indie': 'Indie',
-      'country': 'Country'
+      'belgian': 'Belgische Muziek',
+      'classics': 'Klassiekers',
+      'popular': 'Populaire Hits',
+      'vlaams': 'Vlaamse Muziek',
+      'pop-rock': 'Pop & Rock'
     },
     setupRequired: 'Spel Instellen Vereist',
     setupMessage: 'Ga terug om een nieuw spel in te stellen',

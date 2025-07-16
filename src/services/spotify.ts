@@ -304,18 +304,14 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
     
     let categoryData: SongData[] = []
     
-    // Map themes to JSON categories
+    // Direct 1:1 mapping to JSON categories
     const themeMapping: Record<Theme, keyof typeof songsData> = {
-      '90s': 'classics', // Use classics for 90s as closest match
       'guilty-pleasures': 'guilty-pleasures',
-      'schlager': 'vlaams', // Use vlaams for schlager
-      'tiktok': 'popular', // Use popular for tiktok
-      'rock': 'pop-rock',
-      'pop': 'popular',
-      'hip-hop': 'popular', // Use popular for hip-hop
-      'electronic': 'popular', // Use popular for electronic
-      'indie': 'pop-rock', // Use pop-rock for indie
-      'country': 'classics' // Use classics for country
+      'belgian': 'belgian',
+      'classics': 'classics',
+      'popular': 'popular',
+      'vlaams': 'vlaams',
+      'pop-rock': 'pop-rock'
     }
     
     if (theme && themeMapping[theme]) {

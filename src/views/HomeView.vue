@@ -142,16 +142,12 @@
               </label>
               <select v-model="selectedTheme" class="select">
                 <option value="">{{ $t('game.allMusic') }}</option>
-                <option value="90s">{{ $t('game.themes.90s') }}</option>
                 <option value="guilty-pleasures">{{ $t('game.themes.guilty-pleasures') }}</option>
-                <option value="schlager">{{ $t('game.themes.schlager') }}</option>
-                <option value="tiktok">{{ $t('game.themes.tiktok') }}</option>
-                <option value="rock">{{ $t('game.themes.rock') }}</option>
-                <option value="pop">{{ $t('game.themes.pop') }}</option>
-                <option value="hip-hop">{{ $t('game.themes.hip-hop') }}</option>
-                <option value="electronic">{{ $t('game.themes.electronic') }}</option>
-                <option value="indie">{{ $t('game.themes.indie') }}</option>
-                <option value="country">{{ $t('game.themes.country') }}</option>
+                <option value="belgian">{{ $t('game.themes.belgian') }}</option>
+                <option value="classics">{{ $t('game.themes.classics') }}</option>
+                <option value="popular">{{ $t('game.themes.popular') }}</option>
+                <option value="vlaams">{{ $t('game.themes.vlaams') }}</option>
+                <option value="pop-rock">{{ $t('game.themes.pop-rock') }}</option>
               </select>
             </div>
 

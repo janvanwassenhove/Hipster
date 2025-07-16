@@ -81,16 +81,12 @@ export interface SpotifySearchResponse {
 export type Language = 'en' | 'nl' | 'fr' | 'de'
 
 export type Theme = 
-  | '90s'
   | 'guilty-pleasures'
-  | 'schlager'
-  | 'tiktok'
-  | 'rock'
-  | 'pop'
-  | 'hip-hop'
-  | 'electronic'
-  | 'indie'
-  | 'country'
+  | 'belgian'
+  | 'classics'
+  | 'popular'
+  | 'vlaams'
+  | 'pop-rock'
 
 export type TokenAbility = 'skip' | 'hint' | 'challenge' | 'swap' | 'peek'
 
