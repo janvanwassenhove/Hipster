@@ -95,10 +95,10 @@
               <label class="block text-sm font-bold text-slate-200 mb-3">
                 {{ $t('game.playerCount') }}
               </label>
-              <select v-model="playerCount" class="select">
-                <option value="2">2</option>
-                <option value="3">3</option>
-                <option value="4">4</option>
+              <select v-model.number="playerCount" class="select">
+                <option :value="2">2</option>
+                <option :value="3">3</option>
+                <option :value="4">4</option>
               </select>
             </div>
 
@@ -110,7 +110,7 @@
               <div class="space-y-3">
                 <input
                   v-for="i in playerCount"
-                  :key="i"
+                  :key="`player-${i}`"
                   v-model="playerNames[i - 1]"
                   :placeholder="$t('game.playerName', { number: i })"
                   class="input"
@@ -250,6 +250,18 @@ onMounted(() => {
 
 // Watch for player name changes to save them
 import { watch } from 'vue'
+
+// Watch player count changes to ensure proper reactivity
+watch(playerCount, (newCount) => {
+  // Ensure playerNames array is properly sized
+  const currentNames = [...playerNames.value]
+  // Fill with empty strings if needed
+  while (currentNames.length < 4) {
+    currentNames.push('')
+  }
+  playerNames.value = currentNames
+}, { immediate: true })
+
 watch(
   [playerNames, playerCount],
   () => {
