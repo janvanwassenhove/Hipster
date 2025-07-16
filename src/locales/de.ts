@@ -8,7 +8,8 @@ export default {
     finish: 'Beenden',
     loading: 'Laden...',
     error: 'Fehler',
-    retry: 'Wiederholen'
+    retry: 'Wiederholen',
+    close: 'Schließen'
   },
   game: {
     title: 'Hipster',

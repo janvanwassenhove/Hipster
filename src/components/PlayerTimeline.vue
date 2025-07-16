@@ -156,9 +156,10 @@
           @dragleave.prevent="dragOverPositions[player.timeline.length] = false"
           @drop.prevent="handleDrop(player.timeline.length)"
           :data-drop-zone="player.timeline.length"
-        >            <div class="h-full border-2 border-dashed border-gray-600 rounded-xl group-hover:border-cyan-400 transition-colors duration-300 bg-gradient-to-r from-gray-800/20 to-gray-700/20 backdrop-blur-sm flex items-center justify-center">
-              <p class="text-center text-gray-400 text-sm font-medium">{{ $t('game.placeLater') }}</p>
-            </div>
+        >
+          <div class="h-full border-2 border-dashed border-gray-600 rounded-xl group-hover:border-cyan-400 transition-colors duration-300 bg-gradient-to-r from-gray-800/20 to-gray-700/20 backdrop-blur-sm flex items-center justify-center">
+            <p class="text-center text-gray-400 text-sm font-medium">{{ $t('game.placeLater') }}</p>
+          </div>
         </div>
       </div>
     </div>
@@ -198,6 +199,7 @@
         <span class="font-medium">{{ $t('game.tracksInTimeline', { count: player.timeline.length }) }}</span>
         <span v-if="timelineSpan" class="font-mono">{{ timelineSpan }}</span>
       </div>
+    </div>
     </div>
   </div>
 </template>

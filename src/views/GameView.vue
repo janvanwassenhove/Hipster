@@ -110,15 +110,13 @@
           @place-track="handlePlaceTrack"
         />
 
-        <!-- Player Timelines -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Current Player Timeline -->
+        <div v-if="currentPlayer" class="max-w-4xl mx-auto">
           <PlayerTimeline
-            v-for="player in players"
-            :key="player.id"
-            :player="player"
-            :is-current="player.id === currentPlayer?.id"
+            :player="currentPlayer"
+            :is-current="true"
             :current-track="currentTrack"
-            :can-place="player.id === currentPlayer?.id && !!currentTrack"
+            :can-place="!!currentTrack"
             @place-track="handlePlaceTrack"
             @use-token="handleUseToken"
           />
@@ -175,6 +173,46 @@
         </div>
       </div>
     </main>
+
+    <!-- Hint Dialog -->
+    <div v-if="showHintDialog" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div class="bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 border border-purple-500/20 shadow-2xl shadow-purple-500/10 rounded-2xl p-8 max-w-md w-full mx-auto relative overflow-hidden">
+        <!-- Animated background patterns -->
+        <div class="absolute inset-0 opacity-10">
+          <div class="absolute top-0 left-0 w-32 h-32 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-full blur-3xl animate-pulse"></div>
+          <div class="absolute bottom-0 right-0 w-40 h-40 bg-gradient-to-br from-purple-500 to-pink-600 rounded-full blur-3xl animate-pulse delay-1000"></div>
+        </div>
+        
+        <div class="relative z-10">
+          <!-- Header -->
+          <div class="flex items-center space-x-3 mb-6">
+            <div class="w-12 h-12 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-full flex items-center justify-center shadow-lg">
+              <span class="text-2xl">💡</span>
+            </div>
+            <h3 class="text-2xl font-bold bg-gradient-to-r from-cyan-300 to-blue-300 bg-clip-text text-transparent">
+              {{ $t('game.tokens.hint.label') }}
+            </h3>
+          </div>
+          
+          <!-- Hint Content -->
+          <div class="mb-8">
+            <p class="text-gray-200 text-lg leading-relaxed">
+              {{ hintMessage }}
+            </p>
+          </div>
+          
+          <!-- Close Button -->
+          <div class="flex justify-center">
+            <button 
+              @click="closeHintDialog"
+              class="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold rounded-xl transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-purple-500/25"
+            >
+              {{ $t('common.close') }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -193,6 +231,8 @@ const gameStore = useGameStore()
 // Reactive state
 const isLoadingTrack = ref(false)
 const spotifyAuthState = ref(spotifyService.isAuthenticated())
+const showHintDialog = ref(false)
+const hintMessage = ref('')
 
 // Computed
 const players = computed(() => gameStore.players)
@@ -255,11 +295,18 @@ function handleUseToken(ability: string) {
         loadNextTrack()
         break
       case 'hint':
-        // Show hint (could be implemented in UI)
-        alert(`Hint: This track was released in the ${Math.floor(currentTrack.value?.year! / 10) * 10}s`)
+        // Show hint in styled dialog
+        const decade = Math.floor(currentTrack.value?.year! / 10) * 10
+        hintMessage.value = `This track was released in the ${decade}s`
+        showHintDialog.value = true
         break
     }
   }
+}
+
+function closeHintDialog() {
+  showHintDialog.value = false
+  hintMessage.value = ''
 }
 
 function playAgain() {

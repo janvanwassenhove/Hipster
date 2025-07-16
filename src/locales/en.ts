@@ -9,7 +9,8 @@ export default {
     continue: 'Continue',
     loading: 'Loading...',
     error: 'Error',
-    retry: 'Retry'
+    retry: 'Retry',
+    close: 'Close'
   },
   game: {
     title: 'Hipster',

@@ -9,7 +9,8 @@ export default {
     continue: 'Doorgaan',
     loading: 'Laden...',
     error: 'Fout',
-    retry: 'Opnieuw proberen'
+    retry: 'Opnieuw proberen',
+    close: 'Sluiten'
   },
   game: {
     title: 'Hipster',
