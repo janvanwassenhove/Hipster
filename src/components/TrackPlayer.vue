@@ -79,7 +79,7 @@
               </h3>
             </div>
             <p class="text-blue-200 mb-3 font-medium">
-              {{ hasSpotifyUri ? $t('game.needsPremium') : $t('game.noPreview') }}
+              {{ hasSpotifyUri ? $t('game.needsPremium') : $t('game.needSpotifyForAudio') }}
             </p>
             <p class="text-sm text-blue-300 font-semibold">
               <strong>{{ hasSpotifyUri ? $t('game.premiumNeededForFullPlay') : $t('game.needSpotifyForAudio') }}</strong>
@@ -119,77 +119,13 @@
                   </svg>
                 </div>
               </button>
-
-              <button
-                @click="toggleMute"
-                class="control-btn group relative"
-                :disabled="!canPlayAudio"
-                title="Mute/Unmute"
-              >
-                <div class="w-12 h-12 bg-gradient-to-br from-gray-800 to-gray-900 rounded-full flex items-center justify-center border border-gray-600/50 shadow-lg group-hover:from-cyan-600 group-hover:to-blue-600 group-hover:border-cyan-400/50 transition-all duration-300 group-hover:scale-110">
-                  <svg v-if="isMuted || volume === 0" class="w-5 h-5 text-gray-300 group-hover:text-white transition-colors duration-300" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.617.793L4.83 13.6H2a1 1 0 01-1-1V7.4a1 1 0 011-1h2.83l3.553-3.193a1 1 0 011.617.793zM16 8.4A1 1 0 1117.6 7a4 4 0 010 6 1 1 0 11-1.6-1.2 2 2 0 000-3.6z" clip-rule="evenodd" />
-                    <path d="M18.293 6.293a1 1 0 011.414 1.414L17.414 10l2.293 2.293a1 1 0 01-1.414 1.414L16 11.414l-2.293 2.293a1 1 0 01-1.414-1.414L14.586 10l-2.293-2.293a1 1 0 011.414-1.414L16 8.586l2.293-2.293z"/>
-                  </svg>
-                  <svg v-else-if="volume < 0.5" class="w-5 h-5 text-gray-300 group-hover:text-white transition-colors duration-300" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.617.793L4.83 13.6H2a1 1 0 01-1-1V7.4a1 1 0 011-1h2.83l3.553-3.193a1 1 0 011.617.793zM15 8.4A1 1 0 1116.6 7a2 2 0 010 6 1 1 0 11-1.6-1.2V8.4z" clip-rule="evenodd" />
-                  </svg>
-                  <svg v-else class="w-5 h-5 text-gray-300 group-hover:text-white transition-colors duration-300" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.617.793L4.83 13.6H2a1 1 0 01-1-1V7.4a1 1 0 011-1h2.83l3.553-3.193a1 1 0 011.617.793zM15 8.4A1 1 0 1116.6 7a4 4 0 010 6 1 1 0 11-1.6-1.2 2 2 0 000-3.6z" clip-rule="evenodd" />
-                  </svg>
-                </div>
-              </button>
             </div>
 
-            <!-- Progress Bar -->
+            <!-- Track Progress (Spotify playback only) -->
             <div class="mb-4">
-              <div class="flex items-center space-x-4 text-sm text-gray-300">
-                <span class="w-12 text-right font-mono">{{ formatTime(currentTime) }}</span>
-                <div class="flex-1 relative">
-                  <div 
-                    class="progress-track relative h-2 bg-gradient-to-r from-gray-800 to-gray-700 rounded-full cursor-pointer group overflow-hidden" 
-                    @click="seekTo($event)" 
-                    @touchstart="startProgressDrag($event)"
-                    @touchmove="updateProgressDrag($event)"
-                    @touchend="endProgressDrag($event)"
-                  >
-                    <!-- Background glow -->
-                    <div class="absolute inset-0 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-full blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                    <div 
-                      class="progress-fill absolute top-0 left-0 h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full shadow-lg transition-all duration-150 ease-out" 
-                      :style="{ width: progressPercent + '%' }"
-                    ></div>
-                    <div 
-                      class="progress-handle absolute top-1/2 w-4 h-4 bg-white rounded-full shadow-lg transform -translate-y-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-300" 
-                      :style="{ left: progressPercent + '%' }"
-                    ></div>
-                  </div>
-                </div>
-                <span class="w-12 font-mono">{{ formatTime(duration) }}</span>
+              <div class="flex items-center justify-center text-sm text-white">
+                <span class="text-center font-mono text-purple-400">🎵 {{ $t('game.spotifyPlayback') || 'Spotify Playback' }}</span>
               </div>
-            </div>
-
-            <!-- Volume Control -->
-            <div class="flex items-center space-x-4">
-              <svg class="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                <path fill-rule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.617.793L4.83 13.6H2a1 1 0 01-1-1V7.4a1 1 0 011-1h2.83l3.553-3.193a1 1 0 011.617.793z" clip-rule="evenodd" />
-              </svg>
-              <div class="flex-1 relative group">
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.1"
-                  :value="volume"
-                  @input="updateVolume"
-                  @touchstart="handleVolumeTouch"
-                  @touchmove="handleVolumeTouch"
-                  @touchend="handleVolumeTouch"
-                  class="volume-slider w-full h-2 bg-gradient-to-r from-gray-800 to-gray-700 rounded-full appearance-none cursor-pointer slider-thumb"
-                  :disabled="false"
-                />
-              </div>
-              <span class="text-sm text-gray-400 w-10 font-mono">{{ Math.round(volume * 100) }}%</span>
             </div>
           </div>
         </div>

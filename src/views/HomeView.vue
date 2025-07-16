@@ -7,8 +7,8 @@
                 <span class="text-2xl">🎵</span>
               </div>
               <div>
-                <h3 class="font-bold text-xl text-green-100">{{ $t('game.spotify.required') }}</h3>
-                <p class="text-green-200 font-medium">{{ $t('game.spotify.loginRequired') }}</p>
+                <h3 class="font-bold text-xl text-white">{{ $t('game.spotify.required') }}</h3>
+                <p class="text-white font-medium">{{ $t('game.spotify.loginRequired') }}</p>
               </div>
             </div>
             <button
@@ -68,8 +68,8 @@
                 <span class="text-2xl">🎵</span>
               </div>
               <div>
-                <h3 class="font-bold text-xl text-green-100">{{ $t('game.spotify.required') }}</h3>
-                <p class="text-green-200 font-medium">{{ $t('game.spotify.loginRequired') }}</p>
+                <h3 class="font-bold text-xl text-white">{{ $t('game.spotify.required') }}</h3>
+                <p class="text-white font-medium">{{ $t('game.spotify.loginRequired') }}</p>
               </div>
             </div>
             <button

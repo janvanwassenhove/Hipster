@@ -35,7 +35,7 @@
                     <p class="text-sm text-gray-600">{{ lang.nativeName }}</p>
                   </div>
                 </div>
-                <div v-if="currentLanguage === lang.code" class="text-green-500">
+                <div v-if="currentLanguage === lang.code" class="text-white">
                   ✓
                 </div>
               </div>
@@ -48,10 +48,10 @@
             
             <div v-if="isSpotifyAuthenticated" class="flex items-center justify-between p-4 bg-green-50 border border-green-200 rounded-lg">
               <div class="flex items-center space-x-3">
-                <span class="text-green-500">✓</span>
+                <span class="text-white">✓</span>
                 <div>
-                  <p class="font-medium text-green-800">{{ $t('game.spotify.connected') }}</p>
-                  <p class="text-sm text-green-700" v-if="userProfile">{{ userProfile.display_name }}</p>
+                  <p class="font-medium text-white">{{ $t('game.spotify.connected') }}</p>
+                  <p class="text-sm text-white" v-if="userProfile">{{ userProfile.display_name }}</p>
                 </div>
               </div>
               <button @click="logoutFromSpotify" class="btn btn-secondary text-sm">

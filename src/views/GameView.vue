@@ -9,7 +9,12 @@
           </button>
           <div class="text-white">
             <h1 class="text-xl font-bold">{{ $t('game.title') }}</h1>
-            <p class="text-sm opacity-80">{{ $t('game.round') }} {{ round }}</p>
+            <div class="flex items-center space-x-3 text-sm opacity-80">
+              <span>{{ $t('game.round') }} {{ round }}</span>
+              <span v-if="settings.theme" class="px-2 py-1 bg-purple-500/30 rounded-full border border-purple-400/50">
+                🎵 {{ $t(`game.themes.${settings.theme}`) }}
+              </span>
+            </div>
           </div>
         </div>
         
@@ -38,10 +43,10 @@
         
         <!-- Current Player Turn -->
         <div class="card text-center bg-green-50 border-green-200">
-          <h2 class="text-2xl font-bold text-green-800 mb-2">
+          <h2 class="text-2xl font-bold text-white mb-2">
             {{ $t('game.turn.currentPlayer', { player: currentPlayer?.name }) }}
           </h2>
-          <p class="text-green-700">{{ $t('game.turn.ready') }}</p>
+          <p class="text-white">{{ $t('game.turn.ready') }}</p>
           
           <div v-if="!currentTrack && !isLoadingTrack" class="mt-4">
             <button @click="loadNextTrack" class="btn btn-primary btn-lg">
@@ -133,7 +138,7 @@
               :class="player.id === currentPlayer?.id ? 'bg-green-100' : 'bg-gray-50'"
             >
               <p class="font-semibold">{{ player.name }}</p>
-              <p class="text-2xl font-bold text-green-600">{{ player.tokens }}</p>
+              <p class="text-2xl font-bold text-white">{{ player.tokens }}</p>
               <p class="text-sm text-gray-600">{{ $t('game.score.tokens', { count: player.tokens }) }}</p>
               <p class="text-xs text-gray-500">{{ $t('game.score.total', { score: player.score }) }}</p>
             </div>
@@ -144,7 +149,7 @@
       <!-- Game Finished -->
       <div v-else-if="gamePhase === 'finished'" class="max-w-2xl mx-auto">
         <div class="card text-center">
-          <h2 class="text-3xl font-bold mb-4 text-green-600">{{ $t('game.end.title') }}</h2>
+          <h2 class="text-3xl font-bold mb-4 text-white">{{ $t('game.end.title') }}</h2>
           <p class="text-xl mb-6">{{ $t('game.end.winner', { player: winner?.name, score: winner?.timeline.length }) }}</p>
           
           <div class="mb-6">
