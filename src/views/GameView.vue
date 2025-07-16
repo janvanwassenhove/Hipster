@@ -76,6 +76,11 @@
             <div class="flex-1">
               <h3 class="text-lg font-semibold text-yellow-800">{{ $t('game.spotify.notConnected') }}</h3>
               <p class="text-yellow-700 text-sm">{{ $t('game.demoModeActive') }}</p>
+              <!-- Debug info -->
+              <p class="text-xs text-red-600 mt-2">
+                DEBUG: isSpotifyConnected.value = {{ isSpotifyConnected }}, 
+                spotifyService.isAuthenticated() = {{ spotifyService.isAuthenticated() }}
+              </p>
             </div>
             <div class="flex space-x-2">
               <button @click="goToLogin" class="btn btn-sm bg-yellow-600 hover:bg-yellow-700 text-white">
@@ -240,7 +245,9 @@ const gameStore = useGameStore()
 const isLoadingTrack = ref(false)
 const showHintDialog = ref(false)
 const hintMessage = ref('')
-const isSpotifyConnected = ref(spotifyService.isAuthenticated()) // Direct reactive ref
+const initialAuthState = spotifyService.isAuthenticated()
+console.log('🔧 INIT: Initial auth state:', initialAuthState)
+const isSpotifyConnected = ref(initialAuthState) // Direct reactive ref
 
 // Computed
 const players = computed(() => gameStore.players)
@@ -332,13 +339,15 @@ function goToLogin() {
 function refreshSpotifyAuth() {
   const isAuth = spotifyService.isAuthenticated()
   const authState = localStorage.getItem('spotify_auth')
-  console.log('Spotify auth check:', {
+  console.log('🔧 REFRESH: Spotify auth check:', {
     isAuthenticated: isAuth,
     authStateInStorage: authState ? JSON.parse(authState) : null,
-    currentValue: isAuth
+    currentValue: isAuth,
+    currentReactiveValue: isSpotifyConnected.value
   })
   
   // Update reactive ref directly
+  console.log('🔧 UPDATING: isSpotifyConnected from', isSpotifyConnected.value, 'to', isAuth)
   isSpotifyConnected.value = isAuth
   
   // Initialize player if authenticated
@@ -375,9 +384,11 @@ onMounted(() => {
   // Also watch for changes from external events (like token refresh)
   const authWatcher = watch(
     () => spotifyService.isAuthenticated(),
-    (newAuth) => {
-      console.log('🔄 Auth state changed:', newAuth)
+    (newAuth, oldAuth) => {
+      console.log('� WATCHER: Auth state changed from', oldAuth, 'to', newAuth)
+      console.log('🔧 WATCHER: Current reactive value before update:', isSpotifyConnected.value)
       isSpotifyConnected.value = newAuth
+      console.log('🔧 WATCHER: Updated reactive value to:', isSpotifyConnected.value)
     },
     { immediate: true }
   )

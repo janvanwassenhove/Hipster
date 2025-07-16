@@ -364,7 +364,8 @@ const canPlayFullTrack = computed(() => {
 })
 
 const canPlayPreview = computed(() => {
-  return !!props.track.preview_url
+  // Disable preview functionality as requested
+  return false
 })
 
 const canPlayAudio = computed(() => {
