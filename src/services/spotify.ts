@@ -283,8 +283,8 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
         release_date: `${song.jaar}-01-01`,
         release_date_precision: 'year',
         images: [
-          { url: `https://via.placeholder.com/300x300/${color.slice(1)}/FFFFFF?text=${encodeURIComponent(song.uitvoerder)}`, height: 300, width: 300 },
-          { url: `https://via.placeholder.com/64x64/${color.slice(1)}/FFFFFF?text=${encodeURIComponent(song.uitvoerder)}`, height: 64, width: 64 }
+          { url: `data:image/svg+xml;base64,${btoa(`<svg width="300" height="300" xmlns="http://www.w3.org/2000/svg"><rect width="300" height="300" fill="${color}"/><text x="150" y="150" font-family="Arial" font-size="16" fill="white" text-anchor="middle" dominant-baseline="middle">${song.uitvoerder}</text></svg>`)}`, height: 300, width: 300 },
+          { url: `data:image/svg+xml;base64,${btoa(`<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg"><rect width="64" height="64" fill="${color}"/><text x="32" y="32" font-family="Arial" font-size="8" fill="white" text-anchor="middle" dominant-baseline="middle">${song.uitvoerder.substring(0, 8)}</text></svg>`)}`, height: 64, width: 64 }
         ]
       },
       external_urls: { spotify: '' },
@@ -292,8 +292,8 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
       year: song.jaar,
       revealed: false, // Album cover hidden until final placement
       images: [
-        { url: `https://via.placeholder.com/300x300/${color.slice(1)}/FFFFFF?text=${encodeURIComponent(song.uitvoerder)}`, height: 300, width: 300 },
-        { url: `https://via.placeholder.com/64x64/${color.slice(1)}/FFFFFF?text=${encodeURIComponent(song.uitvoerder)}`, height: 64, width: 64 }
+        { url: `data:image/svg+xml;base64,${btoa(`<svg width="300" height="300" xmlns="http://www.w3.org/2000/svg"><rect width="300" height="300" fill="${color}"/><text x="150" y="150" font-family="Arial" font-size="16" fill="white" text-anchor="middle" dominant-baseline="middle">${song.uitvoerder}</text></svg>`)}`, height: 300, width: 300 },
+        { url: `data:image/svg+xml;base64,${btoa(`<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg"><rect width="64" height="64" fill="${color}"/><text x="32" y="32" font-family="Arial" font-size="8" fill="white" text-anchor="middle" dominant-baseline="middle">${song.uitvoerder.substring(0, 8)}</text></svg>`)}`, height: 64, width: 64 }
       ],
       uri: song.uri // Include Spotify URI from JSON data
     }
