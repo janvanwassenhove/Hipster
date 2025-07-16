@@ -5,7 +5,15 @@
       <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-2 sm:space-y-0">
         <div class="flex items-center space-x-4">
           <button @click="$router.push('/')" class="btn btn-secondary">
-            ← {{ $t('common.back') }}
+        // Also watch for changes from external events (like token refresh)
+  const authWatcher = watch(
+    () => spotifyService.isAuthenticated(),
+    (newAuth) => {
+      console.log('🔧 SIMPLE WATCHER: Auth changed to:', newAuth)
+      isSpotifyConnected.value = newAuth
+    },
+    { immediate: true }
+  )$t('common.back') }}
           </button>
           <div class="text-white">
             <h1 class="text-xl font-bold">{{ $t('game.title') }}</h1>
@@ -66,7 +74,7 @@
         </div>
 
         <!-- Spotify Status Warning (when not connected) -->
-        <div v-if="showDemoWarning" class="card bg-yellow-50 border-yellow-200">
+        <div v-if="!isSpotifyConnected" class="card bg-yellow-50 border-yellow-200">
           <div class="flex items-center space-x-3">
             <div class="flex-shrink-0">
               <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -97,7 +105,7 @@
         </div>
 
         <!-- Spotify Permissions Warning (when connected but can't play) -->
-        <div v-else-if="isSpotifyConnected === true && needsReauth" class="card bg-orange-50 border-orange-200">
+        <div v-else-if="isSpotifyConnected && needsReauth" class="card bg-orange-50 border-orange-200">
           <div class="flex items-center space-x-3">
             <div class="flex-shrink-0">
               <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -245,9 +253,7 @@ const gameStore = useGameStore()
 const isLoadingTrack = ref(false)
 const showHintDialog = ref(false)
 const hintMessage = ref('')
-const initialAuthState = spotifyService.isAuthenticated()
-console.log('🔧 INIT: Initial auth state:', initialAuthState)
-const isSpotifyConnected = ref(initialAuthState) // Direct reactive ref
+const isSpotifyConnected = ref(false) // Start with false and update immediately
 
 // Computed
 const players = computed(() => gameStore.players)
@@ -260,10 +266,6 @@ const winner = computed(() => gameStore.winner)
 const needsReauth = computed(() => {
   // Show reauth warning if connected but player isn't ready after some time
   return isSpotifyConnected.value && !spotifyService.isPlayerReady()
-})
-const showDemoWarning = computed(() => {
-  console.log('🔧 COMPUTED: showDemoWarning - isSpotifyConnected.value:', isSpotifyConnected.value)
-  return isSpotifyConnected.value === false
 })
 const sortedPlayers = computed(() => 
   [...players.value].sort((a, b) => {
@@ -342,16 +344,7 @@ function goToLogin() {
 
 function refreshSpotifyAuth() {
   const isAuth = spotifyService.isAuthenticated()
-  const authState = localStorage.getItem('spotify_auth')
-  console.log('🔧 REFRESH: Spotify auth check:', {
-    isAuthenticated: isAuth,
-    authStateInStorage: authState ? JSON.parse(authState) : null,
-    currentValue: isAuth,
-    currentReactiveValue: isSpotifyConnected.value
-  })
-  
-  // Update reactive ref directly
-  console.log('🔧 UPDATING: isSpotifyConnected from', isSpotifyConnected.value, 'to', isAuth)
+  console.log('🔧 SIMPLE: Setting isSpotifyConnected to:', isAuth)
   isSpotifyConnected.value = isAuth
   
   // Initialize player if authenticated
