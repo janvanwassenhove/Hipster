@@ -225,7 +225,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useGameStore } from '@/stores/game'
 import { spotifyService } from '@/services/spotify'
@@ -240,7 +240,7 @@ const gameStore = useGameStore()
 const isLoadingTrack = ref(false)
 const showHintDialog = ref(false)
 const hintMessage = ref('')
-const authUpdateTrigger = ref(0) // Force reactivity for auth state
+const isSpotifyConnected = ref(spotifyService.isAuthenticated()) // Direct reactive ref
 
 // Computed
 const players = computed(() => gameStore.players)
@@ -250,11 +250,6 @@ const gamePhase = computed(() => gameStore.gamePhase)
 const round = computed(() => gameStore.round)
 const settings = computed(() => gameStore.settings)
 const winner = computed(() => gameStore.winner)
-const isSpotifyConnected = computed(() => {
-  // Access the trigger to make this reactive
-  authUpdateTrigger.value
-  return spotifyService.isAuthenticated()
-})
 const needsReauth = computed(() => {
   // Show reauth warning if connected but player isn't ready after some time
   return isSpotifyConnected.value && !spotifyService.isPlayerReady()
@@ -343,8 +338,8 @@ function refreshSpotifyAuth() {
     currentValue: isAuth
   })
   
-  // Trigger reactivity update
-  authUpdateTrigger.value++
+  // Update reactive ref directly
+  isSpotifyConnected.value = isAuth
   
   // Initialize player if authenticated
   if (isAuth) {
@@ -375,6 +370,20 @@ onMounted(() => {
   // Clean up interval on unmount
   onUnmounted(() => {
     clearInterval(authCheckInterval)
+  })
+  
+  // Also watch for changes from external events (like token refresh)
+  const authWatcher = watch(
+    () => spotifyService.isAuthenticated(),
+    (newAuth) => {
+      console.log('🔄 Auth state changed:', newAuth)
+      isSpotifyConnected.value = newAuth
+    },
+    { immediate: true }
+  )
+  
+  onUnmounted(() => {
+    authWatcher()
   })
 })
 </script>
