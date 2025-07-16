@@ -1,6 +1,30 @@
 <template>
-  <div class="min-h-screen flex flex-col">
-    <!-- Header -->
+  <div class="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950 to-slate-900 text-white p-8">
+    <!-- Spotify Login Check -->
+    <div v-if="!isSpotifyAuthenticated" class="mb-8 p-6 bg-gradient-to-r from-purple-900/40 to-pink-900/40 border border-purple-500/30 rounded-2xl backdrop-blur-sm">
+            <div class="flex items-center space-x-4 mb-4">
+              <div class="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center">
+                <span class="text-2xl">🎵</span>
+              </div>
+              <div>
+                <h3 class="font-bold text-xl text-green-100">{{ $t('game.spotify.required') }}</h3>
+                <p class="text-green-200 font-medium">{{ $t('game.spotify.loginRequired') }}</p>
+              </div>
+            </div>
+            <button
+              @click="loginToSpotify"
+              :disabled="isLoggingIn"
+              class="btn bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white w-full font-bold text-lg py-4 shadow-lg hover:shadow-green-500/25"
+            >
+              <span v-if="isLoggingIn" class="flex items-center justify-center">
+                <div class="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent mr-2"></div>
+                {{ $t('common.loading') }}
+              </span>
+              <span v-else class="flex items-center justify-center">
+                🎵 {{ $t('game.spotify.login') }}
+              </span>
+            </button>
+          </div>   <!-- Header -->
     <header class="p-4 flex justify-between items-center">
       <div class="flex items-center space-x-2">
         <h1 class="text-3xl font-bold text-white">{{ $t('game.title') }}</h1>
@@ -21,11 +45,11 @@
         
         <!-- Continue Game Card (if saved game exists) -->
         <div v-if="hasSavedGame" class="card mb-6 bounce-in">
-          <h2 class="text-xl font-semibold mb-4 text-gray-800">{{ $t('game.continue') }}</h2>
+          <h2 class="text-2xl font-bold mb-4 text-white">{{ $t('game.continue') }}</h2>
           <div class="flex justify-between items-center">
             <div>
-              <p class="text-gray-600">{{ $t('game.players') }}: {{ savedGamePlayers.join(', ') }}</p>
-              <p class="text-gray-600">{{ $t('game.round') }}: {{ savedGameRound }}</p>
+              <p class="text-slate-300 font-medium">{{ $t('game.players') }}: {{ savedGamePlayers.join(', ') }}</p>
+              <p class="text-slate-300 font-medium">{{ $t('game.round') }}: {{ savedGameRound }}</p>
             </div>
             <button @click="continueGame" class="btn btn-primary">
               {{ $t('common.continue') }}
@@ -35,24 +59,31 @@
 
         <!-- New Game Setup -->
         <div class="card">
-          <h2 class="text-2xl font-semibold mb-6 text-gray-800">{{ $t('game.newGame') }}</h2>
+          <h2 class="text-3xl font-bold mb-8 text-white bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">{{ $t('game.newGame') }}</h2>
           
           <!-- Spotify Login Check -->
-          <div v-if="!isSpotifyAuthenticated" class="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-            <div class="flex items-center space-x-3 mb-3">
-              <span class="text-2xl">🎵</span>
+          <div v-if="!isSpotifyAuthenticated" class="mb-8 p-6 bg-gradient-to-r from-green-900/40 to-emerald-900/40 border border-green-500/30 rounded-2xl backdrop-blur-sm">
+            <div class="flex items-center space-x-4 mb-4">
+              <div class="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center">
+                <span class="text-2xl">🎵</span>
+              </div>
               <div>
-                <h3 class="font-semibold text-green-800">{{ $t('game.spotify.required') }}</h3>
-                <p class="text-green-700 text-sm">{{ $t('game.spotify.loginRequired') }}</p>
+                <h3 class="font-bold text-xl text-green-100">{{ $t('game.spotify.required') }}</h3>
+                <p class="text-green-200 font-medium">{{ $t('game.spotify.loginRequired') }}</p>
               </div>
             </div>
             <button
               @click="loginToSpotify"
               :disabled="isLoggingIn"
-              class="btn btn-primary bg-spotify hover:bg-spotify-dark w-full"
+              class="btn bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white w-full font-bold text-lg py-4 shadow-lg hover:shadow-green-500/25"
             >
-              <span v-if="isLoggingIn">{{ $t('common.loading') }}</span>
-              <span v-else>🎵 {{ $t('game.spotify.login') }}</span>
+              <span v-if="isLoggingIn" class="flex items-center justify-center">
+                <div class="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent mr-2"></div>
+                {{ $t('common.loading') }}
+              </span>
+              <span v-else class="flex items-center justify-center">
+                🎵 {{ $t('game.spotify.login') }}
+              </span>
             </button>
           </div>
 
@@ -61,7 +92,7 @@
             
             <!-- Player Count -->
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">
+              <label class="block text-sm font-bold text-slate-200 mb-3">
                 {{ $t('game.playerCount') }}
               </label>
               <select v-model="playerCount" class="select">
@@ -73,7 +104,7 @@
 
             <!-- Player Names -->
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">
+              <label class="block text-sm font-bold text-slate-200 mb-3">
                 {{ $t('game.playerNames') }}
               </label>
               <div class="space-y-3">
@@ -91,7 +122,7 @@
 
             <!-- Target Songs -->
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">
+              <label class="block text-sm font-bold text-slate-200 mb-3">
                 {{ $t('game.targetSongs') }}
               </label>
               <select v-model="targetSongs" class="select">
@@ -106,7 +137,7 @@
 
             <!-- Theme -->
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">
+              <label class="block text-sm font-bold text-slate-200 mb-3">
                 {{ $t('game.theme') }}
               </label>
               <select v-model="selectedTheme" class="select">

@@ -1,134 +1,164 @@
 <template>
-  <div class="card" :class="{ 'ring-2 ring-green-500': isCurrent }">
-    <div class="flex items-center justify-between mb-4">
-      <h3 class="text-lg font-semibold flex items-center space-x-2">
-        <span>{{ player.name }}</span>
-        <span v-if="isCurrent" class="text-green-500">👑</span>
-      </h3>
-      <div class="text-right">
-        <p class="text-2xl font-bold">{{ player.score }}</p>
-        <div class="flex items-center space-x-2 text-sm text-gray-600">
-          <span>🎵</span>
-          <span>{{ $t('game.score.tokens', { count: player.tokens }) }}</span>
+  <div class="card relative overflow-hidden" :class="{ 'ring-2 ring-cyan-400 shadow-2xl shadow-cyan-400/20': isCurrent }">
+    <!-- Animated background for current player -->
+    <div v-if="isCurrent" class="absolute inset-0 opacity-10">
+      <div class="absolute top-0 left-0 w-64 h-64 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-full blur-3xl animate-pulse"></div>
+      <div class="absolute bottom-0 right-0 w-80 h-80 bg-gradient-to-br from-purple-500 to-pink-600 rounded-full blur-3xl animate-pulse delay-1000"></div>
+    </div>
+    
+    <div class="relative z-10">
+      <div class="flex items-center justify-between mb-6">
+        <h3 class="text-xl font-bold flex items-center space-x-3">
+          <span :class="isCurrent ? 'bg-gradient-to-r from-cyan-300 to-blue-300 bg-clip-text text-transparent' : 'text-gray-200'">{{ player.name }}</span>
+          <span v-if="isCurrent" class="text-2xl animate-bounce">👑</span>
+        </h3>
+        <div class="text-right">
+          <p class="text-3xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">{{ player.score }}</p>
+          <div class="flex items-center space-x-2 text-sm text-gray-300">
+            <span class="text-lg">🎵</span>
+            <span class="font-medium">{{ $t('game.score.tokens', { count: player.tokens }) }}</span>
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- Token Abilities (only show for current player) -->
-    <div v-if="isCurrent && canPlace && player.tokens > 0" class="mb-4">
-      <h4 class="text-sm font-medium text-gray-700 mb-2">{{ $t('game.tokenAbilities') }}</h4>
-      <div class="flex space-x-2">
-        <button 
-          @click="useTokenAbility('skip')" 
-          class="btn btn-sm bg-yellow-100 hover:bg-yellow-200 text-yellow-800"
-          :title="$t('game.tokens.skip.description')"
-        >
-          ⏭️ {{ $t('game.tokens.skip.label') }}
-        </button>
-        <button 
-          @click="useTokenAbility('hint')" 
-          class="btn btn-sm bg-blue-100 hover:bg-blue-200 text-blue-800"
-          :title="$t('game.tokens.hint.description')"
-        >
-          💡 {{ $t('game.tokens.hint.label') }}
-        </button>
+      <!-- Token Abilities (only show for current player) -->
+      <div v-if="isCurrent && canPlace && player.tokens > 0" class="mb-6">
+        <h4 class="text-sm font-medium text-gray-300 mb-3">{{ $t('game.tokenAbilities') }}</h4>
+        <div class="flex space-x-3">
+          <button 
+            @click="useTokenAbility('skip')" 
+            class="group relative px-4 py-2 bg-gradient-to-r from-orange-600 to-pink-600 hover:from-orange-500 hover:to-pink-500 text-white rounded-xl font-medium transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-orange-500/25"
+            :title="$t('game.tokens.skip.description')"
+          >
+            <div class="flex items-center space-x-2">
+              <span class="text-lg">⏭️</span>
+              <span>{{ $t('game.tokens.skip.label') }}</span>
+            </div>
+          </button>
+          <button 
+            @click="useTokenAbility('hint')" 
+            class="group relative px-4 py-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded-xl font-medium transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-cyan-500/25"
+            :title="$t('game.tokens.hint.description')"
+          >
+            <div class="flex items-center space-x-2">
+              <span class="text-lg">💡</span>
+              <span>{{ $t('game.tokens.hint.label') }}</span>
+            </div>
+          </button>
+        </div>
       </div>
-    </div>
 
-    <div class="mb-4">
-      <h4 class="text-sm font-medium text-gray-700 mb-2">{{ $t('game.timeline.title') }}</h4>
+      <div class="mb-6">
+        <h4 class="text-lg font-semibold text-gray-200 mb-4 flex items-center">
+          <span class="mr-2">🎵</span>
+          {{ $t('game.timeline.title') }}
+        </h4>
       
-      <!-- Empty Timeline Message -->
-      <div v-if="player.timeline.length === 0" class="text-center py-8 text-gray-500">
-        <p>{{ $t('game.timeline.empty') }}</p>
-        
-        <!-- Drop Zone for First Track -->
-        <div
-          v-if="canPlace"
-          class="timeline-slot mt-4"
-          :class="{ 'drag-over': dragOverFirst }"
-          @dragover.prevent="dragOverFirst = true"
-          @dragleave.prevent="dragOverFirst = false"
-          @drop.prevent="handleDrop(0)"
-          :data-drop-zone="0"
-        >
-          <p class="text-center text-gray-500">{{ $t('game.timeline.placeHere') }}</p>
-        </div>
-      </div>
-
-      <!-- Timeline with Tracks -->
-      <div v-else class="space-y-2">
-        <!-- Before first track -->
-        <div
-          v-if="canPlace"
-          class="timeline-slot h-16"
-          :class="{ 'drag-over': dragOverPositions[0] }"
-          @dragover.prevent="dragOverPositions[0] = true"
-          @dragleave.prevent="dragOverPositions[0] = false"
-          @drop.prevent="handleDrop(0)"
-          :data-drop-zone="0"
-        >
-          <p class="text-center text-gray-500 text-sm">{{ $t('game.placeEarlier') }}</p>
+        <!-- Empty Timeline Message -->
+        <div v-if="player.timeline.length === 0" class="text-center py-12 text-gray-400">
+          <div class="mb-4">
+            <div class="w-20 h-20 mx-auto bg-gradient-to-br from-gray-700 to-gray-800 rounded-full flex items-center justify-center shadow-lg">
+              <span class="text-3xl">🎼</span>
+            </div>
+          </div>
+          <p class="text-lg font-medium mb-2">{{ $t('game.timeline.empty') }}</p>
+          
+          <!-- Drop Zone for First Track -->
+          <div
+            v-if="canPlace"
+            class="timeline-slot mt-6 group"
+            :class="{ 'drag-over': dragOverFirst }"
+            @dragover.prevent="dragOverFirst = true"
+            @dragleave.prevent="dragOverFirst = false"
+            @drop.prevent="handleDrop(0)"
+            :data-drop-zone="0"
+          >
+            <div class="p-8 border-2 border-dashed border-gray-500 rounded-2xl group-hover:border-purple-400 transition-colors duration-300 bg-gradient-to-br from-gray-800/30 to-gray-900/30 backdrop-blur-sm">
+              <p class="text-center text-gray-300 font-medium">{{ $t('game.timeline.placeHere') }}</p>
+            </div>
+          </div>
         </div>
 
-        <!-- Track Cards -->
-        <div
-          v-for="(track, index) in player.timeline"
-          :key="track.id"
-          class="track-card"
-        >
-          <div class="flex items-center space-x-3">
-            <!-- Album Cover (only shown if revealed) -->
-            <div class="w-12 h-12 rounded object-cover flex-shrink-0 relative">
-              <img
-                v-if="track.revealed"
-                :src="getTrackImage(track)"
-                :alt="track.name"
-                class="w-12 h-12 rounded object-cover"
-              />
-              <div
-                v-else
-                class="w-12 h-12 rounded bg-gray-200 flex items-center justify-center"
-              >
-                <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path>
-                </svg>
+        <!-- Timeline with Tracks -->
+        <div v-else class="space-y-3">
+          <!-- Before first track -->
+          <div
+            v-if="canPlace"
+            class="timeline-slot h-20 group"
+            :class="{ 'drag-over': dragOverPositions[0] }"
+            @dragover.prevent="dragOverPositions[0] = true"
+            @dragleave.prevent="dragOverPositions[0] = false"
+            @drop.prevent="handleDrop(0)"
+            :data-drop-zone="0"
+          >
+            <div class="h-full border-2 border-dashed border-gray-600 rounded-xl group-hover:border-cyan-400 transition-colors duration-300 bg-gradient-to-r from-gray-800/20 to-gray-700/20 backdrop-blur-sm flex items-center justify-center">
+              <p class="text-center text-gray-400 text-sm font-medium">{{ $t('game.placeEarlier') }}</p>
+            </div>
+          </div>
+
+          <!-- Track Cards -->
+          <div
+            v-for="(track, index) in player.timeline"
+            :key="track.id"
+            class="track-card group relative"
+          >
+            <div class="p-4 bg-gradient-to-r from-gray-800/60 to-gray-900/60 backdrop-blur-sm border border-gray-600/30 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
+              <div class="flex items-center space-x-4">
+                <!-- Album Cover (only shown if revealed) -->
+                <div class="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 relative group-hover:scale-105 transition-transform duration-300">
+                  <img
+                    v-if="track.revealed"
+                    :src="getTrackImage(track)"
+                    :alt="track.name"
+                    class="w-16 h-16 object-cover"
+                  />
+                  <div
+                    v-else
+                    class="w-16 h-16 bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center"
+                  >
+                    <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path>
+                    </svg>
+                  </div>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <p class="font-bold text-lg text-gray-100 truncate">{{ track.name }}</p>
+                  <p class="text-sm text-gray-300 truncate font-medium">{{ getArtistNames(track) }}</p>
+                </div>
+                <div class="text-right flex-shrink-0">
+                  <p class="font-bold text-2xl bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent">{{ track.year }}</p>
+                </div>
               </div>
             </div>
-            <div class="flex-1 min-w-0">
-              <p class="font-medium truncate">{{ track.name }}</p>
-              <p class="text-sm text-gray-600 truncate">{{ getArtistNames(track) }}</p>
-            </div>
-            <div class="text-right flex-shrink-0">
-              <p class="font-bold text-lg">{{ track.year }}</p>
-            </div>
-          </div>
 
-          <!-- Drop zone after this track -->
-          <div
-            v-if="canPlace && index < player.timeline.length - 1"
-            class="timeline-slot h-16 mt-2"
-            :class="{ 'drag-over': dragOverPositions[index + 1] }"
-            @dragover.prevent="dragOverPositions[index + 1] = true"
-            @dragleave.prevent="dragOverPositions[index + 1] = false"
-            @drop.prevent="handleDrop(index + 1)"
-            :data-drop-zone="index + 1"
-          >
-            <p class="text-center text-gray-500 text-sm">{{ $t('game.placeBetween') }}</p>
+            <!-- Drop zone after this track -->
+            <div
+              v-if="canPlace && index < player.timeline.length - 1"
+              class="timeline-slot h-20 mt-3 group"
+              :class="{ 'drag-over': dragOverPositions[index + 1] }"
+              @dragover.prevent="dragOverPositions[index + 1] = true"
+              @dragleave.prevent="dragOverPositions[index + 1] = false"
+              @drop.prevent="handleDrop(index + 1)"
+              :data-drop-zone="index + 1"
+            >
+              <div class="h-full border-2 border-dashed border-gray-600 rounded-xl group-hover:border-purple-400 transition-colors duration-300 bg-gradient-to-r from-gray-800/20 to-gray-700/20 backdrop-blur-sm flex items-center justify-center">
+                <p class="text-center text-gray-400 text-sm font-medium">{{ $t('game.placeBetween') }}</p>
+              </div>
+            </div>
           </div>
-        </div>
 
         <!-- After last track -->
         <div
           v-if="canPlace"
-          class="timeline-slot h-16"
+          class="timeline-slot h-20 group"
           :class="{ 'drag-over': dragOverPositions[player.timeline.length] }"
           @dragover.prevent="dragOverPositions[player.timeline.length] = true"
           @dragleave.prevent="dragOverPositions[player.timeline.length] = false"
           @drop.prevent="handleDrop(player.timeline.length)"
           :data-drop-zone="player.timeline.length"
-        >
-          <p class="text-center text-gray-500 text-sm">{{ $t('game.placeLater') }}</p>
+        >            <div class="h-full border-2 border-dashed border-gray-600 rounded-xl group-hover:border-cyan-400 transition-colors duration-300 bg-gradient-to-r from-gray-800/20 to-gray-700/20 backdrop-blur-sm flex items-center justify-center">
+              <p class="text-center text-gray-400 text-sm font-medium">{{ $t('game.placeLater') }}</p>
+            </div>
         </div>
       </div>
     </div>
@@ -136,7 +166,7 @@
     <!-- Current Track (draggable) -->
     <div
       v-if="canPlace && currentTrack"
-      class="p-4 bg-blue-50 border-2 border-blue-200 rounded-lg cursor-move touch-manipulation select-none"
+      class="p-6 bg-gradient-to-r from-blue-900/50 to-purple-900/50 border-2 border-blue-400/30 rounded-2xl cursor-move touch-manipulation select-none backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]"
       draggable="true"
       @dragstart="handleDragStart"
       @dragend="handleDragEnd"
@@ -145,28 +175,28 @@
       @touchend="handleTouchEnd"
       :style="{ touchAction: 'none' }"
     >
-      <div class="flex items-center space-x-3">
+      <div class="flex items-center space-x-4">
         <!-- Hidden Album Cover - show placeholder instead -->
-        <div class="w-12 h-12 rounded bg-blue-200 flex items-center justify-center flex-shrink-0">
-          <svg class="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div class="w-16 h-16 rounded-xl bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center flex-shrink-0 shadow-lg">
+          <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path>
           </svg>
         </div>
         <div class="flex-1 min-w-0">
-          <p class="font-medium text-blue-800">{{ $t('game.newTrack') }}</p>
-          <p class="text-sm text-blue-600">{{ $t('game.dragToPlace') }}</p>
+          <p class="font-bold text-lg text-blue-200">{{ $t('game.newTrack') }}</p>
+          <p class="text-sm text-blue-300 font-medium">{{ $t('game.dragToPlace') }}</p>
         </div>
-        <div class="text-blue-500">
-          <span class="text-2xl">🎵</span>
+        <div class="text-blue-300">
+          <span class="text-3xl animate-pulse">🎵</span>
         </div>
       </div>
     </div>
 
     <!-- Timeline Stats -->
-    <div v-if="player.timeline.length > 0" class="mt-4 pt-4 border-t border-gray-200">
-      <div class="flex justify-between text-sm text-gray-600">
-        <span>{{ $t('game.tracksInTimeline', { count: player.timeline.length }) }}</span>
-        <span v-if="timelineSpan">{{ timelineSpan }}</span>
+    <div v-if="player.timeline.length > 0" class="mt-6 pt-6 border-t border-gray-600/30">
+      <div class="flex justify-between text-sm text-gray-300">
+        <span class="font-medium">{{ $t('game.tracksInTimeline', { count: player.timeline.length }) }}</span>
+        <span v-if="timelineSpan" class="font-mono">{{ timelineSpan }}</span>
       </div>
     </div>
   </div>

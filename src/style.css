@@ -30,15 +30,15 @@ body {
   }
   
   .btn-primary {
-    @apply btn bg-green-500 hover:bg-green-600 text-white focus:ring-green-500;
+    @apply btn bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white focus:ring-purple-500 shadow-lg hover:shadow-purple-500/25 font-semibold;
   }
   
   .btn-secondary {
-    @apply btn bg-gray-200 hover:bg-gray-300 text-gray-800 focus:ring-gray-500;
+    @apply btn bg-gradient-to-r from-slate-700 to-slate-800 hover:from-slate-600 hover:to-slate-700 text-white focus:ring-slate-500 shadow-lg hover:shadow-slate-500/25 font-semibold;
   }
   
   .btn-danger {
-    @apply btn bg-red-500 hover:bg-red-600 text-white focus:ring-red-500;
+    @apply btn bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-500 hover:to-pink-500 text-white focus:ring-red-500 shadow-lg hover:shadow-red-500/25 font-semibold;
   }
   
   .btn-lg {
@@ -46,15 +46,15 @@ body {
   }
   
   .card {
-    @apply bg-white rounded-xl shadow-lg p-6;
+    @apply bg-gradient-to-br from-slate-800/90 to-slate-900/90 border border-purple-500/20 rounded-2xl shadow-2xl shadow-purple-500/10 p-6 backdrop-blur-sm;
   }
   
   .input {
-    @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent;
+    @apply w-full px-4 py-3 border border-slate-600 bg-slate-800/50 text-white placeholder-slate-400 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent backdrop-blur-sm;
   }
   
   .select {
-    @apply input appearance-none bg-white;
+    @apply input appearance-none bg-slate-800/50 text-white;
   }
 }
 
@@ -173,13 +173,13 @@ body {
 
 /* Enhanced drag and drop styles for mobile */
 .timeline-slot {
-  @apply border-2 border-dashed border-gray-300 rounded-lg p-4 min-h-[100px] transition-all duration-200;
+  @apply border-2 border-dashed border-gray-600 rounded-xl p-4 min-h-[100px] transition-all duration-200;
   touch-action: none; /* Prevent scrolling during drag */
 }
 
 .timeline-slot.drag-over {
-  @apply border-green-500 bg-green-50 scale-105;
-  box-shadow: 0 4px 20px rgba(34, 197, 94, 0.3);
+  @apply border-purple-400 bg-purple-900/20 scale-105;
+  box-shadow: 0 4px 20px rgba(168, 85, 247, 0.3);
   animation: pulse 1.5s ease-in-out infinite;
 }
 
@@ -254,7 +254,7 @@ body {
 }
 
 .play-btn {
-  @apply flex items-center justify-center w-16 h-16 rounded-full bg-green-600 hover:bg-green-500 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+  @apply flex items-center justify-center w-16 h-16 rounded-full bg-purple-600 hover:bg-purple-500 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
 }
 
 .progress-bar {
@@ -267,11 +267,11 @@ body {
 }
 
 .progress-fill {
-  @apply h-full bg-green-500 transition-all duration-100 rounded-full;
+  @apply h-full bg-purple-500 transition-all duration-100 rounded-full;
 }
 
 .progress-handle {
-  @apply absolute top-1/2 transform -translate-y-1/2 -translate-x-1/2 w-4 h-4 bg-green-400 rounded-full opacity-0 hover:opacity-100 transition-opacity;
+  @apply absolute top-1/2 transform -translate-y-1/2 -translate-x-1/2 w-4 h-4 bg-purple-400 rounded-full opacity-0 hover:opacity-100 transition-opacity;
   transition: opacity 0.2s, transform 0.1s;
 }
 
@@ -330,5 +330,64 @@ body {
   
   .input {
     @apply bg-gray-700 border-gray-600 text-white;
+  }
+}
+
+/* Custom hip and trendy utilities */
+@layer utilities {
+  .glow-purple {
+    box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
+  }
+  
+  .glow-pink {
+    box-shadow: 0 0 20px rgba(236, 72, 153, 0.3);
+  }
+  
+  .glow-cyan {
+    box-shadow: 0 0 20px rgba(6, 182, 212, 0.3);
+  }
+  
+  .text-glow {
+    text-shadow: 0 0 10px currentColor;
+  }
+  
+  .glass {
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+  
+  .glass-dark {
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  
+  .animate-float {
+    animation: float 3s ease-in-out infinite;
+  }
+  
+  @keyframes float {
+    0%, 100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
+  }
+  
+  .animate-glow {
+    animation: glow 2s ease-in-out infinite alternate;
+  }
+  
+  @keyframes glow {
+    from {
+      box-shadow: 0 0 5px currentColor;
+    }
+    to {
+      box-shadow: 0 0 20px currentColor, 0 0 30px currentColor;
+    }
   }
 }
