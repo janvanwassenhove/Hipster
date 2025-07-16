@@ -18,6 +18,7 @@ export interface Track {
     spotify: string
   }
   images: SpotifyImage[]
+  revealed?: boolean // Whether album cover should be shown (after final placement)
 }
 
 export interface Artist {

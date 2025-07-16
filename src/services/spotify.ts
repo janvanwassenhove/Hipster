@@ -252,6 +252,7 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
       external_urls: { spotify: '' },
       release_date: `${song.jaar}-01-01`,
       year: song.jaar,
+      revealed: false, // Album cover hidden until final placement
       images: [
         { url: `https://via.placeholder.com/300x300/${color.slice(1)}/FFFFFF?text=${encodeURIComponent(song.uitvoerder)}`, height: 300, width: 300 },
         { url: `https://via.placeholder.com/64x64/${color.slice(1)}/FFFFFF?text=${encodeURIComponent(song.uitvoerder)}`, height: 64, width: 64 }
@@ -478,6 +479,7 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
               .map((item: any) => ({
                 ...item.track,
                 year: new Date(item.track.album.release_date).getFullYear(),
+                revealed: false, // Album cover hidden until final placement
                 images: item.track.album.images || []
               }))
             
@@ -525,6 +527,7 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
             .map((track: any) => ({
               ...track,
               year: track.album?.release_date ? new Date(track.album.release_date).getFullYear() : new Date().getFullYear(),
+              revealed: false, // Album cover hidden until final placement
               images: track.album?.images || []
             }))
           

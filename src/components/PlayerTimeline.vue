@@ -76,11 +76,23 @@
           class="track-card"
         >
           <div class="flex items-center space-x-3">
-            <img
-              :src="getTrackImage(track)"
-              :alt="track.name"
-              class="w-12 h-12 rounded object-cover flex-shrink-0"
-            />
+            <!-- Album Cover (only shown if revealed) -->
+            <div class="w-12 h-12 rounded object-cover flex-shrink-0 relative">
+              <img
+                v-if="track.revealed"
+                :src="getTrackImage(track)"
+                :alt="track.name"
+                class="w-12 h-12 rounded object-cover"
+              />
+              <div
+                v-else
+                class="w-12 h-12 rounded bg-gray-200 flex items-center justify-center"
+              >
+                <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path>
+                </svg>
+              </div>
+            </div>
             <div class="flex-1 min-w-0">
               <p class="font-medium truncate">{{ track.name }}</p>
               <p class="text-sm text-gray-600 truncate">{{ getArtistNames(track) }}</p>
@@ -126,11 +138,12 @@
       @dragend="handleDragEnd"
     >
       <div class="flex items-center space-x-3">
-        <img
-          :src="getTrackImage(currentTrack)"
-          :alt="currentTrack.name"
-          class="w-12 h-12 rounded object-cover flex-shrink-0"
-        />
+        <!-- Hidden Album Cover - show placeholder instead -->
+        <div class="w-12 h-12 rounded bg-blue-200 flex items-center justify-center flex-shrink-0">
+          <svg class="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path>
+          </svg>
+        </div>
         <div class="flex-1 min-w-0">
           <p class="font-medium text-blue-800">{{ $t('game.newTrack') }}</p>
           <p class="text-sm text-blue-600">{{ $t('game.dragToPlace') }}</p>

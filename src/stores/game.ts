@@ -104,6 +104,9 @@ export const useGameStore = defineStore('game', () => {
     const isCorrect = isTimelineCorrect(player.timeline)
     
     if (isCorrect) {
+      // Mark track as revealed (album cover can now be shown)
+      track.revealed = true
+      
       // Award Hitster token (main scoring mechanism in official game)
       player.tokens++
       

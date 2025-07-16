@@ -2,9 +2,15 @@
   <div class="card">
     <div class="flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-6">
       
-      <!-- Album Cover -->
+      <!-- Album Cover (hidden during guessing, shown after answer revealed) -->
       <div class="flex-shrink-0">
+        <div v-if="!showAnswer" class="w-32 h-32 rounded-lg shadow-lg bg-gray-200 flex items-center justify-center">
+          <svg class="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path>
+          </svg>
+        </div>
         <img
+          v-else
           :src="trackImage"
           :alt="track.name"
           class="w-32 h-32 rounded-lg shadow-lg object-cover"
@@ -35,9 +41,18 @@
 
         <!-- Custom Audio Player -->
         <div class="mb-4">
-          <div v-if="!track.preview_url" class="bg-gray-100 border border-gray-300 rounded-lg p-4 text-center">
-            <p class="text-gray-600">🎵 {{ $t('game.demoMode') }}</p>
-            <p class="text-sm text-gray-500">{{ $t('game.noPreview') }}</p>
+          <div v-if="!track.preview_url" class="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
+            <div class="flex items-center justify-center mb-2">
+              <svg class="w-8 h-8 text-blue-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path>
+              </svg>
+              <h3 class="text-lg font-semibold text-blue-800">{{ $t('game.demoMode') }}</h3>
+            </div>
+            <p class="text-blue-700 mb-2">{{ $t('game.noPreview') }}</p>
+            <p class="text-sm text-blue-600">
+              <strong>{{ $t('game.needSpotifyForAudio') }}</strong>
+            </p>
+            <p class="text-xs text-blue-500 mt-1">{{ $t('game.demoModeInstructions') }}</p>
           </div>
           
           <!-- Hidden Audio Element -->
@@ -62,7 +77,7 @@
               <button
                 @click="restartTrack"
                 class="control-btn"
-                :disabled="!canPlay"
+                :disabled="!track.preview_url"
                 title="Restart"
               >
                 <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
@@ -73,7 +88,7 @@
               <button
                 @click="togglePlayback"
                 class="play-btn"
-                :disabled="!canPlay"
+                :disabled="!track.preview_url"
               >
                 <div v-if="isLoading" class="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
                 <svg v-else-if="isPlaying" class="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
@@ -87,7 +102,7 @@
               <button
                 @click="toggleMute"
                 class="control-btn"
-                :disabled="!canPlay"
+                :disabled="!track.preview_url"
                 title="Mute/Unmute"
               >
                 <svg v-if="isMuted || volume === 0" class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
@@ -137,7 +152,7 @@
                   :value="volume"
                   @input="updateVolume"
                   class="volume-slider"
-                  :disabled="!canPlay"
+                  :disabled="!track.preview_url"
                 />
               </div>
               <span class="text-xs text-gray-400 w-8">{{ Math.round(volume * 100) }}%</span>
@@ -187,7 +202,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { Track } from '@/types'
 
@@ -257,21 +272,28 @@ const progressPercent = computed(() => {
 
 // Methods
 function togglePlayback() {
-  if (!audioPlayer.value || !canPlay.value) return
+  if (!audioPlayer.value) return
+  
+  console.log('Toggle playback called, isPlaying:', isPlaying.value, 'canPlay:', canPlay.value)
   
   if (isPlaying.value) {
     audioPlayer.value.pause()
   } else {
-    audioPlayer.value.play()
+    audioPlayer.value.play().catch(error => {
+      console.error('Error playing audio:', error)
+    })
   }
 }
 
 function restartTrack() {
-  if (!audioPlayer.value || !canPlay.value) return
+  if (!audioPlayer.value) return
   
+  console.log('Restart track called')
   audioPlayer.value.currentTime = 0
   if (isPlaying.value) {
-    audioPlayer.value.play()
+    audioPlayer.value.play().catch(error => {
+      console.error('Error playing audio after restart:', error)
+    })
   }
 }
 
@@ -303,7 +325,7 @@ function updateVolume(event: Event) {
 }
 
 function seekTo(event: MouseEvent) {
-  if (!audioPlayer.value || !canPlay.value) return
+  if (!audioPlayer.value || !props.track.preview_url) return
   
   const progressTrack = event.currentTarget as HTMLElement
   const rect = progressTrack.getBoundingClientRect()
@@ -351,16 +373,35 @@ function onAudioEnded() {
 
 // Lifecycle
 onMounted(() => {
-  if (audioPlayer.value) {
-    audioPlayer.value.addEventListener('play', () => {
-      isPlaying.value = true
-    })
-    
-    audioPlayer.value.addEventListener('pause', () => {
-      isPlaying.value = false
-    })
+  // Use nextTick to ensure the DOM is fully rendered
+  nextTick(() => {
+    if (audioPlayer.value) {
+      setupAudioEventListeners()
+    }
+  })
+})
+
+// Watch for changes to the audio element and set up listeners
+watch(audioPlayer, (newAudio: HTMLAudioElement | undefined) => {
+  if (newAudio) {
+    setupAudioEventListeners()
   }
 })
+
+function setupAudioEventListeners() {
+  if (!audioPlayer.value) return
+  
+  audioPlayer.value.addEventListener('play', () => {
+    isPlaying.value = true
+  })
+  
+  audioPlayer.value.addEventListener('pause', () => {
+    isPlaying.value = false
+  })
+  
+  // Set initial volume
+  audioPlayer.value.volume = volume.value
+}
 
 onUnmounted(() => {
   if (audioPlayer.value) {

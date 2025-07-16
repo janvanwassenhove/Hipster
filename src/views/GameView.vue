@@ -57,6 +57,24 @@
           </div>
         </div>
 
+        <!-- Spotify Status Warning (when not connected) -->
+        <div v-if="!isSpotifyConnected" class="card bg-yellow-50 border-yellow-200">
+          <div class="flex items-center space-x-3">
+            <div class="flex-shrink-0">
+              <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 18.5c-.77.833.192 2.5 1.732 2.5z"></path>
+              </svg>
+            </div>
+            <div class="flex-1">
+              <h3 class="text-lg font-semibold text-yellow-800">{{ $t('game.spotify.notConnected') }}</h3>
+              <p class="text-yellow-700 text-sm">{{ $t('game.demoModeActive') }}</p>
+            </div>
+            <button @click="goToLogin" class="btn btn-sm bg-yellow-600 hover:bg-yellow-700 text-white">
+              {{ $t('game.spotify.login') }}
+            </button>
+          </div>
+        </div>
+
         <!-- Track Player -->
         <TrackPlayer
           v-if="currentTrack"
@@ -137,6 +155,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useGameStore } from '@/stores/game'
+import { spotifyService } from '@/services/spotify'
 import TrackPlayer from '@/components/TrackPlayer.vue'
 import PlayerTimeline from '@/components/PlayerTimeline.vue'
 import type { Track } from '@/types'
@@ -155,6 +174,7 @@ const gamePhase = computed(() => gameStore.gamePhase)
 const round = computed(() => gameStore.round)
 const settings = computed(() => gameStore.settings)
 const winner = computed(() => gameStore.winner)
+const isSpotifyConnected = computed(() => spotifyService.isAuthenticated())
 const sortedPlayers = computed(() => 
   [...players.value].sort((a, b) => {
     // Sort by tokens first (official Hitster rule)
@@ -210,6 +230,10 @@ function handleUseToken(ability: string) {
 
 function playAgain() {
   gameStore.resetGame()
+  router.push('/')
+}
+
+function goToLogin() {
   router.push('/')
 }
 
