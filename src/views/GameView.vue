@@ -57,12 +57,6 @@
           </div>
         </div>
 
-        <!-- Debug Info (temporary) -->
-        <div class="card bg-blue-50 border-blue-200 text-sm text-blue-800">
-          <p>Debug: isSpotifyConnected = {{ isSpotifyConnected }}</p>
-          <p>Debug: Direct check = {{ directSpotifyCheck }}</p>
-        </div>
-
         <!-- Spotify Status Warning (when not connected) -->
         <div v-if="!isSpotifyConnected" class="card bg-yellow-50 border-yellow-200">
           <div class="flex items-center space-x-3">
@@ -249,7 +243,6 @@ const round = computed(() => gameStore.round)
 const settings = computed(() => gameStore.settings)
 const winner = computed(() => gameStore.winner)
 const isSpotifyConnected = computed(() => spotifyAuthState.value)
-const directSpotifyCheck = computed(() => spotifyService.isAuthenticated())
 const needsReauth = computed(() => {
   // Show reauth warning if connected but player isn't ready after some time
   return isSpotifyConnected.value && !spotifyService.isPlayerReady()

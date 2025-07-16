@@ -11,7 +11,6 @@ export interface Track {
   name: string
   artists: Artist[]
   album: Album
-  preview_url: string | null
   release_date: string
   year: number
   external_urls: {

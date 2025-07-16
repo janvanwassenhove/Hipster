@@ -87,24 +87,6 @@
             <p class="text-xs text-blue-400 mt-2 opacity-80">{{ $t('game.demoModeInstructions') }}</p>
           </div>
           
-          <!-- Hidden Audio Element (for preview fallback) -->
-          <audio
-            v-if="canPlayPreview && !canPlayFullTrack"
-            ref="audioPlayer"
-            :src="track.preview_url || undefined"
-            @ended="onAudioEnded"
-            @timeupdate="onTimeUpdate"
-            @loadedmetadata="onLoadedMetadata"
-            @loadstart="onLoadStart"
-            @canplay="onCanPlay"
-            preload="metadata"
-            playsinline
-            webkit-playsinline
-            crossorigin="anonymous"
-          >
-            {{ $t('game.audioNotSupported') }}
-          </audio>
-
           <!-- Custom Player Interface -->
           <div v-if="canPlayAudio" class="music-player-controls bg-gradient-to-br from-gray-900/80 to-black/80 rounded-2xl p-6 backdrop-blur-sm border border-gray-700/50 shadow-2xl">
             <!-- Main Controls -->
@@ -204,7 +186,7 @@
                   @touchmove="handleVolumeTouch"
                   @touchend="handleVolumeTouch"
                   class="volume-slider w-full h-2 bg-gradient-to-r from-gray-800 to-gray-700 rounded-full appearance-none cursor-pointer slider-thumb"
-                  :disabled="!track.preview_url"
+                  :disabled="false"
                 />
               </div>
               <span class="text-sm text-gray-400 w-10 font-mono">{{ Math.round(volume * 100) }}%</span>
@@ -307,7 +289,6 @@ const emit = defineEmits<{
 const { t } = useI18n()
 
 // Reactive state
-const audioPlayer = ref<HTMLAudioElement>()
 const isPlaying = ref(false)
 const isLoading = ref(false)
 const canPlay = ref(false)
@@ -363,20 +344,14 @@ const canPlayFullTrack = computed(() => {
   return hasSpotifyUri.value && spotifyService.isPlayerReady() && !isMobileDevice.value
 })
 
-const canPlayPreview = computed(() => {
-  // Disable preview functionality as requested
-  return false
-})
-
 const canPlayAudio = computed(() => {
-  return canPlayFullTrack.value || canPlayPreview.value
+  return canPlayFullTrack.value
 })
 
 // Methods
 async function togglePlayback() {
   console.log('Toggle playback called, isPlaying:', isPlaying.value)
   console.log('Can play full track:', canPlayFullTrack.value)
-  console.log('Can play preview:', canPlayPreview.value)
   console.log('Spotify player ready:', spotifyService.isPlayerReady())
   
   // Detect mobile devices
@@ -397,38 +372,11 @@ async function togglePlayback() {
         // Start monitoring playback state
         monitorSpotifyPlayback()
       } else {
-        console.warn('Failed to play track, falling back to preview if available')
-        // Fallback to preview if full track fails
-        if (canPlayPreview.value && audioPlayer.value) {
-          try {
-            await audioPlayer.value.play()
-          } catch (error) {
-            console.error('Error playing preview fallback:', error)
-          }
-        }
-      }
-    }
-  } else if (canPlayPreview.value && audioPlayer.value) {
-    // Use HTML5 audio for previews (works on all devices)
-    if (isPlaying.value) {
-      audioPlayer.value.pause()
-    } else {
-      try {
-        // For mobile devices, ensure user interaction before playing
-        await audioPlayer.value.play()
-      } catch (error) {
-        console.error('Error playing audio:', error)
-        
-        // Handle common mobile autoplay errors
-        if (error instanceof Error && error.name === 'NotAllowedError') {
-          console.warn('Autoplay blocked - user interaction required')
-          // Show a user-friendly message or prompt for interaction
-        }
+        console.error('Failed to play track via Spotify')
       }
     }
   } else {
-    // On mobile without audio capabilities, show visual-only mode message
-    console.log('Mobile device without audio playback - visual mode only')
+    console.log('Cannot play audio: full track unavailable or mobile device detected')
   }
 }
 
@@ -436,19 +384,11 @@ async function restartTrack() {
   console.log('Restart track called')
   
   if (canPlayFullTrack.value) {
-    // Restart full track
+    // Restart full track via Spotify
     const success = await spotifyService.playTrack(props.track.uri!)
     if (success) {
       isPlaying.value = true
       monitorSpotifyPlayback()
-    }
-  } else if (audioPlayer.value) {
-    // Restart preview
-    audioPlayer.value.currentTime = 0
-    if (isPlaying.value) {
-      audioPlayer.value.play().catch(error => {
-        console.error('Error playing audio after restart:', error)
-      })
     }
   }
 }
@@ -456,9 +396,6 @@ async function restartTrack() {
 async function stopPlayback() {
   if (canPlayFullTrack.value) {
     await spotifyService.stopPlayback()
-  } else if (audioPlayer.value) {
-    audioPlayer.value.pause()
-    audioPlayer.value.currentTime = 0
   }
   isPlaying.value = false
 }
@@ -483,99 +420,10 @@ function monitorSpotifyPlayback() {
   checkPlayback()
 }
 
-function toggleMute() {
-  if (!audioPlayer.value) return
-  
-  if (isMuted.value) {
-    audioPlayer.value.volume = volume.value
-    isMuted.value = false
-  } else {
-    audioPlayer.value.volume = 0
-    isMuted.value = true
-  }
-}
-
-function updateVolume(event: Event) {
-  if (!audioPlayer.value) return
-  
-  const target = event.target as HTMLInputElement
-  const newVolume = parseFloat(target.value)
-  volume.value = newVolume
-  audioPlayer.value.volume = newVolume
-  
-  if (newVolume === 0) {
-    isMuted.value = true
-  } else if (isMuted.value) {
-    isMuted.value = false
-  }
-}
-
 function handleVolumeTouch(event: TouchEvent) {
   // Let the default range input handle touch events
   // This prevents conflicts with our custom touch handling
   event.stopPropagation()
-}
-
-function seekTo(event: MouseEvent | TouchEvent) {
-  if (!audioPlayer.value || !props.track.preview_url) return
-  
-  const progressTrack = event.currentTarget as HTMLElement
-  const rect = progressTrack.getBoundingClientRect()
-  
-  // Handle both mouse and touch events
-  let clientX: number
-  if ('touches' in event) {
-    if (event.touches.length > 0) {
-      clientX = event.touches[0].clientX
-    } else if (event.changedTouches.length > 0) {
-      clientX = event.changedTouches[0].clientX
-    } else {
-      return
-    }
-  } else {
-    clientX = event.clientX
-  }
-  
-  const percent = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
-  const newTime = percent * duration.value
-  
-  audioPlayer.value.currentTime = newTime
-}
-
-// Progress bar touch drag functions
-function startProgressDrag(event: TouchEvent) {
-  if (!audioPlayer.value || !props.track.preview_url) return
-  event.preventDefault()
-  isDraggingProgress.value = true
-  updateProgressFromTouch(event)
-}
-
-function updateProgressDrag(event: TouchEvent) {
-  if (!isDraggingProgress.value) return
-  event.preventDefault()
-  updateProgressFromTouch(event)
-}
-
-function endProgressDrag(event: TouchEvent) {
-  if (!isDraggingProgress.value) return
-  event.preventDefault()
-  isDraggingProgress.value = false
-  updateProgressFromTouch(event)
-}
-
-function updateProgressFromTouch(event: TouchEvent) {
-  if (!audioPlayer.value || !props.track.preview_url) return
-  
-  const progressTrack = event.currentTarget as HTMLElement
-  const rect = progressTrack.getBoundingClientRect()
-  
-  const touch = event.touches[0] || event.changedTouches[0]
-  if (!touch) return
-  
-  const percent = Math.max(0, Math.min(1, (touch.clientX - rect.left) / rect.width))
-  const newTime = percent * duration.value
-  
-  audioPlayer.value.currentTime = newTime
 }
 
 function formatTime(seconds: number): string {
@@ -586,34 +434,6 @@ function formatTime(seconds: number): string {
   return `${mins}:${secs.toString().padStart(2, '0')}`
 }
 
-// Audio event handlers
-function onTimeUpdate() {
-  if (audioPlayer.value) {
-    currentTime.value = audioPlayer.value.currentTime
-  }
-}
-
-function onLoadedMetadata() {
-  if (audioPlayer.value) {
-    duration.value = audioPlayer.value.duration
-    audioPlayer.value.volume = volume.value
-  }
-}
-
-function onLoadStart() {
-  isLoading.value = true
-  canPlay.value = false
-}
-
-function onCanPlay() {
-  isLoading.value = false
-  canPlay.value = true
-}
-
-function onAudioEnded() {
-  isPlaying.value = false
-}
-
 // Lifecycle
 onMounted(() => {
   // Initialize Spotify player if authenticated
@@ -621,20 +441,6 @@ onMounted(() => {
     nextTick(() => {
       spotifyService.initializePlayerIfReady()
     })
-  }
-  
-  // Use nextTick to ensure the DOM is fully rendered
-  nextTick(() => {
-    if (audioPlayer.value) {
-      setupAudioEventListeners()
-    }
-  })
-})
-
-// Watch for changes to the audio element and set up listeners
-watch(audioPlayer, (newAudio: HTMLAudioElement | undefined) => {
-  if (newAudio) {
-    setupAudioEventListeners()
   }
 })
 
@@ -657,9 +463,7 @@ watch(() => props.track, async (newTrack, oldTrack) => {
       console.log('Checking if auto-playback can start:', { 
         canPlayAudio: canPlayAudio.value, 
         canPlayFullTrack: canPlayFullTrack.value,
-        canPlayPreview: canPlayPreview.value,
         hasSpotifyUri: hasSpotifyUri.value,
-        hasPreviewUrl: !!newTrack.preview_url,
         isPlayerReady: spotifyService.isPlayerReady(),
         isPlaying: isPlaying.value 
       })
@@ -680,64 +484,19 @@ watch(() => props.track, async (newTrack, oldTrack) => {
         const reason = !canPlayAudio.value ? 'No audio source available' : 'Already playing'
         console.log(`Cannot auto-start playback: ${reason}`)
         
-        // On desktop, if no preview URL but has Spotify URI, try to enhance with Spotify data
-        if (!isMobile && hasSpotifyUri.value && !canPlayPreview.value) {
-          console.log('No preview available but has Spotify URI - playback will use Spotify Web Playback SDK')
+        // On desktop, if has Spotify URI, try to use Spotify Web Playback SDK
+        if (!isMobile && hasSpotifyUri.value) {
+          console.log('Has Spotify URI - playback will use Spotify Web Playback SDK')
         }
       }
     }, 300) // Longer delay for better reliability and to let Spotify services initialize
   }
 }, { immediate: false })
 
-// Watch for when preview URLs become available (when Spotify enhances tracks)
-watch(() => props.track.preview_url, async (newPreviewUrl, oldPreviewUrl) => {
-  if (newPreviewUrl && !oldPreviewUrl && !isPlaying.value) {
-    console.log('Preview URL became available for track:', props.track.name)
-    
-    // Small delay to ensure audio element is ready
-    setTimeout(async () => {
-      if (canPlayAudio.value && !isPlaying.value) {
-        console.log('Auto-starting playback now that preview URL is available')
-        try {
-          await togglePlayback()
-          console.log('✅ Auto-playback started after preview URL enhancement')
-        } catch (error) {
-          console.warn('Failed to auto-start after preview enhancement:', error)
-        }
-      }
-    }, 100)
-  }
-})
-
-function setupAudioEventListeners() {
-  if (!audioPlayer.value) return
-  
-  audioPlayer.value.addEventListener('play', () => {
-    isPlaying.value = true
-  })
-  
-  audioPlayer.value.addEventListener('pause', () => {
-    isPlaying.value = false
-  })
-  
-  // Set initial volume
-  audioPlayer.value.volume = volume.value
-  
-  // Improve mobile touch responsiveness
-  if (isMobileDevice.value) {
-    audioPlayer.value.addEventListener('touchstart', (e) => {
-      // Prevent default to avoid unwanted behaviors on mobile
-      e.preventDefault()
-    }, { passive: false })
-  }
-}
-
 onUnmounted(() => {
   // Stop any playback when component unmounts
   if (canPlayFullTrack.value) {
     spotifyService.stopPlayback()
-  } else if (audioPlayer.value) {
-    audioPlayer.value.pause()
   }
 })
 </script>
