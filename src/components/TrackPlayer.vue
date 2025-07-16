@@ -645,21 +645,68 @@ watch(() => props.track, async (newTrack, oldTrack) => {
     // Wait a moment for the audio element to be ready
     await nextTick()
     
-    // Don't auto-start on mobile devices due to autoplay policies
-    // User must explicitly click play button
+    // Reset playing state when new track is loaded
+    isPlaying.value = false
+    
+    // Auto-start playback
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
-    if (!isMobile) {
-      // Small delay to ensure everything is properly initialized on desktop
-      setTimeout(async () => {
-        if (canPlayAudio.value && !isPlaying.value) {
+    
+    // Always try auto-start, but handle mobile restrictions gracefully
+    setTimeout(async () => {
+      console.log('Checking if auto-playback can start:', { 
+        canPlayAudio: canPlayAudio.value, 
+        canPlayFullTrack: canPlayFullTrack.value,
+        canPlayPreview: canPlayPreview.value,
+        hasSpotifyUri: hasSpotifyUri.value,
+        hasPreviewUrl: !!newTrack.preview_url,
+        isPlayerReady: spotifyService.isPlayerReady(),
+        isPlaying: isPlaying.value 
+      })
+      
+      if (canPlayAudio.value && !isPlaying.value) {
+        console.log('Auto-starting playback for new track:', newTrack.name)
+        try {
           await togglePlayback()
+          console.log('✅ Auto-playback started successfully')
+        } catch (error) {
+          if (isMobile) {
+            console.log('🔇 Auto-playback blocked on mobile - user interaction required')
+          } else {
+            console.error('❌ Auto-playback failed:', error)
+          }
         }
-      }, 100)
-    } else {
-      console.log('Mobile device detected - autoplay disabled due to browser policies')
-    }
+      } else {
+        const reason = !canPlayAudio.value ? 'No audio source available' : 'Already playing'
+        console.log(`Cannot auto-start playback: ${reason}`)
+        
+        // On desktop, if no preview URL but has Spotify URI, try to enhance with Spotify data
+        if (!isMobile && hasSpotifyUri.value && !canPlayPreview.value) {
+          console.log('No preview available but has Spotify URI - playback will use Spotify Web Playback SDK')
+        }
+      }
+    }, 300) // Longer delay for better reliability and to let Spotify services initialize
   }
 }, { immediate: false })
+
+// Watch for when preview URLs become available (when Spotify enhances tracks)
+watch(() => props.track.preview_url, async (newPreviewUrl, oldPreviewUrl) => {
+  if (newPreviewUrl && !oldPreviewUrl && !isPlaying.value) {
+    console.log('Preview URL became available for track:', props.track.name)
+    
+    // Small delay to ensure audio element is ready
+    setTimeout(async () => {
+      if (canPlayAudio.value && !isPlaying.value) {
+        console.log('Auto-starting playback now that preview URL is available')
+        try {
+          await togglePlayback()
+          console.log('✅ Auto-playback started after preview URL enhancement')
+        } catch (error) {
+          console.warn('Failed to auto-start after preview enhancement:', error)
+        }
+      }
+    }, 100)
+  }
+})
 
 function setupAudioEventListeners() {
   if (!audioPlayer.value) return

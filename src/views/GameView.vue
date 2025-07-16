@@ -262,10 +262,14 @@ const sortedPlayers = computed(() =>
 async function loadNextTrack() {
   isLoadingTrack.value = true
   try {
+    console.log('Loading next track...')
     const track = await gameStore.getNextTrack()
     if (!track) {
       // Handle error - no tracks available
       console.error('No tracks available')
+    } else {
+      console.log('Track loaded successfully:', track.name, 'by', track.artists[0]?.name)
+      // Note: Auto-playback will be handled by TrackPlayer component's track watcher
     }
   } catch (error) {
     console.error('Error loading track:', error)
