@@ -296,8 +296,12 @@ async function togglePlayback() {
   console.log('Toggle playback called, isPlaying:', isPlaying.value)
   console.log('Can play full track:', canPlayFullTrack.value)
   console.log('Can play preview:', canPlayPreview.value)
+  console.log('Spotify player ready:', spotifyService.isPlayerReady())
   
   if (canPlayFullTrack.value) {
+    // Debug: Check available devices
+    await spotifyService.getAvailableDevices()
+    
     // Use Spotify Web Playback SDK for full tracks
     if (isPlaying.value) {
       await spotifyService.pausePlayback()
@@ -308,6 +312,14 @@ async function togglePlayback() {
         isPlaying.value = true
         // Start monitoring playback state
         monitorSpotifyPlayback()
+      } else {
+        console.warn('Failed to play track, falling back to preview if available')
+        // Fallback to preview if full track fails
+        if (canPlayPreview.value && audioPlayer.value) {
+          audioPlayer.value.play().catch(error => {
+            console.error('Error playing preview fallback:', error)
+          })
+        }
       }
     }
   } else if (canPlayPreview.value && audioPlayer.value) {

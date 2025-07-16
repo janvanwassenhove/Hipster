@@ -838,6 +838,9 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
       this.player.addListener('ready', ({ device_id }) => {
         console.log('Spotify Player ready with Device ID:', device_id)
         this.deviceId = device_id
+        
+        // Automatically set this device as the active device
+        this.setActiveDevice(device_id)
       })
 
       // Not ready event
@@ -890,16 +893,39 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
 
     try {
       console.log('Playing track:', trackUri, 'on device:', this.deviceId)
-      console.log('Access token length:', this.authState.accessToken?.length)
-      console.log('Token expires at:', new Date(this.authState.expiresAt || 0).toISOString())
-      console.log('Current time:', new Date().toISOString())
       
       // Ensure we have a valid token before making the request
       if (!await this.ensureValidToken()) {
         console.error('Failed to ensure valid token')
         return false
       }
+
+      // First, ensure this device is the active device
+      console.log('Setting device as active...')
+      const transferResponse = await fetch('https://api.spotify.com/v1/me/player', {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${this.authState.accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          device_ids: [this.deviceId],
+          play: false // Don't start playing yet
+        })
+      })
+
+      if (!transferResponse.ok && transferResponse.status !== 204) {
+        const transferError = await transferResponse.text()
+        console.warn('Failed to set active device:', transferResponse.status, transferError)
+        // Continue anyway - might still work
+      } else {
+        console.log('✅ Device set as active')
+        // Wait a moment for the device transfer to complete
+        await new Promise(resolve => setTimeout(resolve, 1000))
+      }
       
+      // Now try to play the track
+      console.log('Starting playback...')
       const response = await fetch('https://api.spotify.com/v1/me/player/play', {
         method: 'PUT',
         headers: {
@@ -907,8 +933,8 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          device_id: this.deviceId,
           uris: [trackUri]
+          // Don't specify device_id here since we just set it as active
         })
       })
 
@@ -925,22 +951,60 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
         if (response.status === 401) {
           console.error('❌ Token appears to be invalid or missing permissions')
           console.error('❌ Current scopes may be insufficient - need to re-authenticate')
-          
-          // Check if we need to re-authenticate with new scopes
-          const storedAuth = localStorage.getItem('spotify_auth')
-          if (storedAuth) {
-            const authData = JSON.parse(storedAuth)
-            console.log('Stored auth data:', authData)
-          }
         }
         
         if (response.status === 403) {
           console.error('❌ Premium subscription required to play full tracks')
         }
+
+        if (response.status === 404) {
+          console.error('❌ No active device found - trying to activate Web Playback SDK device')
+          // The device might not be properly activated, try alternative approach
+          return await this.playTrackDirectly(trackUri)
+        }
+        
         return false
       }
     } catch (error) {
       console.error('Error playing track:', error)
+      return false
+    }
+  }
+
+  // Alternative method to play track directly through the Web Playback SDK
+  private async playTrackDirectly(trackUri: string): Promise<boolean> {
+    if (!this.player) {
+      console.error('No player available for direct playback')
+      return false
+    }
+
+    try {
+      console.log('Trying direct playback through Web Playback SDK...')
+      
+      // Use the Web API to start playback on our specific device
+      const response = await fetch('https://api.spotify.com/v1/me/player/play', {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${this.authState.accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          device_id: this.deviceId,
+          uris: [trackUri]
+        })
+      })
+
+      if (response.ok || response.status === 204) {
+        this.currentTrackUri = trackUri
+        console.log('✅ Direct playback successful')
+        return true
+      } else {
+        const errorText = await response.text()
+        console.error('❌ Direct playback failed:', response.status, errorText)
+        return false
+      }
+    } catch (error) {
+      console.error('Error in direct playback:', error)
       return false
     }
   }
@@ -1011,6 +1075,64 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
   // Get the current playing track URI
   getCurrentTrackUri(): string | null {
     return this.currentTrackUri
+  }
+
+  // Set device as active
+  private async setActiveDevice(deviceId: string): Promise<boolean> {
+    if (!this.isAuthenticated()) return false
+
+    try {
+      console.log('Setting device as active:', deviceId)
+      
+      const response = await fetch('https://api.spotify.com/v1/me/player', {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${this.authState.accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          device_ids: [deviceId],
+          play: false
+        })
+      })
+
+      if (response.ok || response.status === 204) {
+        console.log('✅ Device set as active successfully')
+        return true
+      } else {
+        const errorText = await response.text()
+        console.warn('Failed to set active device:', response.status, errorText)
+        return false
+      }
+    } catch (error) {
+      console.error('Error setting active device:', error)
+      return false
+    }
+  }
+
+  // Get available devices for debugging
+  async getAvailableDevices(): Promise<any> {
+    if (!this.isAuthenticated()) return null
+
+    try {
+      const response = await fetch('https://api.spotify.com/v1/me/player/devices', {
+        headers: {
+          'Authorization': `Bearer ${this.authState.accessToken}`,
+        }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        console.log('Available Spotify devices:', data.devices)
+        return data
+      } else {
+        console.error('Failed to get devices:', response.status)
+        return null
+      }
+    } catch (error) {
+      console.error('Error getting devices:', error)
+      return null
+    }
   }
 }
 
