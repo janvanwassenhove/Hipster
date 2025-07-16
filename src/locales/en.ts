@@ -49,6 +49,8 @@ export default {
     premiumNeededForFullPlay: 'Upgrade to Spotify Premium to play full tracks!',
     demoModeInstructions: 'In demo mode, you can still play the game by guessing based on track information.',
     demoModeActive: 'Playing in demo mode - no audio previews available.',
+    mobileSpotifyRedirect: 'On mobile devices, open this track in Spotify for the best audio experience.',
+    playInSpotify: 'Play in Spotify',
     play: 'Play',
     pause: 'Pause',
     restart: 'Restart',

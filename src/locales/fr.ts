@@ -29,6 +29,17 @@ export default {
       'vlaams': 'Musique Flamande',
       'pop-rock': 'Pop & Rock'
     },
+    demoMode: 'Mode Démo',
+    premiumRequired: 'Premium Requis',
+    noPreview: 'Aucun aperçu audio disponible pour cette piste',
+    needsPremium: 'Spotify Premium est requis pour jouer des pistes complètes',
+    needSpotifyForAudio: 'Connectez-vous à Spotify pour entendre les aperçus musicaux!',
+    premiumNeededForFullPlay: 'Passez à Spotify Premium pour jouer des pistes complètes!',
+    demoModeInstructions: 'En mode démo, vous pouvez toujours jouer en devinant basé sur les informations de la piste.',
+    demoModeActive: 'Jouer en mode démo - aucun aperçu audio disponible.',
+    mobileSpotifyRedirect: 'Sur les appareils mobiles, ouvrez cette piste dans Spotify pour la meilleure expérience audio.',
+    playInSpotify: 'Jouer dans Spotify',
+    openInSpotify: 'Ouvrir dans Spotify',
     spotify: {
       login: 'Se connecter avec Spotify',
       required: 'Connexion Spotify requise pour jouer',

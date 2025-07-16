@@ -779,6 +779,13 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
 
   // Initialize Spotify Web Playback SDK
   private initializeWebPlaybackSDK() {
+    // Skip Web Playback SDK on mobile devices due to limited support
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+    if (isMobile) {
+      console.log('Mobile device detected - skipping Spotify Web Playback SDK initialization')
+      return
+    }
+    
     // Load the SDK script if not already loaded
     if (!document.querySelector('script[src="https://sdk.scdn.co/spotify-player.js"]')) {
       const script = document.createElement('script')

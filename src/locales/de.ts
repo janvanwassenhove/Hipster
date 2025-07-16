@@ -60,7 +60,18 @@ export default {
       winner: '{player} gewinnt mit {score} richtig platzierten Liedern!',
       finalScores: 'Endergebnisse',
       playAgain: 'Nochmal Spielen'
-    }
+    },
+    demoMode: 'Demo-Modus',
+    premiumRequired: 'Premium Erforderlich',
+    noPreview: 'Keine Audio-Vorschau verfügbar für diesen Track',
+    needsPremium: 'Spotify Premium ist erforderlich, um vollständige Tracks zu spielen',
+    needSpotifyForAudio: 'Mit Spotify verbinden, um Musik-Vorschauen zu hören!',
+    premiumNeededForFullPlay: 'Upgrade auf Spotify Premium, um vollständige Tracks zu spielen!',
+    demoModeInstructions: 'Im Demo-Modus können Sie immer noch spielen, indem Sie basierend auf Track-Informationen raten.',
+    demoModeActive: 'Im Demo-Modus spielen - keine Audio-Vorschauen verfügbar.',
+    mobileSpotifyRedirect: 'Auf mobilen Geräten öffnen Sie diesen Track in Spotify für das beste Audio-Erlebnis.',
+    playInSpotify: 'In Spotify abspielen',
+    openInSpotify: 'In Spotify öffnen',
   },
   settings: {
     language: 'Sprache',

@@ -46,7 +46,32 @@
 
         <!-- Custom Audio Player -->
         <div class="mb-6">
-          <div v-if="!canPlayFullTrack" class="bg-gradient-to-r from-blue-900/50 to-purple-900/50 border border-blue-400/30 rounded-2xl p-6 text-center backdrop-blur-sm">
+          <div v-if="!canPlayAudio && isMobileDevice && hasSpotifyUri" class="bg-gradient-to-r from-green-900/50 to-emerald-900/50 border border-green-400/30 rounded-2xl p-6 text-center backdrop-blur-sm">
+            <div class="flex items-center justify-center mb-3">
+              <div class="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center mr-3 shadow-lg">
+                <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm-1 15l-5-5 1.414-1.414L11 14.172l7.586-7.586L20 8l-9 9z"/>
+                </svg>
+              </div>
+              <h3 class="text-xl font-bold bg-gradient-to-r from-green-300 to-emerald-300 bg-clip-text text-transparent">
+                {{ $t('game.openInSpotify') }}
+              </h3>
+            </div>
+            <p class="text-green-200 mb-4 font-medium">
+              {{ $t('game.mobileSpotifyRedirect') }}
+            </p>
+            <button
+              @click="openInSpotify"
+              class="inline-flex items-center px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-bold rounded-full transition-all duration-300 shadow-lg hover:shadow-green-500/25 hover:scale-105"
+            >
+              <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 0C5.376 0 0 5.376 0 12s5.376 12 12 12 12-5.376 12-12S18.624 0 12 0zm5.568 17.504c-.24.384-.768.504-1.152.264-3.168-1.944-7.152-2.376-11.856-1.296-.456.12-.912-.192-1.032-.648-.12-.456.192-.912.648-1.032 5.136-1.176 9.6-.624 13.056 1.512.384.24.504.768.264 1.152zm1.632-3.624c-.288.456-.912.6-1.368.312-3.624-2.232-9.168-2.88-13.464-1.584-.552.168-1.128-.192-1.296-.744-.168-.552.192-1.128.744-1.296 4.896-1.488 11.04-.768 15.168 1.8.456.288.6.912.312 1.368zm.144-3.792c-4.344-2.592-11.52-2.832-15.672-1.56-.672.204-1.368-.168-1.572-.84-.204-.672.168-1.368.84-1.572 4.776-1.464 12.624-1.176 17.736 1.8.528.312.696 1.008.384 1.536-.312.528-1.008.696-1.536.384z"/>
+              </svg>
+              {{ $t('game.playInSpotify') }}
+            </button>
+          </div>
+          
+          <div v-else-if="!canPlayFullTrack" class="bg-gradient-to-r from-blue-900/50 to-purple-900/50 border border-blue-400/30 rounded-2xl p-6 text-center backdrop-blur-sm">
             <div class="flex items-center justify-center mb-3">
               <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mr-3 shadow-lg">
                 <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -77,6 +102,9 @@
             @loadstart="onLoadStart"
             @canplay="onCanPlay"
             preload="metadata"
+            playsinline
+            webkit-playsinline
+            crossorigin="anonymous"
           >
             {{ $t('game.audioNotSupported') }}
           </audio>
@@ -330,8 +358,13 @@ const hasSpotifyUri = computed(() => {
   return !!props.track.uri
 })
 
+const isMobileDevice = computed(() => {
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+})
+
 const canPlayFullTrack = computed(() => {
-  return hasSpotifyUri.value && spotifyService.isPlayerReady()
+  // Spotify Web Playback SDK has limited mobile support
+  return hasSpotifyUri.value && spotifyService.isPlayerReady() && !isMobileDevice.value
 })
 
 const canPlayPreview = computed(() => {
@@ -349,11 +382,14 @@ async function togglePlayback() {
   console.log('Can play preview:', canPlayPreview.value)
   console.log('Spotify player ready:', spotifyService.isPlayerReady())
   
-  if (canPlayFullTrack.value) {
+  // Detect mobile devices
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+  
+  if (canPlayFullTrack.value && !isMobile) {
     // Debug: Check available devices
     await spotifyService.getAvailableDevices()
     
-    // Use Spotify Web Playback SDK for full tracks
+    // Use Spotify Web Playback SDK for full tracks (desktop only)
     if (isPlaying.value) {
       await spotifyService.pausePlayback()
       isPlaying.value = false
@@ -367,22 +403,42 @@ async function togglePlayback() {
         console.warn('Failed to play track, falling back to preview if available')
         // Fallback to preview if full track fails
         if (canPlayPreview.value && audioPlayer.value) {
-          audioPlayer.value.play().catch(error => {
+          try {
+            await audioPlayer.value.play()
+          } catch (error) {
             console.error('Error playing preview fallback:', error)
-          })
+          }
         }
       }
     }
   } else if (canPlayPreview.value && audioPlayer.value) {
-    // Fallback to HTML5 audio for previews
+    // Use HTML5 audio for previews (works on all devices)
     if (isPlaying.value) {
       audioPlayer.value.pause()
     } else {
-      audioPlayer.value.play().catch(error => {
+      try {
+        // For mobile devices, ensure user interaction before playing
+        await audioPlayer.value.play()
+      } catch (error) {
         console.error('Error playing audio:', error)
-      })
+        
+        // Handle common mobile autoplay errors
+        if (error instanceof Error && error.name === 'NotAllowedError') {
+          console.warn('Autoplay blocked - user interaction required')
+          // Show a user-friendly message or prompt for interaction
+        }
+      }
     }
+  } else if (isMobile && hasSpotifyUri.value) {
+    // On mobile, fallback to opening Spotify app/web player
+    openInSpotify()
   }
+}
+
+function openInSpotify() {
+  console.log('Opening track in Spotify')
+  const spotifyUrl = props.track.external_urls?.spotify || `https://open.spotify.com/track/${props.track.id}`
+  window.open(spotifyUrl, '_blank')
 }
 
 async function restartTrack() {
@@ -594,18 +650,24 @@ watch(audioPlayer, (newAudio: HTMLAudioElement | undefined) => {
 // Watch for track changes to auto-start playback
 watch(() => props.track, async (newTrack, oldTrack) => {
   if (newTrack && newTrack !== oldTrack) {
-    // Auto-start playback when a new track is loaded
-    console.log('New track detected, starting auto-playback:', newTrack.name)
+    console.log('New track detected:', newTrack.name)
     
     // Wait a moment for the audio element to be ready
     await nextTick()
     
-    // Small delay to ensure everything is properly initialized
-    setTimeout(async () => {
-      if (canPlayAudio.value && !isPlaying.value) {
-        await togglePlayback()
-      }
-    }, 100)
+    // Don't auto-start on mobile devices due to autoplay policies
+    // User must explicitly click play button
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+    if (!isMobile) {
+      // Small delay to ensure everything is properly initialized on desktop
+      setTimeout(async () => {
+        if (canPlayAudio.value && !isPlaying.value) {
+          await togglePlayback()
+        }
+      }, 100)
+    } else {
+      console.log('Mobile device detected - autoplay disabled due to browser policies')
+    }
   }
 }, { immediate: false })
 
@@ -622,6 +684,14 @@ function setupAudioEventListeners() {
   
   // Set initial volume
   audioPlayer.value.volume = volume.value
+  
+  // Improve mobile touch responsiveness
+  if (isMobileDevice.value) {
+    audioPlayer.value.addEventListener('touchstart', (e) => {
+      // Prevent default to avoid unwanted behaviors on mobile
+      e.preventDefault()
+    }, { passive: false })
+  }
 }
 
 onUnmounted(() => {

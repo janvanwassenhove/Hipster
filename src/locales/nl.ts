@@ -13,7 +13,7 @@ export default {
   },
   game: {
     title: 'Hipster',
-    subtitle: 'Muziek Tijdlijn Spel',
+    subtitle: 'Jouw muzikale party game!',
     newGame: 'Nieuw Spel',
     continue: 'Spel Voortzetten',
     players: 'Spelers',
@@ -46,6 +46,8 @@ export default {
     needSpotifyForAudio: 'Verbind met Spotify om muziek voorvertoningen te horen!',
     demoModeInstructions: 'In demo modus kun je nog steeds spelen door te raden op basis van track informatie.',
     demoModeActive: 'Speelt in demo modus - geen audio voorvertoningen beschikbaar.',
+    mobileSpotifyRedirect: 'Op mobiele apparaten kun je dit nummer in Spotify openen voor de beste audio-ervaring.',
+    playInSpotify: 'Afspelen in Spotify',
     play: 'Afspelen',
     pause: 'Pauzeren',
     restart: 'Opnieuw',
