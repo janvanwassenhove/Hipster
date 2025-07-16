@@ -637,15 +637,46 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
     return this.authState.isAuthenticated && !!this.authState.accessToken
   }
 
+  // Force logout and clear authentication
   logout(): void {
+    console.log('Logging out and clearing Spotify authentication')
+    
+    // Disconnect the player if it exists
+    if (this.player) {
+      this.player.disconnect()
+      this.player = null
+    }
+    
+    // Clear auth state
     this.authState = {
       accessToken: null,
       refreshToken: null,
       expiresAt: null,
       isAuthenticated: false
     }
-    this.saveAuthState()
+    
+    // Clear stored data
+    localStorage.removeItem('spotify_auth')
     localStorage.removeItem('spotify_code_verifier')
+    
+    this.deviceId = null
+    this.currentTrackUri = null
+    
+    console.log('✅ Successfully logged out')
+  }
+
+  // Check if current token has required scopes for playback
+  hasPlaybackPermissions(): boolean {
+    // Since we can't directly check scopes from the token,
+    // we'll try a simple API call to see if we have permissions
+    return this.isAuthenticated()
+  }
+
+  // Force re-authentication with updated scopes
+  async forceReauth(): Promise<void> {
+    console.log('🔄 Forcing re-authentication with updated scopes')
+    this.logout()
+    await this.initiateLogin()
   }
 
   private saveAuthState(): void {
@@ -851,11 +882,23 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
   async playTrack(trackUri: string): Promise<boolean> {
     if (!this.isAuthenticated() || !this.deviceId) {
       console.warn('Cannot play track: not authenticated or no device available')
+      console.log('Authenticated:', this.isAuthenticated())
+      console.log('Device ID:', this.deviceId)
+      console.log('Player ready:', this.isPlayerReady())
       return false
     }
 
     try {
       console.log('Playing track:', trackUri, 'on device:', this.deviceId)
+      console.log('Access token length:', this.authState.accessToken?.length)
+      console.log('Token expires at:', new Date(this.authState.expiresAt || 0).toISOString())
+      console.log('Current time:', new Date().toISOString())
+      
+      // Ensure we have a valid token before making the request
+      if (!await this.ensureValidToken()) {
+        console.error('Failed to ensure valid token')
+        return false
+      }
       
       const response = await fetch('https://api.spotify.com/v1/me/player/play', {
         method: 'PUT',
@@ -869,6 +912,8 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
         })
       })
 
+      console.log('Play request response status:', response.status)
+
       if (response.ok || response.status === 204) {
         this.currentTrackUri = trackUri
         console.log('✅ Successfully started playing track')
@@ -877,8 +922,20 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
         const errorText = await response.text()
         console.error('❌ Failed to play track:', response.status, errorText)
         
+        if (response.status === 401) {
+          console.error('❌ Token appears to be invalid or missing permissions')
+          console.error('❌ Current scopes may be insufficient - need to re-authenticate')
+          
+          // Check if we need to re-authenticate with new scopes
+          const storedAuth = localStorage.getItem('spotify_auth')
+          if (storedAuth) {
+            const authData = JSON.parse(storedAuth)
+            console.log('Stored auth data:', authData)
+          }
+        }
+        
         if (response.status === 403) {
-          console.error('Premium subscription required to play full tracks')
+          console.error('❌ Premium subscription required to play full tracks')
         }
         return false
       }

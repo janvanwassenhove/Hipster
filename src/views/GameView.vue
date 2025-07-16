@@ -73,8 +73,31 @@
               <button @click="goToLogin" class="btn btn-sm bg-yellow-600 hover:bg-yellow-700 text-white">
                 {{ $t('game.spotify.login') }}
               </button>
+              <button @click="reauthorizeSpotify" class="btn btn-sm bg-purple-600 hover:bg-purple-700 text-white">
+                🔐 Re-auth
+              </button>
               <button @click="refreshSpotifyAuth" class="btn btn-sm bg-blue-600 hover:bg-blue-700 text-white">
                 🔄 Refresh
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Spotify Permissions Warning (when connected but can't play) -->
+        <div v-else-if="isSpotifyConnected && needsReauth" class="card bg-orange-50 border-orange-200">
+          <div class="flex items-center space-x-3">
+            <div class="flex-shrink-0">
+              <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9 9 4.03 9 9z"></path>
+              </svg>
+            </div>
+            <div class="flex-1">
+              <h3 class="text-lg font-semibold text-orange-800">Playback Permissions Needed</h3>
+              <p class="text-orange-700 text-sm">Your Spotify connection needs updated permissions to play music.</p>
+            </div>
+            <div class="flex space-x-2">
+              <button @click="reauthorizeSpotify" class="btn btn-sm bg-orange-600 hover:bg-orange-700 text-white">
+                🔐 Update Permissions
               </button>
             </div>
           </div>
@@ -181,6 +204,10 @@ const round = computed(() => gameStore.round)
 const settings = computed(() => gameStore.settings)
 const winner = computed(() => gameStore.winner)
 const isSpotifyConnected = computed(() => spotifyAuthState.value)
+const needsReauth = computed(() => {
+  // Show reauth warning if connected but player isn't ready after some time
+  return isSpotifyConnected.value && !spotifyService.isPlayerReady()
+})
 const sortedPlayers = computed(() => 
   [...players.value].sort((a, b) => {
     // Sort by tokens first (official Hitster rule)
@@ -257,6 +284,11 @@ function refreshSpotifyAuth() {
   if (isAuth) {
     spotifyService.initializePlayerIfReady()
   }
+}
+
+async function reauthorizeSpotify() {
+  console.log('🔄 Re-authorizing Spotify with updated permissions')
+  await spotifyService.forceReauth()
 }
 
 // Lifecycle
