@@ -120,13 +120,6 @@
                 </div>
               </button>
             </div>
-
-            <!-- Track Progress (Spotify playback only) -->
-            <div class="mb-4">
-              <div class="flex items-center justify-center text-sm text-white">
-                <span class="text-center font-mono text-purple-400">🎵 {{ $t('game.spotifyPlayback') || 'Spotify Playback' }}</span>
-              </div>
-            </div>
           </div>
         </div>
 
