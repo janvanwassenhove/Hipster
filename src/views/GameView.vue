@@ -365,6 +365,13 @@ onMounted(() => {
     router.push('/')
   }
   
+  // Force immediate auth state update
+  console.log('🔧 MOUNT: Force updating auth state')
+  const authState = spotifyService.isAuthenticated()
+  console.log('🔧 MOUNT: Auth state from service:', authState)
+  isSpotifyConnected.value = authState
+  console.log('🔧 MOUNT: Set reactive value to:', isSpotifyConnected.value)
+  
   // Refresh Spotify auth state
   refreshSpotifyAuth()
   
@@ -382,7 +389,7 @@ onMounted(() => {
   const authWatcher = watch(
     () => spotifyService.isAuthenticated(),
     (newAuth, oldAuth) => {
-      console.log('� WATCHER: Auth state changed from', oldAuth, 'to', newAuth)
+      console.log('🔧 WATCHER: Auth state changed from', oldAuth, 'to', newAuth)
       console.log('🔧 WATCHER: Current reactive value before update:', isSpotifyConnected.value)
       isSpotifyConnected.value = newAuth
       console.log('🔧 WATCHER: Updated reactive value to:', isSpotifyConnected.value)
