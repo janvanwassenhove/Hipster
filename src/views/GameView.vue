@@ -75,6 +75,7 @@
             :current-track="currentTrack"
             :can-place="player.id === currentPlayer?.id && !!currentTrack"
             @place-track="handlePlaceTrack"
+            @use-token="handleUseToken"
           />
         </div>
 
@@ -89,8 +90,9 @@
               :class="player.id === currentPlayer?.id ? 'bg-green-100' : 'bg-gray-50'"
             >
               <p class="font-semibold">{{ player.name }}</p>
-              <p class="text-2xl font-bold">{{ player.score }}</p>
+              <p class="text-2xl font-bold text-green-600">{{ player.tokens }}</p>
               <p class="text-sm text-gray-600">{{ $t('game.score.tokens', { count: player.tokens }) }}</p>
+              <p class="text-xs text-gray-500">{{ $t('game.score.total', { score: player.score }) }}</p>
             </div>
           </div>
         </div>
@@ -100,7 +102,7 @@
       <div v-else-if="gamePhase === 'finished'" class="max-w-2xl mx-auto">
         <div class="card text-center">
           <h2 class="text-3xl font-bold mb-4 text-green-600">{{ $t('game.end.title') }}</h2>
-          <p class="text-xl mb-6">{{ $t('game.end.winner', { player: winner?.name, score: winner?.score }) }}</p>
+          <p class="text-xl mb-6">{{ $t('game.end.winner', { player: winner?.name, score: winner?.tokens }) }}</p>
           
           <div class="mb-6">
             <h3 class="text-lg font-semibold mb-3">{{ $t('game.end.finalScores') }}</h3>
@@ -112,7 +114,7 @@
                 :class="index === 0 ? 'bg-yellow-100' : 'bg-gray-50'"
               >
                 <span class="font-medium">{{ index + 1 }}. {{ player.name }}</span>
-                <span class="font-bold">{{ player.score }} {{ $t('game.points') }}</span>
+                <span class="font-bold">{{ player.tokens }} {{ $t('game.score.tokens', { count: player.tokens }) }}</span>
               </div>
             </div>
           </div>
@@ -154,7 +156,12 @@ const round = computed(() => gameStore.round)
 const settings = computed(() => gameStore.settings)
 const winner = computed(() => gameStore.winner)
 const sortedPlayers = computed(() => 
-  [...players.value].sort((a, b) => b.score - a.score)
+  [...players.value].sort((a, b) => {
+    // Sort by tokens first (official Hitster rule)
+    if (b.tokens !== a.tokens) return b.tokens - a.tokens
+    // Use score as tiebreaker
+    return b.score - a.score
+  })
 )
 
 // Methods
@@ -180,6 +187,25 @@ function handlePlaceTrack(track: Track, position: number) {
   setTimeout(() => {
     gameStore.nextPlayer()
   }, 2000)
+}
+
+function handleUseToken(ability: string) {
+  if (!currentPlayer.value) return
+  
+  const success = gameStore.useToken(currentPlayer.value.id, ability as any)
+  
+  if (success) {
+    switch (ability) {
+      case 'skip':
+        // Skip current track and load a new one
+        loadNextTrack()
+        break
+      case 'hint':
+        // Show hint (could be implemented in UI)
+        alert(`Hint: This track was released in the ${Math.floor(currentTrack.value?.year! / 10) * 10}s`)
+        break
+    }
+  }
 }
 
 function playAgain() {

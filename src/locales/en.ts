@@ -56,6 +56,9 @@ export default {
     play: 'Play',
     pause: 'Pause',
     restart: 'Restart',
+    mute: 'Mute',
+    unmute: 'Unmute',
+    volume: 'Volume',
     openInSpotify: 'Open in Spotify',
     dragToTimeline: 'Drag the card to your timeline',
     newTrack: 'New Track',
@@ -64,6 +67,29 @@ export default {
     placeBetween: 'Place between tracks',
     placeLater: 'Place after this track',
     tracksInTimeline: '{count} tracks in timeline',
+    tokenAbilities: 'Token Abilities',
+    tokens: {
+      skip: {
+        label: 'Skip',
+        description: 'Skip this track and get a new one'
+      },
+      hint: {
+        label: 'Hint',
+        description: 'Get a hint about the decade'
+      },
+      challenge: {
+        label: 'Challenge',
+        description: 'Challenge another player\'s placement'
+      },
+      swap: {
+        label: 'Swap',
+        description: 'Swap two cards in your timeline'
+      },
+      peek: {
+        label: 'Peek',
+        description: 'Peek at the next track before placing'
+      }
+    },
     spotify: {
       login: 'Login with Spotify',
       required: 'Spotify login required to play',
@@ -90,14 +116,14 @@ export default {
       placeHere: 'Place here'
     },
     score: {
-      title: 'Scores',
+      title: 'Hitster Tokens',
       tokens: 'Tokens: {count}',
-      total: 'Total: {score} points'
+      total: 'Bonus points: {score}'
     },
     end: {
       title: 'Game Over!',
-      winner: '{player} wins with {score} points!',
-      finalScores: 'Final Scores',
+      winner: '{player} wins with {score} tokens!',
+      finalScores: 'Final Token Count',
       playAgain: 'Play Again'
     }
   },

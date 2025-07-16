@@ -7,7 +7,31 @@
       </h3>
       <div class="text-right">
         <p class="text-2xl font-bold">{{ player.score }}</p>
-        <p class="text-sm text-gray-600">{{ $t('game.score.tokens', { count: player.tokens }) }}</p>
+        <div class="flex items-center space-x-2 text-sm text-gray-600">
+          <span>🎵</span>
+          <span>{{ $t('game.score.tokens', { count: player.tokens }) }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Token Abilities (only show for current player) -->
+    <div v-if="isCurrent && canPlace && player.tokens > 0" class="mb-4">
+      <h4 class="text-sm font-medium text-gray-700 mb-2">{{ $t('game.tokenAbilities') }}</h4>
+      <div class="flex space-x-2">
+        <button 
+          @click="useTokenAbility('skip')" 
+          class="btn btn-sm bg-yellow-100 hover:bg-yellow-200 text-yellow-800"
+          :title="$t('game.tokens.skip.description')"
+        >
+          ⏭️ {{ $t('game.tokens.skip.label') }}
+        </button>
+        <button 
+          @click="useTokenAbility('hint')" 
+          class="btn btn-sm bg-blue-100 hover:bg-blue-200 text-blue-800"
+          :title="$t('game.tokens.hint.description')"
+        >
+          💡 {{ $t('game.tokens.hint.label') }}
+        </button>
       </div>
     </div>
 
@@ -142,6 +166,7 @@ const props = defineProps<Props>()
 
 const emit = defineEmits<{
   placeTrack: [track: Track, position: number]
+  useToken: [ability: string]
 }>()
 
 // Reactive state
@@ -194,6 +219,10 @@ function handleDrop(position: number) {
   
   // Emit place track event
   emit('placeTrack', props.currentTrack, position)
+}
+
+function useTokenAbility(ability: string) {
+  emit('useToken', ability)
 }
 
 // Initialize drag over positions array

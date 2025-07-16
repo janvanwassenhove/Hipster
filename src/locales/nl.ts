@@ -56,6 +56,9 @@ export default {
     play: 'Afspelen',
     pause: 'Pauzeren',
     restart: 'Opnieuw',
+    mute: 'Dempen',
+    unmute: 'Dempen Uitschakelen',
+    volume: 'Volume',
     openInSpotify: 'Openen in Spotify',
     dragToTimeline: 'Sleep de kaart naar je tijdlijn',
     newTrack: 'Nieuw Nummer',
@@ -64,6 +67,21 @@ export default {
     placeBetween: 'Plaats tussen nummers',
     placeLater: 'Plaats na dit nummer',
     tracksInTimeline: '{count} nummers in tijdlijn',
+    tokenAbilities: 'Token Vaardigheden',
+    tokens: {
+      skip: {
+        label: 'Overslaan',
+        description: 'Sla dit nummer over en krijg een nieuwe'
+      },
+      hint: {
+        label: 'Hint',
+        description: 'Krijg een hint over het decennium'
+      },
+      challenge: {
+        label: 'Uitdaging',
+        description: 'Daag een andere speler uit'
+      }
+    },
     spotify: {
       login: 'Inloggen met Spotify',
       required: 'Spotify inloggen vereist om te spelen',
@@ -90,14 +108,14 @@ export default {
       placeHere: 'Plaats hier'
     },
     score: {
-      title: 'Scores',
+      title: 'Hitster Tokens',
       tokens: 'Tokens: {count}',
-      total: 'Totaal: {score} punten'
+      total: 'Bonus punten: {score}'
     },
     end: {
       title: 'Spel Afgelopen!',
-      winner: '{player} wint met {score} punten!',
-      finalScores: 'Eindscores',
+      winner: '{player} wint met {score} tokens!',
+      finalScores: 'Eindstand Tokens',
       playAgain: 'Opnieuw Spelen'
     }
   },

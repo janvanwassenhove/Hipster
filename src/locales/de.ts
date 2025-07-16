@@ -56,14 +56,14 @@ export default {
       placeHere: 'Hier platzieren'
     },
     score: {
-      title: 'Punkte',
+      title: 'Hitster Token',
       tokens: 'Token: {count}',
-      total: 'Gesamt: {score} Punkte'
+      total: 'Bonus Punkte: {score}'
     },
     end: {
       title: 'Spiel Beendet!',
-      winner: '{player} gewinnt mit {score} Punkten!',
-      finalScores: 'Endpunkte',
+      winner: '{player} gewinnt mit {score} Token!',
+      finalScores: 'Endstand Token',
       playAgain: 'Nochmal Spielen'
     }
   },

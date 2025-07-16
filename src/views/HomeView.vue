@@ -188,7 +188,7 @@ function startGame() {
     difficulty: difficulty.value,
     theme: selectedTheme.value || undefined,
     maxRounds: 20,
-    targetScore: 10
+    targetScore: 10 // Target tokens to win (official Hitster rule)
   })
   
   gameStore.initializePlayers(names)

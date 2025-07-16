@@ -89,3 +89,11 @@ export type Theme =
   | 'electronic'
   | 'indie'
   | 'country'
+
+export type TokenAbility = 'skip' | 'hint' | 'challenge' | 'swap' | 'peek'
+
+export interface TokenAction {
+  playerId: string
+  ability: TokenAbility
+  description: string
+}

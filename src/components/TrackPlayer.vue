@@ -33,42 +33,116 @@
           <p class="text-sm text-gray-500">{{ $t('game.difficulties.expertHint') }}</p>
         </div>
 
-        <!-- Audio Player -->
+        <!-- Custom Audio Player -->
         <div class="mb-4">
           <div v-if="!track.preview_url" class="bg-gray-100 border border-gray-300 rounded-lg p-4 text-center">
             <p class="text-gray-600">🎵 {{ $t('game.demoMode') }}</p>
             <p class="text-sm text-gray-500">{{ $t('game.noPreview') }}</p>
           </div>
+          
+          <!-- Hidden Audio Element -->
           <audio
-            v-else
+            v-if="track.preview_url"
             ref="audioPlayer"
             :src="track.preview_url"
-            controls
-            class="w-full"
             @ended="onAudioEnded"
+            @timeupdate="onTimeUpdate"
+            @loadedmetadata="onLoadedMetadata"
+            @loadstart="onLoadStart"
+            @canplay="onCanPlay"
+            preload="metadata"
           >
             {{ $t('game.audioNotSupported') }}
           </audio>
-        </div>
 
-        <!-- Play/Pause Controls -->
-        <div class="flex items-center justify-center md:justify-start space-x-4 mb-4">
-          <button
-            @click="togglePlayback"
-            class="btn btn-primary"
-            :disabled="!track.preview_url"
-          >
-            <span v-if="isPlaying">⏸️ {{ $t('game.pause') }}</span>
-            <span v-else>▶️ {{ $t('game.play') }}</span>
-          </button>
-          
-          <button
-            @click="restartTrack"
-            class="btn btn-secondary"
-            :disabled="!track.preview_url"
-          >
-            🔄 {{ $t('game.restart') }}
-          </button>
+          <!-- Custom Player Interface -->
+          <div v-if="track.preview_url" class="music-player-controls bg-gray-900 rounded-lg p-4">
+            <!-- Main Controls -->
+            <div class="flex items-center justify-center space-x-6 mb-4">
+              <button
+                @click="restartTrack"
+                class="control-btn"
+                :disabled="!canPlay"
+                title="Restart"
+              >
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd" />
+                </svg>
+              </button>
+              
+              <button
+                @click="togglePlayback"
+                class="play-btn"
+                :disabled="!canPlay"
+              >
+                <div v-if="isLoading" class="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+                <svg v-else-if="isPlaying" class="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                </svg>
+                <svg v-else class="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
+                </svg>
+              </button>
+
+              <button
+                @click="toggleMute"
+                class="control-btn"
+                :disabled="!canPlay"
+                title="Mute/Unmute"
+              >
+                <svg v-if="isMuted || volume === 0" class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.617.793L4.83 13.6H2a1 1 0 01-1-1V7.4a1 1 0 011-1h2.83l3.553-3.193a1 1 0 011.617.793zM16 8.4A1 1 0 1117.6 7a4 4 0 010 6 1 1 0 11-1.6-1.2 2 2 0 000-3.6z" clip-rule="evenodd" />
+                  <path d="M18.293 6.293a1 1 0 011.414 1.414L17.414 10l2.293 2.293a1 1 0 01-1.414 1.414L16 11.414l-2.293 2.293a1 1 0 01-1.414-1.414L14.586 10l-2.293-2.293a1 1 0 011.414-1.414L16 8.586l2.293-2.293z"/>
+                </svg>
+                <svg v-else-if="volume < 0.5" class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.617.793L4.83 13.6H2a1 1 0 01-1-1V7.4a1 1 0 011-1h2.83l3.553-3.193a1 1 0 011.617.793zM15 8.4A1 1 0 1116.6 7a2 2 0 010 6 1 1 0 11-1.6-1.2V8.4z" clip-rule="evenodd" />
+                </svg>
+                <svg v-else class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.617.793L4.83 13.6H2a1 1 0 01-1-1V7.4a1 1 0 011-1h2.83l3.553-3.193a1 1 0 011.617.793zM15 8.4A1 1 0 1116.6 7a4 4 0 010 6 1 1 0 11-1.6-1.2 2 2 0 000-3.6z" clip-rule="evenodd" />
+                </svg>
+              </button>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="mb-3">
+              <div class="flex items-center space-x-3 text-xs text-gray-300">
+                <span class="w-12 text-right">{{ formatTime(currentTime) }}</span>
+                <div class="flex-1 relative">
+                  <div class="progress-track" @click="seekTo($event)">
+                    <div 
+                      class="progress-fill" 
+                      :style="{ width: progressPercent + '%' }"
+                    ></div>
+                    <div 
+                      class="progress-handle" 
+                      :style="{ left: progressPercent + '%' }"
+                    ></div>
+                  </div>
+                </div>
+                <span class="w-12">{{ formatTime(duration) }}</span>
+              </div>
+            </div>
+
+            <!-- Volume Control -->
+            <div class="flex items-center space-x-3">
+              <svg class="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.617.793L4.83 13.6H2a1 1 0 01-1-1V7.4a1 1 0 011-1h2.83l3.553-3.193a1 1 0 011.617.793z" clip-rule="evenodd" />
+              </svg>
+              <div class="flex-1 relative">
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.1"
+                  :value="volume"
+                  @input="updateVolume"
+                  class="volume-slider"
+                  :disabled="!canPlay"
+                />
+              </div>
+              <span class="text-xs text-gray-400 w-8">{{ Math.round(volume * 100) }}%</span>
+            </div>
+          </div>
         </div>
 
         <!-- Reveal Answer (if answered) -->
@@ -142,6 +216,12 @@ const { t } = useI18n()
 // Reactive state
 const audioPlayer = ref<HTMLAudioElement>()
 const isPlaying = ref(false)
+const isLoading = ref(false)
+const canPlay = ref(false)
+const currentTime = ref(0)
+const duration = ref(0)
+const volume = ref(0.7)
+const isMuted = ref(false)
 
 // Computed
 const trackImage = computed(() => {
@@ -170,9 +250,14 @@ const resultMessage = computed(() => {
     : t('game.turn.incorrect', { year: props.track.year })
 })
 
+const progressPercent = computed(() => {
+  if (duration.value === 0) return 0
+  return (currentTime.value / duration.value) * 100
+})
+
 // Methods
 function togglePlayback() {
-  if (!audioPlayer.value) return
+  if (!audioPlayer.value || !canPlay.value) return
   
   if (isPlaying.value) {
     audioPlayer.value.pause()
@@ -182,12 +267,82 @@ function togglePlayback() {
 }
 
 function restartTrack() {
-  if (!audioPlayer.value) return
+  if (!audioPlayer.value || !canPlay.value) return
   
   audioPlayer.value.currentTime = 0
   if (isPlaying.value) {
     audioPlayer.value.play()
   }
+}
+
+function toggleMute() {
+  if (!audioPlayer.value) return
+  
+  if (isMuted.value) {
+    audioPlayer.value.volume = volume.value
+    isMuted.value = false
+  } else {
+    audioPlayer.value.volume = 0
+    isMuted.value = true
+  }
+}
+
+function updateVolume(event: Event) {
+  if (!audioPlayer.value) return
+  
+  const target = event.target as HTMLInputElement
+  const newVolume = parseFloat(target.value)
+  volume.value = newVolume
+  audioPlayer.value.volume = newVolume
+  
+  if (newVolume === 0) {
+    isMuted.value = true
+  } else if (isMuted.value) {
+    isMuted.value = false
+  }
+}
+
+function seekTo(event: MouseEvent) {
+  if (!audioPlayer.value || !canPlay.value) return
+  
+  const progressTrack = event.currentTarget as HTMLElement
+  const rect = progressTrack.getBoundingClientRect()
+  const percent = (event.clientX - rect.left) / rect.width
+  const newTime = percent * duration.value
+  
+  audioPlayer.value.currentTime = newTime
+}
+
+function formatTime(seconds: number): string {
+  if (isNaN(seconds)) return '0:00'
+  
+  const mins = Math.floor(seconds / 60)
+  const secs = Math.floor(seconds % 60)
+  return `${mins}:${secs.toString().padStart(2, '0')}`
+}
+
+// Audio event handlers
+function onTimeUpdate() {
+  if (audioPlayer.value) {
+    currentTime.value = audioPlayer.value.currentTime
+  }
+}
+
+function onLoadedMetadata() {
+  if (audioPlayer.value) {
+    duration.value = audioPlayer.value.duration
+    audioPlayer.value.volume = volume.value
+  }
+}
+
+function onLoadStart() {
+  isLoading.value = true
+  canPlay.value = false
+}
+
+function onCanPlay() {
+  isLoading.value = false
+  canPlay.value = true
 }
 
 function onAudioEnded() {

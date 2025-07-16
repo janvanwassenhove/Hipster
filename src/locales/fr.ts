@@ -56,14 +56,14 @@ export default {
       placeHere: 'Placer ici'
     },
     score: {
-      title: 'Scores',
+      title: 'Jetons Hitster',
       tokens: 'Jetons: {count}',
-      total: 'Total: {score} points'
+      total: 'Points bonus: {score}'
     },
     end: {
       title: 'Jeu Terminé!',
-      winner: '{player} gagne avec {score} points!',
-      finalScores: 'Scores Finaux',
+      winner: '{player} gagne avec {score} jetons!',
+      finalScores: 'Décompte Final Jetons',
       playAgain: 'Rejouer'
     }
   },
