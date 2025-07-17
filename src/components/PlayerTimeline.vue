@@ -55,7 +55,7 @@
         </h4>
       
         <!-- Empty Timeline Message -->
-        <div v-if="player.timeline.length === 0" class="text-center py-12 text-gray-400">
+        <div v-if="(!player.timeline || player.timeline.length === 0)" class="text-center py-12 text-gray-400">
           <div class="mb-4">
             <div class="w-20 h-20 mx-auto bg-gradient-to-br from-gray-700 to-gray-800 rounded-full flex items-center justify-center shadow-lg">
               <span class="text-3xl">🎼</span>
@@ -80,7 +80,7 @@
         </div>
 
         <!-- Timeline with Tracks -->
-        <div v-else class="space-y-3">
+        <div v-else-if="player.timeline && player.timeline.length > 0" class="space-y-3">
           <!-- Before first track -->
           <div
             v-if="canPlace"
@@ -98,7 +98,7 @@
 
           <!-- Track Cards -->
           <div
-            v-for="(track, index) in player.timeline"
+            v-for="(track, index) in (player.timeline || [])"
             :key="track.id"
             class="track-card group relative"
           >
@@ -133,7 +133,7 @@
 
             <!-- Drop zone after this track -->
             <div
-              v-if="canPlace && index < player.timeline.length - 1"
+              v-if="canPlace && index < (player.timeline?.length || 0) - 1"
               class="timeline-slot h-20 mt-3 group"
               :class="{ 'drag-over': dragOverPositions[index + 1] }"
               @dragover.prevent="dragOverPositions[index + 1] = true"
@@ -151,11 +151,11 @@
         <div
           v-if="canPlace"
           class="timeline-slot h-20 group"
-          :class="{ 'drag-over': dragOverPositions[player.timeline.length] }"
-          @dragover.prevent="dragOverPositions[player.timeline.length] = true"
-          @dragleave.prevent="dragOverPositions[player.timeline.length] = false"
-          @drop.prevent="handleDrop(player.timeline.length)"
-          :data-drop-zone="player.timeline.length"
+          :class="{ 'drag-over': dragOverPositions[player.timeline?.length || 0] }"
+          @dragover.prevent="dragOverPositions[player.timeline?.length || 0] = true"
+          @dragleave.prevent="dragOverPositions[player.timeline?.length || 0] = false"
+          @drop.prevent="handleDrop(player.timeline?.length || 0)"
+          :data-drop-zone="player.timeline?.length || 0"
         >
           <div class="h-full border-2 border-dashed border-gray-600 rounded-xl group-hover:border-cyan-400 transition-colors duration-300 bg-gradient-to-r from-gray-800/20 to-gray-700/20 backdrop-blur-sm flex items-center justify-center">
             <p class="text-center text-gray-400 text-sm font-medium">{{ $t('game.placeLater') }}</p>
@@ -197,7 +197,7 @@
     </div>
 
     <!-- Timeline Stats -->
-    <div v-if="player.timeline.length > 0" class="mt-6 pt-6 border-t border-gray-600/30">
+    <div v-if="player.timeline && player.timeline.length > 0" class="mt-6 pt-6 border-t border-gray-600/30">
       <div class="flex justify-between text-sm text-gray-300">
         <span class="font-medium">{{ $t('game.tracksInTimeline', { count: player.timeline.length }) }}</span>
         <span v-if="timelineSpan" class="font-mono">{{ timelineSpan }}</span>
@@ -240,8 +240,9 @@ let autoScrollInterval: number | null = null
 
 // Computed
 const timelineSpan = computed(() => {
-  if (props.player.timeline.length < 2) return null
-  const years = props.player.timeline.map(track => track.year).sort((a, b) => a - b)
+  const timeline = props.player?.timeline || []
+  if (timeline.length < 2) return null
+  const years = timeline.map(track => track.year).sort((a, b) => a - b)
   return `${years[0]} - ${years[years.length - 1]}`
 })
 
@@ -517,7 +518,8 @@ function stopAutoScroll() {
 
 // Initialize drag over positions array
 function initializeDragOverPositions() {
-  dragOverPositions.value = new Array(props.player.timeline.length + 1).fill(false)
+  const timeline = props.player?.timeline || []
+  dragOverPositions.value = new Array(timeline.length + 1).fill(false)
 }
 
 // Cleanup function for touch interactions
@@ -544,7 +546,7 @@ onUnmounted(() => {
 
 // Watch for timeline changes to update drag over positions
 watch(
-  () => props.player.timeline.length,
+  () => (props.player?.timeline || []).length,
   () => {
     initializeDragOverPositions()
   },

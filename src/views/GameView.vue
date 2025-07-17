@@ -119,7 +119,7 @@
         />
 
         <!-- Current Player Timeline -->
-        <div v-if="currentPlayer" class="max-w-4xl mx-auto">
+        <div v-if="currentPlayer && currentPlayer.timeline" class="max-w-4xl mx-auto">
           <PlayerTimeline
             :player="currentPlayer"
             :is-current="true"
@@ -153,7 +153,7 @@
       <div v-else-if="gamePhase === 'finished'" class="max-w-2xl mx-auto">
         <div class="card text-center">
           <h2 class="text-3xl font-bold mb-4 text-white">{{ $t('game.end.title') }}</h2>
-          <p class="text-xl mb-6">{{ $t('game.end.winner', { player: winner?.name, score: winner?.timeline.length }) }}</p>
+          <p class="text-xl mb-6">{{ $t('game.end.winner', { player: winner?.name, score: winner?.timeline?.length || 0 }) }}</p>
           
           <div class="mb-6">
             <h3 class="text-lg font-semibold mb-3">{{ $t('game.end.finalScores') }}</h3>
@@ -165,7 +165,7 @@
                 :class="index === 0 ? 'bg-yellow-100' : 'bg-gray-50'"
               >
                 <span class="font-medium">{{ index + 1 }}. {{ player.name }}</span>
-                <span class="font-bold">{{ player.timeline.length }} {{ $t('game.songs') }} | {{ player.tokens }} {{ $t('game.score.tokens', { count: player.tokens }) }}</span>
+                <span class="font-bold">{{ player.timeline?.length || 0 }} {{ $t('game.songs') }} | {{ player.tokens }} {{ $t('game.score.tokens', { count: player.tokens }) }}</span>
               </div>
             </div>
           </div>
@@ -272,7 +272,9 @@ const timeSpentInGame = computed(() => Date.now() - gameStartTime.value)
 const sortedPlayers = computed(() => 
   [...players.value].sort((a, b) => {
     // Sort by timeline length first (main winning condition)
-    if (b.timeline.length !== a.timeline.length) return b.timeline.length - a.timeline.length
+    const aLength = a.timeline?.length || 0
+    const bLength = b.timeline?.length || 0
+    if (bLength !== aLength) return bLength - aLength
     // Sort by tokens as tiebreaker
     if (b.tokens !== a.tokens) return b.tokens - a.tokens
     // Use score as final tiebreaker

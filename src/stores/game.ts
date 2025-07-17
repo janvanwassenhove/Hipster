@@ -19,7 +19,10 @@ export const useGameStore = defineStore('game', () => {
   })
 
   // Computed
-  const currentPlayer = computed(() => players.value[currentPlayerIndex.value])
+  const currentPlayer = computed(() => {
+    const player = players.value[currentPlayerIndex.value]
+    return player
+  })
   const isGameFinished = computed(() => {
     // Game ends when someone reaches target songs correctly placed on timeline
     return players.value.some(player => player.timeline.length >= settings.value.targetSongs)
@@ -258,7 +261,13 @@ export const useGameStore = defineStore('game', () => {
       const saved = localStorage.getItem('hitster-game-state')
       if (saved) {
         const gameState = JSON.parse(saved)
-        players.value = gameState.players || []
+        
+        // Ensure each player has a properly initialized timeline
+        players.value = (gameState.players || []).map((player: any) => ({
+          ...player,
+          timeline: player.timeline || []
+        }))
+        
         currentPlayerIndex.value = gameState.currentPlayerIndex || 0
         gamePhase.value = gameState.gamePhase || 'setup'
         round.value = gameState.round || 1
