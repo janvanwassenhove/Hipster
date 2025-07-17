@@ -540,16 +540,3 @@ watch(
   { immediate: true }
 )
 </script>
-
-<template>
-  <div 
-    ref="scrollContainer"
-    class="timeline-container"
-    @touchmove="handleTouchMove"
-    @touchend="handleTouchEnd"
-    @mousemove="handleMouseMove"
-    @mouseup="handleMouseUp"
-  >
-    <!-- ...existing timeline content... -->
-  </div>
-</template>
