@@ -268,7 +268,7 @@ const hasSpotifyUri = computed(() => {
 })
 
 const isMobileDevice = computed(() => {
-  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|CriOS/i.test(navigator.userAgent)
 })
 
 const canPlayFullTrack = computed(() => {
@@ -286,34 +286,17 @@ const canPlayAudio = computed(() => {
 
 // Methods
 async function togglePlayback() {
-  console.log('=== TOGGLE PLAYBACK DEBUG ===')
-  console.log('Current isPlaying state:', isPlaying.value)
-  console.log('Can play full track:', canPlayFullTrack.value)
-  console.log('Is mobile device:', isMobileDevice.value)
-  console.log('Has Spotify URI:', hasSpotifyUri.value)
-  console.log('Track URI:', props.track.uri)
-  
   try {
     if (canPlayFullTrack.value && props.track.uri) {
-      if (isMobileDevice.value) {
-        console.log('🎵 Using Spotify Connect for mobile...')
-      } else {
-        console.log('🎵 Using Spotify Web Playback SDK for desktop...')
-      }
-      
       if (isPlaying.value) {
-        console.log('⏸️ Pausing playback...')
         const success = await spotifyService.pausePlayback()
         if (success) {
           isPlaying.value = false
-          console.log('✅ Pause successful')
         }
       } else {
-        console.log('▶️ Starting playback...')
         const success = await spotifyService.startPlayback(props.track.uri)
         if (success) {
           isPlaying.value = true
-          console.log('✅ Play successful')
           
           // Monitor playback state
           if (isMobileDevice.value) {
@@ -321,24 +304,17 @@ async function togglePlayback() {
           } else {
             monitorSpotifyPlayback()
           }
-        } else {
-          console.error('❌ Play failed')
         }
       }
-    } else {
-      console.log('❌ Cannot play full track - missing requirements')
     }
-  } catch (error) {
-    console.error('❌ Playback error:', error)
+  } catch (error: any) {
+    console.error('Playback error:', error)
     
     // Show user-friendly error for mobile
     if (isMobileDevice.value && error.message.includes('No active Spotify device')) {
       alert('Please open the Spotify app on your device first, then try again.')
     }
   }
-  
-  console.log('Final isPlaying state:', isPlaying.value)
-  console.log('=== END TOGGLE PLAYBACK DEBUG ===')
 }
 
 // Add method to monitor Spotify Connect playback
@@ -351,18 +327,8 @@ function monitorSpotifyConnectPlayback() {
       const isCurrentTrack = state.item?.uri === props.track.uri
       const isActuallyPlaying = state.is_playing && isCurrentTrack
       
-      console.log('Spotify Connect state check:', {
-        is_playing: state.is_playing,
-        currentTrackUri: state.item?.uri,
-        expectedUri: props.track.uri,
-        isCurrentTrack,
-        isActuallyPlaying,
-        componentIsPlaying: isPlaying.value
-      })
-      
       // Sync component state with actual playback
       if (isPlaying.value !== isActuallyPlaying) {
-        console.log(`🔄 Syncing Spotify Connect state: ${isPlaying.value} → ${isActuallyPlaying}`)
         isPlaying.value = isActuallyPlaying
       }
       
@@ -372,7 +338,6 @@ function monitorSpotifyConnectPlayback() {
     } else {
       // No active playback
       if (isPlaying.value) {
-        console.log('No active Spotify Connect playback detected')
         isPlaying.value = false
       }
     }
@@ -477,7 +442,7 @@ watch(() => props.track, async (newTrack, oldTrack) => {
     isPlaying.value = false
     
     // Auto-start playback
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|CriOS/i.test(navigator.userAgent)
     
     // Always try auto-start, but handle mobile restrictions gracefully
     setTimeout(async () => {

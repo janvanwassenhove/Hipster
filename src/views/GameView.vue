@@ -11,8 +11,11 @@
             <h1 class="text-xl font-bold">{{ $t('game.title') }}</h1>
             <div class="flex items-center space-x-3 text-sm opacity-80">
               <span>{{ $t('game.round') }} {{ round }}</span>
-              <span v-if="settings.theme" class="px-2 py-1 bg-purple-500/30 rounded-full border border-purple-400/50">
+              <span v-if="settings.theme" class="px-2 py-1 bg-purple-500/30 rounded-full border border-purple-400/50 text-purple-200 font-medium">
                 🎵 {{ $t(`game.themes.${settings.theme}`) }}
+              </span>
+              <span v-else class="px-2 py-1 bg-gray-500/30 rounded-full border border-gray-400/50 text-gray-200 font-medium">
+                🎵 {{ $t('game.themes.all') }}
               </span>
             </div>
           </div>
