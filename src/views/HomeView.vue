@@ -180,7 +180,7 @@ const savedGameRound = computed(() => gameStore.round)
 const canStartGame = computed(() => {
   if (!isSpotifyAuthenticated.value) return false
   for (let i = 0; i < playerCount.value; i++) {
-    if (!playerNames.value[i?.trim()]) return false
+    if (!playerNames.value[i]?.trim()) return false
   }
   return true
 })
