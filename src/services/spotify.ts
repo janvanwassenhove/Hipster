@@ -440,34 +440,41 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
 
   // Get recommendations based on theme
   async getRecommendations(theme?: Theme, limit: number = 50): Promise<Track[]> {
-    console.log('Getting recommendations for theme:', theme, 'limit:', limit)
-    console.log('Authentication state:', this.isAuthenticated())
-    console.log('Access token exists:', !!this.authState.accessToken)
-    
-    // Always use JSON data as primary source for category-based gameplay
-    console.log('Getting tracks from JSON data for selected category')
-    const jsonTracks = this.getTracksFromJson(theme, limit)
-    console.log(`Got ${jsonTracks.length} tracks from JSON for theme: ${theme}`)
-    
-    // If user is authenticated, try to enhance JSON tracks with Spotify preview URLs
-    if (this.isAuthenticated()) {
-      console.log('User authenticated, using JSON tracks directly')
-      
-      try {
-        console.log(`Using ${jsonTracks.length} tracks from JSON data`)
-        
-        // Use JSON tracks directly without enhancement
-        console.log(`Returning ${jsonTracks.length} tracks from JSON data`)
-        return jsonTracks
-      } catch (error) {
-        console.warn('Failed to process JSON tracks, returning original tracks', error)
-        return jsonTracks
+    try {
+      // Get tracks from JSON data first
+      const jsonResults = this.getTracksFromJson(theme, Math.floor(limit * 0.7))
+      console.log(`Found ${jsonResults.length} tracks from JSON data`)
+
+      // If we need more tracks and user is authenticated, supplement with Spotify API
+      if (jsonResults.length < limit && this.isAuthenticated()) {
+        try {
+          const remainingLimit = limit - jsonResults.length
+          const encodedQuery = encodeURIComponent(theme || '')
+          const searchResponse = await this.apiRequest(`/search?q=${encodedQuery}&type=track&limit=${remainingLimit}`)
+          
+          if (searchResponse.tracks?.items) {
+            const spotifyTracks = searchResponse.tracks.items
+              .filter((track: any) => track && track.name && track.artists)
+              .map((track: any) => ({
+                ...track,
+                year: track.album?.release_date ? new Date(track.album.release_date).getFullYear() : new Date().getFullYear(),
+                revealed: false,
+                images: track.album?.images || []
+              }))
+            
+            console.log(`Found ${spotifyTracks.length} additional tracks from Spotify API`)
+            return [...jsonResults, ...spotifyTracks]
+          }
+        } catch (error) {
+          console.warn('Spotify search failed, using only JSON results:', error)
+        }
       }
+    } catch (error) {
+      console.error('Error getting recommendations:', error)
     }
     
-    // Return JSON data when not authenticated
-    console.log(`Returning ${jsonTracks.length} tracks from JSON data (not authenticated)`)
-    return jsonTracks
+    // Always return an array, even if empty
+    return jsonResults || []
   }
 
   // Get available genres from Spotify
@@ -628,7 +635,7 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
             .map((track: any) => ({
               ...track,
               year: track.album?.release_date ? new Date(track.album.release_date).getFullYear() : new Date().getFullYear(),
-              revealed: false, // Album cover hidden until final placement
+              revealed: false,
               images: track.album?.images || []
             }))
           

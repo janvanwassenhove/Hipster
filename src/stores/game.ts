@@ -67,9 +67,10 @@ export const useGameStore = defineStore('game', () => {
       
       // Use spotify service to get tracks from the selected category
       const tracks = await spotifyService.getRecommendations(settings.value.theme, 50)
-      console.log(`Got ${tracks.length} tracks from selected category: ${settings.value.theme || 'all categories'}`)
+      console.log(`Got ${tracks?.length || 0} tracks from selected category: ${settings.value.theme || 'all categories'}`)
       
-      if (tracks.length === 0) {
+      // Add null/undefined check
+      if (!tracks || tracks.length === 0) {
         console.error('No tracks available from spotify service')
         return null
       }
@@ -86,6 +87,13 @@ export const useGameStore = defineStore('game', () => {
         // If all tracks from current batch are used, get more tracks
         console.log('All tracks used, getting more from spotify service')
         const moreTracks = await spotifyService.getRecommendations(settings.value.theme, 100)
+        
+        // Add null/undefined check here too
+        if (!moreTracks || moreTracks.length === 0) {
+          console.error('No additional tracks available from spotify service')
+          return null
+        }
+        
         const newAvailableTracks = moreTracks.filter(track => !usedTrackIds.has(track.id))
         
         if (newAvailableTracks.length === 0) {
