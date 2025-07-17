@@ -310,7 +310,7 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
   }
 
   private async searchSpotifyForTrack(song: SongData): Promise<any> {
-    if (!this.accessToken) return null
+    if (!this.authState.accessToken) return null
     
     try {
       const query = `track:"${song.titel}" artist:"${song.uitvoerder}"`
@@ -318,7 +318,7 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
         `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=1`,
         {
           headers: {
-            'Authorization': `Bearer ${this.accessToken}`
+            'Authorization': `Bearer ${this.authState.accessToken}`
           }
         }
       )
@@ -343,17 +343,20 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
       return {
         id: `demo-${song.titel}-${song.uitvoerder}`,
         name: song.titel,
-        artists: [{ name: song.uitvoerder, id: 'demo-artist' }],
+        artists: [{ name: song.uitvoerder, id: 'demo-artist', external_urls: { spotify: '' } }],
         album: {
           id: spotifyTrack.album.id,
           name: spotifyTrack.album.name,
           images: spotifyTrack.album.images, // Real Spotify images!
-          release_date: song.jaar.toString()
+          release_date: song.jaar.toString(),
+          release_date_precision: 'year'
         },
-        duration_ms: 30000,
-        preview_url: spotifyTrack.preview_url || null,
+        release_date: `${song.jaar}-01-01`,
+        year: song.jaar,
         external_urls: spotifyTrack.external_urls || { spotify: '' },
-        images: spotifyTrack.images || []
+        images: spotifyTrack.images || [],
+        revealed: false,
+        uri: song.uri
       }
     }
     
@@ -396,7 +399,7 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
   }
 
   // Get tracks from JSON data based on theme
-  private getTracksFromJson(theme?: Theme, limit: number = 50): Track[] {
+  private async getTracksFromJson(theme?: Theme, limit: number = 50): Promise<Track[]> {
     console.log('Getting tracks from JSON for theme:', theme)
     
     let categoryData: SongData[] = []
@@ -435,21 +438,23 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
     
     console.log(`Selected ${selected.length} songs for theme: ${theme}`)
     
-    return selected.map(song => this.convertSongToTrack(song))
+    return Promise.all(selected.map(song => this.convertSongToTrack(song)))
   }
 
   // Get recommendations based on theme
   async getRecommendations(theme?: Theme, limit: number = 50): Promise<Track[]> {
+    let jsonResults: Track[] = []
+    
     try {
       // Get tracks from JSON data first
-      const jsonResults = this.getTracksFromJson(theme, Math.floor(limit * 0.7))
+      jsonResults = await this.getTracksFromJson(theme, Math.floor(limit * 0.7))
       console.log(`Found ${jsonResults.length} tracks from JSON data`)
 
       // If we need more tracks and user is authenticated, supplement with Spotify API
-      if (jsonResults.length < limit && this.isAuthenticated()) {
+      if (jsonResults.length < limit && this.isAuthenticated() && theme && theme.trim()) {
         try {
           const remainingLimit = limit - jsonResults.length
-          const encodedQuery = encodeURIComponent(theme || '')
+          const encodedQuery = encodeURIComponent(theme.trim())
           const searchResponse = await this.apiRequest(`/search?q=${encodedQuery}&type=track&limit=${remainingLimit}`)
           
           if (searchResponse.tracks?.items) {
@@ -474,7 +479,7 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
     }
     
     // Always return an array, even if empty
-    return jsonResults || []
+    return jsonResults
   }
 
   // Get available genres from Spotify
@@ -618,7 +623,7 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
       song.uitvoerder.toLowerCase().includes(query.toLowerCase())
     ).slice(0, limit)
     
-    const jsonResults = matchingSongs.map(song => this.convertSongToTrack(song))
+    const jsonResults = await Promise.all(matchingSongs.map(song => this.convertSongToTrack(song)))
     
     console.log(`Found ${jsonResults.length} matching tracks in JSON data`)
     
@@ -1353,14 +1358,21 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
   }
 
   async getRandomTrack(theme?: string): Promise<Track> {
-    if (this.accessToken && this.useSpotifyTracks) {
-      // Existing Spotify API logic
-      return this.getSpotifyTrack(theme)
-    } else {
-      // Enhanced local track with potential Spotify images
-      const songs = this.getFilteredSongs(theme)
-      const randomSong = songs[Math.floor(Math.random() * songs.length)]
-      return await this.convertSongToTrack(randomSong) // Now async!
+    try {
+      // Get tracks from JSON data
+      const tracks = await this.getTracksFromJson(theme as Theme, 50)
+      
+      if (tracks.length === 0) {
+        throw new Error('No tracks available')
+      }
+      
+      // Return a random track
+      const randomIndex = Math.floor(Math.random() * tracks.length)
+      return tracks[randomIndex]
+    } catch (error) {
+      console.error('Error getting random track:', error)
+      // Return a fallback track if needed
+      throw error
     }
   }
 
