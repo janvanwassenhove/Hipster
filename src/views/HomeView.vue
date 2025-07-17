@@ -245,7 +245,13 @@ async function testSpotifyPlayback() {
 
 // Lifecycle
 onMounted(() => {
+  // Check authentication state
   isSpotifyAuthenticated.value = spotifyService.isAuthenticated()
+  
+  // Initialize player if already authenticated
+  if (isSpotifyAuthenticated.value) {
+    spotifyService.initializePlayerIfReady()
+  }
   
   // Load saved player names if available
   const savedNames = localStorage.getItem('hitster-player-names')

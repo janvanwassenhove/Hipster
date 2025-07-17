@@ -5,7 +5,7 @@ import songsData from '@/data/songs_by_category.json'
 // Spotify API configuration
 const SPOTIFY_CLIENT_ID = '67125c0389b247c1b3b221ff4a5fb2ef' // Replace with your Spotify Client ID
 const SPOTIFY_REDIRECT_URI = `${window.location.origin}/Hipster/`
-const SPOTIFY_SCOPES = 'user-read-private user-read-email user-top-read user-library-read streaming user-read-playback-state user-modify-playback-state'
+const SPOTIFY_SCOPES = 'user-read-private user-read-email user-top-read user-library-read streaming user-read-playback-state user-modify-playback-state user-read-currently-playing'
 
 interface SongData {
   jaar: number
@@ -57,6 +57,10 @@ class SpotifyService {
   private playerReady = false // Add this property
   private currentTrackUri: string | null = null
   private isAuthenticating = false
+  private playerInitializationAttempted = false
+  private lastAuthCheck = 0
+  private authCheckInProgress = false // Prevent concurrent auth checks
+  private lastTokenRefresh = 0 // Prevent excessive token refresh attempts
 
   constructor() {
     this.loadAuthState()
@@ -91,8 +95,15 @@ class SpotifyService {
 
   // Start Spotify OAuth flow with PKCE
   async initiateLogin(): Promise<void> {
+    // Prevent duplicate login attempts
     if (this.isAuthenticating) {
       console.log('Authentication already in progress, skipping...')
+      return
+    }
+    
+    // Check if already authenticated with sufficient token time remaining
+    if (this.isAuthenticated() && this.authState.expiresAt && Date.now() < this.authState.expiresAt - 600000) {
+      console.log('Already authenticated with valid token, skipping login...')
       return
     }
     
@@ -103,6 +114,7 @@ class SpotifyService {
       const codeChallenge = await this.generateCodeChallenge(codeVerifier)
       
       localStorage.setItem('spotify_code_verifier', codeVerifier)
+      console.log('Initiating Spotify OAuth with scopes:', SPOTIFY_SCOPES)
       console.log('Spotify redirect URI:', SPOTIFY_REDIRECT_URI)
 
       const params = new URLSearchParams({
@@ -112,7 +124,8 @@ class SpotifyService {
         redirect_uri: SPOTIFY_REDIRECT_URI,
         code_challenge_method: 'S256',
         code_challenge: codeChallenge,
-        state: Math.random().toString(36).substring(7)
+        state: Math.random().toString(36).substring(7),
+        show_dialog: 'false' // Don't always show the dialog, allow auto-approval
       })
 
       window.location.href = `https://accounts.spotify.com/authorize?${params}`
@@ -202,6 +215,8 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
       return false
     }
 
+    this.lastTokenRefresh = Date.now()
+
     try {
       const response = await fetch('https://accounts.spotify.com/api/token', {
         method: 'POST',
@@ -229,6 +244,7 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
       }
 
       this.saveAuthState()
+      console.log('✅ Token refreshed successfully')
       return true
     } catch (error) {
       console.error('Error refreshing token:', error)
@@ -245,6 +261,11 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
 
     // Check if token expires in the next 5 minutes
     if (this.authState.expiresAt && Date.now() >= this.authState.expiresAt - 300000) {
+      // Prevent excessive refresh attempts (max once per minute)
+      if (Date.now() - this.lastTokenRefresh < 60000) {
+        console.log('Token refresh attempted recently, skipping...')
+        return true // Assume it's still valid
+      }
       return await this.refreshAccessToken()
     }
 
@@ -271,9 +292,13 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
       console.error('Spotify API error:', response.status, errorText)
       
       if (response.status === 401) {
-        // Token invalid, try refresh
-        if (await this.refreshAccessToken()) {
+        // Only try refresh once to prevent infinite loops
+        if (!this.isAuthenticating && await this.refreshAccessToken()) {
+          console.log('Token refreshed, retrying API request')
           return this.apiRequest(endpoint)
+        } else {
+          console.error('Token refresh failed or already refreshing, requiring full re-authentication')
+          throw new Error('Authentication required')
         }
       }
       throw new Error(`Spotify API error: ${response.status} - ${errorText}`)
@@ -583,7 +608,34 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
 
   // Auth state management
   isAuthenticated(): boolean {
-    return this.authState.isAuthenticated && !!this.authState.accessToken
+    // Prevent concurrent authentication checks
+    if (this.authCheckInProgress) {
+      return this.authState.isAuthenticated && !!this.authState.accessToken
+    }
+    
+    // Cache authentication check for 30 seconds to prevent excessive checking
+    const now = Date.now()
+    if (now - this.lastAuthCheck < 30000) {
+      return this.authState.isAuthenticated && !!this.authState.accessToken
+    }
+    
+    this.authCheckInProgress = true
+    this.lastAuthCheck = now
+    
+    try {
+      // Check if token has expired
+      if (this.authState.expiresAt && now >= this.authState.expiresAt) {
+        console.log('Token has expired, logging out')
+        this.logout()
+        return false
+      }
+      
+      const isAuth = this.authState.isAuthenticated && !!this.authState.accessToken
+      console.log('Authentication check result:', isAuth)
+      return isAuth
+    } finally {
+      this.authCheckInProgress = false
+    }
   }
 
   // Force logout and clear authentication
@@ -610,6 +662,12 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
     
     this.deviceId = null
     this.currentTrackUri = null
+    this.playerReady = false
+    this.playerInitializationAttempted = false
+    this.isAuthenticating = false
+    this.lastAuthCheck = 0
+    this.authCheckInProgress = false
+    this.lastTokenRefresh = 0
     
     console.log('✅ Successfully logged out')
   }
@@ -621,10 +679,33 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
     return this.isAuthenticated()
   }
 
+  // Check if we need to re-authenticate (more specific than hasPlaybackPermissions)
+  async needsReauth(): Promise<boolean> {
+    if (!this.isAuthenticated()) {
+      return true
+    }
+    
+    try {
+      // Try a simple API call that requires the scopes we need
+      await this.apiRequest('/me/player')
+      return false
+    } catch (error: any) {
+      console.log('Checking if reauth needed due to API error:', error.message)
+      // Only require reauth for specific permission errors, not network or other issues
+      if (error.message.includes('403') || error.message.includes('Insufficient client scope')) {
+        return true
+      }
+      return false
+    }
+  }
+
   // Force re-authentication with updated scopes
   async forceReauth(): Promise<void> {
     console.log('🔄 Forcing re-authentication with updated scopes')
+    // Set a flag to prevent automatic re-login during logout
+    const wasAuthenticating = this.isAuthenticating
     this.logout()
+    this.isAuthenticating = wasAuthenticating
     await this.initiateLogin()
   }
 
@@ -650,14 +731,29 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
   }
 
   initializePlayerIfReady(): void {
-    if (this.isAuthenticated() && window.Spotify && !this.player) {
-      console.log('🔄 Initializing player if ready...')
-      this.initializeWebPlaybackSDK()
-    } else if (this.player && !this.playerReady) {
-      console.log('🔄 Player exists but not ready, waiting...')
-    } else {
-      console.log('✅ Player already initialized and ready')
+    if (!this.isAuthenticated()) {
+      console.log('Not authenticated, cannot initialize player')
+      return
     }
+    
+    if (!window.Spotify) {
+      console.log('Spotify SDK not loaded yet')
+      return
+    }
+    
+    if (this.player) {
+      console.log('Player already exists')
+      return
+    }
+    
+    if (this.playerInitializationAttempted) {
+      console.log('Player initialization already attempted')
+      return
+    }
+    
+    console.log('🔄 Initializing player...')
+    this.playerInitializationAttempted = true
+    this.initializeWebPlaybackSDK()
   }
 
   // Get tracks directly from Spotify when authenticated (better for audio previews)
@@ -1022,12 +1118,18 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
   // Check if player is ready
   isPlayerReady(): boolean {
     const ready = !!(this.playerReady && this.player && this.deviceId)
-    console.log('Player ready check:', {
-      playerReady: this.playerReady,
-      hasPlayer: !!this.player,
-      hasDeviceId: !!this.deviceId,
-      finalResult: ready
-    })
+    
+    // Only log if there's a change in status or for debugging
+    if (!ready && this.isAuthenticated()) {
+      console.log('Player ready check:', {
+        playerReady: this.playerReady,
+        hasPlayer: !!this.player,
+        hasDeviceId: !!this.deviceId,
+        finalResult: ready,
+        playerInitializationAttempted: this.playerInitializationAttempted
+      })
+    }
+    
     return ready
   }
 

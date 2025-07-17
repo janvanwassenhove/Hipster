@@ -6,6 +6,7 @@ export default {
     confirm: 'Bestätigen',
     start: 'Start',
     finish: 'Beenden',
+    continue: 'Weiter',
     loading: 'Laden...',
     error: 'Fehler',
     retry: 'Wiederholen',
@@ -14,7 +15,12 @@ export default {
   game: {
     title: 'Hipster',
     subtitle: 'Musik-Zeitstrahl-Spiel',
+    newGame: 'Neues Spiel',
+    continue: 'Spiel Fortsetzen',
+    players: 'Spieler',
+    round: 'Runde',
     playerCount: 'Anzahl Spieler (2-4)',
+    playerNames: 'Spielernamen',
     playerName: 'Spieler {number} Name',
     allMusic: 'Alle Musik',
     targetSongs: 'Lieder zum Gewinnen',
@@ -29,11 +35,70 @@ export default {
       'vlaams': 'Flämische Musik',
       'pop-rock': 'Pop & Rock'
     },
+    setupRequired: 'Spieleinrichtung Erforderlich',
+    setupMessage: 'Bitte kehren Sie zurück, um ein neues Spiel einzurichten',
+    backToSetup: 'Zurück zur Einrichtung',
+    backToHome: 'Zurück zur Startseite',
+    getTrack: 'Nächsten Track Holen',
+    points: 'Punkte',
+    audioNotSupported: 'Audio nicht unterstützt',
+    demoMode: 'Demo-Modus',
+    premiumRequired: 'Premium Erforderlich',
+    needsPremium: 'Spotify Premium ist erforderlich, um vollständige Tracks zu spielen',
+    needSpotifyForAudio: 'Mit Spotify verbinden, um Musik zu hören!',
+    premiumNeededForFullPlay: 'Upgrade auf Spotify Premium, um vollständige Tracks zu spielen!',
+    demoModeInstructions: 'Im Demo-Modus können Sie immer noch spielen, indem Sie basierend auf Track-Informationen raten.',
+    demoModeActive: 'Im Demo-Modus spielen - keine Audio-Vorschauen verfügbar.',
+    mobileListening: 'Hören & Raten',
+    mobileGameMode: 'Auf dem Handy hören Sie aufmerksam die Hintergrundmusik und raten, wann dieser Track erschien!',
+    listenCarefully: 'Nutzen Sie Ihr Musikwissen und Ihre Intuition, um diesen Track auf Ihrer Zeitlinie zu platzieren',
+    playInSpotify: 'In Spotify abspielen',
+    play: 'Abspielen',
+    pause: 'Pausieren',
+    restart: 'Neustart',
+    mute: 'Stumm',
+    unmute: 'Ton an',
+    volume: 'Lautstärke',
+    openInSpotify: 'In Spotify öffnen',
+    dragToTimeline: 'Ziehen Sie die Karte auf Ihre Zeitlinie (oder tippen und halten auf dem Handy)',
+    newTrack: 'Neuer Track',
+    dragToPlace: 'Zum Platzieren auf Zeitlinie ziehen (oder tippen und halten)',
+    placeEarlier: 'Vor diesem Track platzieren',
+    placeBetween: 'Zwischen Tracks platzieren',
+    placeLater: 'Nach diesem Track platzieren',
+    tracksInTimeline: '{count} Tracks in der Zeitlinie',
+    tokenAbilities: 'Token-Fähigkeiten',
+    tokens: {
+      skip: {
+        label: 'Überspringen',
+        description: 'Diesen Track überspringen und einen neuen bekommen'
+      },
+      hint: {
+        label: 'Hinweis',
+        description: 'Einen Hinweis über das Jahrzehnt bekommen'
+      },
+      challenge: {
+        label: 'Herausforderung',
+        description: 'Die Platzierung eines anderen Spielers herausfordern'
+      },
+      swap: {
+        label: 'Tauschen',
+        description: 'Zwei Karten in Ihrer Zeitlinie tauschen'
+      },
+      peek: {
+        label: 'Spähen',
+        description: 'Den nächsten Track vor der Platzierung ansehen'
+      }
+    },
     spotify: {
       login: 'Mit Spotify anmelden',
       required: 'Spotify-Anmeldung erforderlich',
+      loginRequired: 'Wir benötigen Zugang zu Spotify, um Musikvorschauen abzuspielen',
       loginSuccess: 'Erfolgreich angemeldet!',
-      loginError: 'Anmeldung bei Spotify fehlgeschlagen'
+      loginError: 'Anmeldung bei Spotify fehlgeschlagen',
+      connected: 'Mit Spotify verbunden',
+      notConnected: 'Nicht mit Spotify verbunden',
+      logout: 'Abmelden'
     },
     turn: {
       currentPlayer: "{player} ist dran!",
@@ -61,23 +126,13 @@ export default {
       winner: '{player} gewinnt mit {score} richtig platzierten Liedern!',
       finalScores: 'Endergebnisse',
       playAgain: 'Nochmal Spielen'
-    },
-    demoMode: 'Demo-Modus',
-    premiumRequired: 'Premium Erforderlich',
-    needsPremium: 'Spotify Premium ist erforderlich, um vollständige Tracks zu spielen',
-    needSpotifyForAudio: 'Mit Spotify verbinden, um Musik zu hören!',
-    premiumNeededForFullPlay: 'Upgrade auf Spotify Premium, um vollständige Tracks zu spielen!',
-    demoModeInstructions: 'Im Demo-Modus können Sie immer noch spielen, indem Sie basierend auf Track-Informationen raten.',
-    demoModeActive: 'Im Demo-Modus spielen - keine Audio-Vorschauen verfügbar.',
-    mobileListening: 'Hören & Raten',
-    mobileGameMode: 'Auf dem Handy hören Sie aufmerksam die Hintergrundmusik und raten, wann dieser Track erschien!',
-    listenCarefully: 'Nutzen Sie Ihr Musikwissen und Ihre Intuition, um diesen Track auf Ihrer Zeitlinie zu platzieren',
-    playInSpotify: 'In Spotify abspielen',
-    openInSpotify: 'In Spotify öffnen',
+    }
   },
   settings: {
+    title: 'Einstellungen',
     language: 'Sprache',
     changeLanguage: 'Sprache Ändern',
+    about: 'Über',
     aboutText: 'Ein Musik-Zeitstrahl-Ratespiel.',
     madeWith: 'Mit viel Freude und Liebe zur Musik und zu Spielen gemacht!'
   }

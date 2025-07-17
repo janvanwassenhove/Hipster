@@ -15,7 +15,7 @@
                 🎵 {{ $t(`game.themes.${settings.theme}`) }}
               </span>
               <span v-else class="px-2 py-1 bg-gray-500/30 rounded-full border border-gray-400/50 text-gray-200 font-medium">
-                🎵 {{ $t('game.themes.all') }}
+                🎵 {{ $t('game.allMusic') }}
               </span>
             </div>
           </div>
@@ -138,10 +138,10 @@
               v-for="player in players"
               :key="player.id"
               class="text-center p-3 rounded-lg"
-              :class="player.id === currentPlayer?.id ? 'bg-green-100' : 'bg-gray-50'"
+              :class="player.id === currentPlayer?.id ? 'bg-green-100 border-2 border-green-300' : 'bg-gray-50'"
             >
-              <p class="font-semibold">{{ player.name }}</p>
-              <p class="text-2xl font-bold text-white">{{ player.tokens }}</p>
+              <p class="font-semibold text-gray-800">{{ player.name }}</p>
+              <p class="text-2xl font-bold text-gray-900">{{ player.tokens }}</p>
               <p class="text-sm text-gray-600">{{ $t('game.score.tokens', { count: player.tokens }) }}</p>
               <p class="text-xs text-gray-500">{{ $t('game.score.total', { score: player.score }) }}</p>
             </div>
@@ -252,9 +252,23 @@ const settings = computed(() => gameStore.settings)
 const winner = computed(() => gameStore.winner)
 const isSpotifyConnected = computed(() => spotifyAuthState.value)
 const needsReauth = computed(() => {
-  // Show reauth warning if connected but player isn't ready after some time
-  return isSpotifyConnected.value && !spotifyService.isPlayerReady()
+  // Only show reauth warning if:
+  // 1. User is connected 
+  // 2. Player initialization was attempted but failed after reasonable time
+  // 3. Or if there's a specific permission error
+  
+  if (!isSpotifyConnected.value) return false
+  
+  // Give the player some time to initialize (30 seconds)
+  const playerNotReadyForLongTime = !spotifyService.isPlayerReady()
+  
+  // Only show warning if we're confident there's an issue
+  return playerNotReadyForLongTime && timeSpentInGame.value > 30000
 })
+
+// Track time spent in game to avoid premature reauth warnings
+const gameStartTime = ref(Date.now())
+const timeSpentInGame = computed(() => Date.now() - gameStartTime.value)
 const sortedPlayers = computed(() => 
   [...players.value].sort((a, b) => {
     // Sort by timeline length first (main winning condition)
@@ -332,18 +346,20 @@ function goToLogin() {
 
 function refreshSpotifyAuth() {
   const isAuth = spotifyService.isAuthenticated()
-  const authState = localStorage.getItem('spotify_auth')
-  console.log('Spotify auth check:', {
+  console.log('Spotify auth check in GameView:', {
     isAuthenticated: isAuth,
-    authStateInStorage: authState ? JSON.parse(authState) : null,
-    isSpotifyConnected: isSpotifyConnected.value
+    previousState: isSpotifyConnected.value
   })
   
-  // Update reactive state
-  spotifyAuthState.value = isAuth
+  // Update reactive state only if it changed to prevent unnecessary updates
+  if (spotifyAuthState.value !== isAuth) {
+    spotifyAuthState.value = isAuth
+    console.log('Spotify auth state updated:', isAuth)
+  }
   
-  // Initialize player if authenticated
-  if (isAuth) {
+  // Initialize player if authenticated but not attempted yet
+  if (isAuth && !spotifyService.isPlayerReady()) {
+    console.log('Initializing player after auth check')
     spotifyService.initializePlayerIfReady()
   }
 }
@@ -362,13 +378,16 @@ onMounted(() => {
     router.push('/')
   }
   
-  // Refresh Spotify auth state
+  // Refresh Spotify auth state once on mount
   refreshSpotifyAuth()
   
-  // Check auth state less frequently
+  // Check auth state much less frequently to prevent multiple login prompts
   const authCheckInterval = setInterval(() => {
-    refreshSpotifyAuth()
-  }, 30000) // Check every 30 seconds instead of 2
+    // Only check if user isn't already authenticated to avoid unnecessary calls
+    if (!spotifyAuthState.value) {
+      refreshSpotifyAuth()
+    }
+  }, 120000) // Check every 2 minutes instead of 60 seconds
   
   // Clean up interval on unmount
   onUnmounted(() => {

@@ -30,6 +30,13 @@ export default {
       'vlaams': 'Musique Flamande',
       'pop-rock': 'Pop & Rock'
     },
+    setupRequired: 'Configuration du Jeu Requise',
+    setupMessage: 'Veuillez revenir en arrière pour configurer un nouveau jeu',
+    backToSetup: 'Retour à la Configuration',
+    backToHome: 'Retour à l\'Accueil',
+    getTrack: 'Obtenir la Piste Suivante',
+    points: 'points',
+    audioNotSupported: 'Audio non supporté',
     demoMode: 'Mode Démo',
     premiumRequired: 'Premium Requis',
     needsPremium: 'Spotify Premium est requis pour jouer des pistes complètes',
@@ -42,11 +49,45 @@ export default {
     listenCarefully: 'Utilisez vos connaissances musicales et votre intuition pour placer cette piste sur votre chronologie',
     playInSpotify: 'Jouer dans Spotify',
     openInSpotify: 'Ouvrir dans Spotify',
+    dragToTimeline: 'Glissez la carte sur votre chronologie (ou appuyez longuement sur mobile)',
+    newTrack: 'Nouvelle Piste',
+    dragToPlace: 'Glisser pour placer sur la chronologie (ou appuyer longuement)',
+    placeEarlier: 'Placer avant cette piste',
+    placeBetween: 'Placer entre les pistes',
+    placeLater: 'Placer après cette piste',
+    tracksInTimeline: '{count} pistes dans la chronologie',
+    tokenAbilities: 'Capacités de Jetons',
+    tokens: {
+      skip: {
+        label: 'Passer',
+        description: 'Passer cette piste et en obtenir une nouvelle'
+      },
+      hint: {
+        label: 'Indice',
+        description: 'Obtenir un indice sur la décennie'
+      },
+      challenge: {
+        label: 'Défi',
+        description: 'Défier le placement d\'un autre joueur'
+      },
+      swap: {
+        label: 'Échanger',
+        description: 'Échanger deux cartes dans votre chronologie'
+      },
+      peek: {
+        label: 'Aperçu',
+        description: 'Aperçu de la prochaine piste avant placement'
+      }
+    },
     spotify: {
       login: 'Se connecter avec Spotify',
       required: 'Connexion Spotify requise pour jouer',
+      loginRequired: 'Nous avons besoin d\'accès à Spotify pour jouer des aperçus musicaux',
       loginSuccess: 'Connexion réussie!',
-      loginError: 'Échec de la connexion à Spotify'
+      loginError: 'Échec de la connexion à Spotify',
+      connected: 'Connecté à Spotify',
+      notConnected: 'Non connecté à Spotify',
+      logout: 'Déconnexion'
     },
     turn: {
       currentPlayer: "C'est le tour de {player}!",
