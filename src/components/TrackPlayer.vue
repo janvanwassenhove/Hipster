@@ -279,43 +279,46 @@ const canPlayAudio = computed(() => {
 
 // Methods
 async function togglePlayback() {
-  // Add detailed mobile debugging
-  const userAgent = navigator.userAgent
-  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent)
-  
-  console.log('=== MOBILE PLAYBACK DEBUG ===')
-  console.log('User Agent:', userAgent)
-  console.log('Is Mobile Detected:', isMobile)
-  console.log('Is Mobile Device (computed):', isMobileDevice.value)
+  console.log('=== TOGGLE PLAYBACK DEBUG ===')
+  console.log('Current isPlaying state:', isPlaying.value)
+  console.log('Can play full track:', canPlayFullTrack.value)
   console.log('Has Spotify URI:', hasSpotifyUri.value)
-  console.log('Spotify Player Ready:', spotifyService.isPlayerReady())
-  console.log('Can Play Full Track:', canPlayFullTrack.value)
-  console.log('Can Play Audio:', canPlayAudio.value)
   console.log('Track URI:', props.track.uri)
-  console.log('Preview URL:', props.track.preview_url)
-  console.log('============================')
-
-  if (canPlayFullTrack.value) {
-    console.log('Attempting Spotify Web Playback SDK...')
-    try {
+  console.log('Device ID available:', !!spotifyService.deviceId)
+  
+  try {
+    if (canPlayFullTrack.value && props.track.uri) {
+      console.log('🎵 Using Spotify Web Playback SDK...')
+      
       if (isPlaying.value) {
-        await spotifyService.pausePlayback()
-        isPlaying.value = false
-        console.log('✅ Spotify SDK pause successful')
+        console.log('⏸️ Pausing playback...')
+        const success = await spotifyService.pausePlayback()
+        if (success) {
+          isPlaying.value = false
+          console.log('✅ Pause successful')
+        }
       } else {
-        console.log('Starting playback with URI:', props.track.uri)
-        await spotifyService.startPlayback(props.track.uri!)
-        isPlaying.value = true
-        console.log('✅ Spotify SDK play successful')
+        console.log('▶️ Starting playback...')
+        const success = await spotifyService.startPlayback(props.track.uri)
+        if (success) {
+          isPlaying.value = true
+          console.log('✅ Play successful')
+        } else {
+          console.error('❌ Play failed')
+        }
       }
-    } catch (error) {
-      console.error('❌ Spotify SDK playback failed:', error)
-      console.error('Error details:', JSON.stringify(error, null, 2))
+    } else {
+      console.log('❌ Cannot play full track - missing requirements')
+      console.log('  - Can play full track:', canPlayFullTrack.value)
+      console.log('  - Has URI:', !!props.track.uri)
+      console.log('  - Player ready:', spotifyService.isPlayerReady())
     }
-  } else {
-    console.log('❌ Cannot play full track, falling back to preview or no audio')
-    // Add preview fallback logic here if needed
+  } catch (error) {
+    console.error('❌ Playback error:', error)
   }
+  
+  console.log('Final isPlaying state:', isPlaying.value)
+  console.log('=== END TOGGLE PLAYBACK DEBUG ===')
 }
 
 async function restartTrack() {
@@ -357,6 +360,46 @@ function monitorSpotifyPlayback() {
   
   checkPlayback()
 }
+
+// Add this to monitor actual playback state
+async function checkPlaybackState() {
+  if (spotifyService.isPlayerReady()) {
+    try {
+      const state = await spotifyService.getPlaybackState()
+      if (state) {
+        const isCurrentTrack = state.track_window?.current_track?.uri === props.track.uri
+        const isActuallyPlaying = state.paused === false && isCurrentTrack
+        
+        console.log('Playback state check:', {
+          paused: state.paused,
+          currentTrackUri: state.track_window?.current_track?.uri,
+          expectedUri: props.track.uri,
+          isCurrentTrack,
+          isActuallyPlaying,
+          componentIsPlaying: isPlaying.value
+        })
+        
+        // Sync component state with actual playback
+        if (isPlaying.value !== isActuallyPlaying) {
+          console.log(`🔄 Syncing playback state: ${isPlaying.value} → ${isActuallyPlaying}`)
+          isPlaying.value = isActuallyPlaying
+        }
+      }
+    } catch (error) {
+      console.warn('Could not check playback state:', error)
+    }
+  }
+}
+
+// Call this periodically when component is mounted
+onMounted(() => {
+  // Check playback state every 2 seconds
+  const interval = setInterval(checkPlaybackState, 2000)
+  
+  onUnmounted(() => {
+    clearInterval(interval)
+  })
+})
 
 function handleVolumeTouch(event: TouchEvent) {
   // Let the default range input handle touch events

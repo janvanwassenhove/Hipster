@@ -649,6 +649,17 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
     }
   }
 
+  initializePlayerIfReady(): void {
+    if (this.isAuthenticated() && window.Spotify && !this.player) {
+      console.log('🔄 Initializing player if ready...')
+      this.initializeWebPlaybackSDK()
+    } else if (this.player && !this.playerReady) {
+      console.log('🔄 Player exists but not ready, waiting...')
+    } else {
+      console.log('✅ Player already initialized and ready')
+    }
+  }
+
   // Get tracks directly from Spotify when authenticated (better for audio previews)
   private async getTracksFromSpotify(limit: number = 20): Promise<Track[]> {
     if (!this.isAuthenticated()) {
