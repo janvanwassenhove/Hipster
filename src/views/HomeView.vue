@@ -65,6 +65,15 @@
             </button>
           </div>
 
+          <!-- Add this after the Spotify login section for testing -->
+          <div v-if="isSpotifyAuthenticated" class="mb-4 p-4 bg-blue-900/40 border border-blue-500/30 rounded-lg">
+            <h3 class="text-white font-bold mb-2">🔧 Mobile Debug Test</h3>
+            <button @click="testSpotifyPlayback" class="btn btn-secondary">
+              Test Spotify Web Playback
+            </button>
+            <p class="text-sm text-white/80 mt-2" v-if="debugMessage">{{ debugMessage }}</p>
+          </div>
+
           <!-- Game Setup Form -->
           <form v-if="isSpotifyAuthenticated" @submit.prevent="startGame" class="space-y-6">
             
@@ -161,6 +170,7 @@ const targetSongs = ref(10)
 const selectedTheme = ref<Theme | ''>('')
 const isLoggingIn = ref(false)
 const isSpotifyAuthenticated = ref(false)
+const debugMessage = ref('')
 
 // Computed
 const hasSavedGame = computed(() => gameStore.players.length > 0 && gameStore.gamePhase !== 'setup')
@@ -170,7 +180,7 @@ const savedGameRound = computed(() => gameStore.round)
 const canStartGame = computed(() => {
   if (!isSpotifyAuthenticated.value) return false
   for (let i = 0; i < playerCount.value; i++) {
-    if (!playerNames.value[i]?.trim()) return false
+    if (!playerNames.value[i?.trim()]) return false
   }
   return true
 })
@@ -205,6 +215,26 @@ function startGame() {
 
 function continueGame() {
   router.push('/game')
+}
+
+async function testSpotifyPlayback() {
+  debugMessage.value = 'Testing...'
+  try {
+    console.log('Testing Spotify playback on mobile...')
+    const isReady = spotifyService.isPlayerReady()
+    debugMessage.value = `Player ready: ${isReady}`
+    
+    if (isReady) {
+      // Test with a known track URI
+      await spotifyService.startPlayback('spotify:track:4iV5W9uYEdYUVa79Axb7Rh') // Bohemian Rhapsody
+      debugMessage.value = 'Playback started successfully!'
+    } else {
+      debugMessage.value = 'Player not ready - check console for details'
+    }
+  } catch (error) {
+    console.error('Test failed:', error)
+    debugMessage.value = `Test failed: ${error.message}`
+  }
 }
 
 // Lifecycle

@@ -279,33 +279,42 @@ const canPlayAudio = computed(() => {
 
 // Methods
 async function togglePlayback() {
-  console.log('Toggle playback called, isPlaying:', isPlaying.value)
-  console.log('Can play full track:', canPlayFullTrack.value)
-  console.log('Spotify player ready:', spotifyService.isPlayerReady())
+  // Add detailed mobile debugging
+  const userAgent = navigator.userAgent
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent)
   
-  // Detect mobile devices
-  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
-  
-  if (canPlayFullTrack.value && !isMobile) {
-    // Debug: Check available devices
-    await spotifyService.getAvailableDevices()
-    
-    // Use Spotify Web Playback SDK for full tracks (desktop only)
-    if (isPlaying.value) {
-      await spotifyService.pausePlayback()
-      isPlaying.value = false
-    } else {
-      const success = await spotifyService.playTrack(props.track.uri!)
-      if (success) {
-        isPlaying.value = true
-        // Start monitoring playback state
-        monitorSpotifyPlayback()
+  console.log('=== MOBILE PLAYBACK DEBUG ===')
+  console.log('User Agent:', userAgent)
+  console.log('Is Mobile Detected:', isMobile)
+  console.log('Is Mobile Device (computed):', isMobileDevice.value)
+  console.log('Has Spotify URI:', hasSpotifyUri.value)
+  console.log('Spotify Player Ready:', spotifyService.isPlayerReady())
+  console.log('Can Play Full Track:', canPlayFullTrack.value)
+  console.log('Can Play Audio:', canPlayAudio.value)
+  console.log('Track URI:', props.track.uri)
+  console.log('Preview URL:', props.track.preview_url)
+  console.log('============================')
+
+  if (canPlayFullTrack.value) {
+    console.log('Attempting Spotify Web Playback SDK...')
+    try {
+      if (isPlaying.value) {
+        await spotifyService.pausePlayback()
+        isPlaying.value = false
+        console.log('✅ Spotify SDK pause successful')
       } else {
-        console.error('Failed to play track via Spotify')
+        console.log('Starting playback with URI:', props.track.uri)
+        await spotifyService.startPlayback(props.track.uri!)
+        isPlaying.value = true
+        console.log('✅ Spotify SDK play successful')
       }
+    } catch (error) {
+      console.error('❌ Spotify SDK playback failed:', error)
+      console.error('Error details:', JSON.stringify(error, null, 2))
     }
   } else {
-    console.log('Cannot play audio: full track unavailable or mobile device detected')
+    console.log('❌ Cannot play full track, falling back to preview or no audio')
+    // Add preview fallback logic here if needed
   }
 }
 
