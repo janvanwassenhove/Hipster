@@ -221,6 +221,9 @@ async function testSpotifyPlayback() {
   debugMessage.value = 'Testing...'
   try {
     console.log('Testing Spotify playback on mobile...')
+    console.log('Window.Spotify available:', !!window.Spotify)
+    console.log('Player exists:', !!spotifyService.player)
+    
     const isReady = spotifyService.isPlayerReady()
     debugMessage.value = `Player ready: ${isReady}`
     
@@ -229,7 +232,14 @@ async function testSpotifyPlayback() {
       await spotifyService.startPlayback('spotify:track:4iV5W9uYEdYUVa79Axb7Rh') // Bohemian Rhapsody
       debugMessage.value = 'Playback started successfully!'
     } else {
-      debugMessage.value = 'Player not ready - check console for details'
+      debugMessage.value = 'Player not ready - Web Playback SDK not initialized. Check if Spotify SDK script loaded.'
+      
+      // Try to initialize manually
+      if (window.Spotify && spotifyService.isAuthenticated()) {
+        console.log('Attempting manual player initialization...')
+        await spotifyService.initializePlayerAfterAuth()
+        debugMessage.value = 'Attempted manual initialization - try again in a few seconds'
+      }
     }
   } catch (error) {
     console.error('Test failed:', error)

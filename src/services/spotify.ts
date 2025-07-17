@@ -54,13 +54,24 @@ class SpotifyService {
   
   private player: SpotifyPlayer | null = null
   private deviceId: string | null = null
-  private isSDKReady = false
+  private playerReady = false // Add this property
   private currentTrackUri: string | null = null
-  private isAuthenticating = false // Add this flag
+  private isAuthenticating = false
 
   constructor() {
     this.loadAuthState()
-    this.initializeWebPlaybackSDK()
+    
+    // Set up SDK ready callback
+    window.onSpotifyWebPlaybackSDKReady = () => {
+      console.log('✅ Spotify Web Playback SDK loaded and ready')
+      this.initializeWebPlaybackSDK()
+    }
+    
+    // If SDK is already loaded, initialize immediately
+    if (window.Spotify) {
+      console.log('✅ Spotify Web Playback SDK already loaded')
+      this.initializeWebPlaybackSDK()
+    }
   }
 
   // Generate PKCE code verifier and challenge
@@ -171,6 +182,9 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
 
       this.saveAuthState()
       localStorage.removeItem('spotify_code_verifier')
+
+      // Initialize player now that we're authenticated
+      await this.initializePlayerAfterAuth()
 
       // Clean up URL
       window.history.replaceState({}, document.title, window.location.pathname)
@@ -717,19 +731,17 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
 
   // Initialize Spotify Web Playback SDK
   private async initializeWebPlaybackSDK() {
-    // Remove or modify the mobile detection logic
-    // const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
-    // if (isMobile) {
-    //   console.log('mobile device detected - skipping spotify web playback sdk initialization')
-    //   return
-    // }
-
-    // NEW CODE: Allow Web Playback SDK on all devices
     console.log('Initializing Spotify Web Playback SDK...')
     console.log('User Agent:', navigator.userAgent)
     
     if (!window.Spotify) {
-      console.error('Spotify Web Playback SDK not loaded')
+      console.error('Spotify Web Playback SDK still not loaded - waiting for SDK ready callback')
+      return
+    }
+
+    // Only initialize if authenticated
+    if (!this.isAuthenticated()) {
+      console.log('Not authenticated yet, skipping player initialization')
       return
     }
 
@@ -737,7 +749,7 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
       this.player = new window.Spotify.Player({
         name: 'Hipster Music Game',
         getOAuthToken: (cb: (token: string) => void) => {
-          const token = this.getValidAccessToken()
+          const token = this.authState.accessToken
           if (token) {
             cb(token)
           } else {
@@ -786,82 +798,11 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
     }
   }
 
-  // Initialize the Spotify player
-  private async initializePlayer() {
-    if (!this.isSDKReady || !this.isAuthenticated() || this.player) {
-      return
-    }
-
-    try {
-      this.player = new window.Spotify.Player({
-        name: 'Hipster Music Game',
-        getOAuthToken: (callback) => {
-          callback(this.authState.accessToken!)
-        },
-        volume: 0.7
-      })
-
-      // Error handling
-      this.player.addListener('initialization_error', ({ message }) => {
-        console.error('Spotify Player initialization error:', message)
-      })
-
-      this.player.addListener('authentication_error', ({ message }) => {
-        console.error('Spotify Player authentication error:', message)
-      })
-
-      this.player.addListener('account_error', ({ message }) => {
-        console.error('Spotify Player account error (Premium required):', message)
-      })
-
-      this.player.addListener('playback_error', ({ message }) => {
-        console.error('Spotify Player playback error:', message)
-      })
-
-      // Ready event
-      this.player.addListener('ready', ({ device_id }) => {
-        console.log('Spotify Player ready with Device ID:', device_id)
-        this.deviceId = device_id
-        
-        // Automatically set this device as the active device
-        this.setActiveDevice(device_id)
-      })
-
-      // Not ready event
-      this.player.addListener('not_ready', ({ device_id }) => {
-        console.log('Spotify Player device has gone offline:', device_id)
-        this.deviceId = null
-      })
-
-      // Player state changed
-      this.player.addListener('player_state_changed', (state) => {
-        if (!state) return
-        
-        console.log('Player state changed:', {
-          paused: state.paused,
-          position: state.position,
-          duration: state.duration,
-          track: state.track_window.current_track?.name
-        })
-      })
-
-      // Connect to the player
-      const connected = await this.player.connect()
-      if (connected) {
-        console.log('✅ Successfully connected to Spotify Player')
-      } else {
-        console.error('❌ Failed to connect to Spotify Player')
-      }
-
-    } catch (error) {
-      console.error('Error initializing Spotify Player:', error)
-    }
-  }
-
-  // Public method to initialize player when component is ready
-  async initializePlayerIfReady(): Promise<void> {
-    if (this.isAuthenticated()) {
-      await this.initializePlayer()
+  // Add method to manually initialize when user becomes authenticated
+  async initializePlayerAfterAuth(): Promise<void> {
+    if (this.isAuthenticated() && window.Spotify && !this.player) {
+      console.log('🔄 Initializing player after authentication')
+      await this.initializeWebPlaybackSDK()
     }
   }
 
@@ -1124,6 +1065,11 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
       console.error('Error getting devices:', error)
       return null
     }
+  }
+
+  // Alias for backward compatibility
+  async startPlayback(trackUri: string): Promise<boolean> {
+    return this.playTrack(trackUri)
   }
 }
 
