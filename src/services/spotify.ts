@@ -1053,34 +1053,144 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
     }
   }
 
-  // Get available devices for debugging
-  async getAvailableDevices(): Promise<any> {
-    if (!this.isAuthenticated()) return null
-
+  // Add method to get user's available devices
+  async getAvailableDevices(): Promise<any[]> {
     try {
       const response = await fetch('https://api.spotify.com/v1/me/player/devices', {
         headers: {
+          'Authorization': `Bearer ${this.authState.accessToken}`
+        }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        console.log('Available Spotify devices:', data.devices)
+        return data.devices || []
+      }
+      return []
+    } catch (error) {
+      console.error('Error getting devices:', error)
+      return []
+    }
+  }
+
+  // Add method to play on any active device (Spotify Connect)
+  async playOnSpotifyConnect(trackUri: string): Promise<boolean> {
+    try {
+      // Get available devices
+      const devices = await this.getAvailableDevices()
+      console.log('Found devices for Spotify Connect:', devices)
+      
+      // Find an active device or use the first available one
+      const activeDevice = devices.find(d => d.is_active) || devices[0]
+      
+      if (!activeDevice) {
+        console.error('No Spotify devices available. User needs to open Spotify app.')
+        throw new Error('No Spotify devices available. Please open the Spotify app on your device.')
+      }
+      
+      console.log('Using device for playback:', activeDevice.name, activeDevice.id)
+      
+      // Transfer playback to the device and start playing
+      const response = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${activeDevice.id}`, {
+        method: 'PUT',
+        headers: {
           'Authorization': `Bearer ${this.authState.accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          uris: [trackUri]
+        })
+      })
+
+      if (response.ok || response.status === 204) {
+        console.log('✅ Successfully started playback via Spotify Connect')
+        return true
+      } else {
+        const errorText = await response.text()
+        console.error('Failed to start playback:', response.status, errorText)
+        
+        if (response.status === 404) {
+          throw new Error('No active Spotify device found. Please open Spotify app and start playing something first.')
+        }
+        
+        return false
+      }
+    } catch (error) {
+      console.error('Error with Spotify Connect playback:', error)
+      throw error
+    }
+  }
+
+  // Add method to pause via Spotify Connect
+  async pauseSpotifyConnect(): Promise<boolean> {
+    try {
+      const response = await fetch('https://api.spotify.com/v1/me/player/pause', {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${this.authState.accessToken}`
+        }
+      })
+
+      if (response.ok || response.status === 204) {
+        console.log('✅ Successfully paused playback via Spotify Connect')
+        return true
+      } else {
+        console.error('Failed to pause playback:', response.status)
+        return false
+      }
+    } catch (error) {
+      console.error('Error pausing Spotify Connect:', error)
+      return false
+    }
+  }
+
+  // Add method to get current playback state via Web API
+  async getSpotifyConnectState(): Promise<any> {
+    try {
+      const response = await fetch('https://api.spotify.com/v1/me/player', {
+        headers: {
+          'Authorization': `Bearer ${this.authState.accessToken}`
         }
       })
 
       if (response.ok) {
-        const data = await response.json()
-        console.log('Available Spotify devices:', data.devices)
-        return data
-      } else {
-        console.error('Failed to get devices:', response.status)
+        return await response.json()
+      } else if (response.status === 204) {
+        // No content means no active playback
         return null
       }
+      return null
     } catch (error) {
-      console.error('Error getting devices:', error)
+      console.error('Error getting Spotify Connect state:', error)
       return null
     }
   }
 
-  // Alias for backward compatibility
+  // Update your existing methods to use Spotify Connect on mobile
   async startPlayback(trackUri: string): Promise<boolean> {
-    return this.playTrack(trackUri)
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+    
+    if (isMobile) {
+      console.log('🔄 Using Spotify Connect for mobile playback...')
+      return this.playOnSpotifyConnect(trackUri)
+    } else {
+      console.log('🔄 Using Web Playback SDK for desktop...')
+      return this.playTrack(trackUri) // Your existing Web Playback SDK method
+    }
+  }
+
+  async pausePlayback(): Promise<boolean> {
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+    
+    if (isMobile) {
+      console.log('🔄 Pausing via Spotify Connect...')
+      return this.pauseSpotifyConnect()
+    } else {
+      console.log('🔄 Pausing via Web Playback SDK...')
+      // Your existing pause method for Web Playback SDK
+      return this.pauseTrack()
+    }
   }
 }
 

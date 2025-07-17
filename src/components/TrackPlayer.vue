@@ -46,23 +46,26 @@
 
         <!-- Custom Audio Player -->
         <div class="mb-6">
-          <div v-if="!canPlayAudio && isMobileDevice && hasSpotifyUri" class="bg-gradient-to-r from-blue-900/50 to-purple-900/50 border border-blue-400/30 rounded-2xl p-6 text-center backdrop-blur-sm">
+          <div v-if="!canPlayAudio && isMobileDevice && hasSpotifyUri" class="bg-gradient-to-r from-green-900/50 to-emerald-900/50 border border-green-400/30 rounded-2xl p-6 text-center backdrop-blur-sm">
             <div class="flex items-center justify-center mb-3">
-              <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mr-3 shadow-lg">
-                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path>
+              <div class="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center mr-3 shadow-lg">
+                <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/>
                 </svg>
               </div>
-              <h3 class="text-xl font-bold bg-gradient-to-r from-blue-300 to-purple-300 bg-clip-text text-transparent">
-                {{ $t('game.mobileListening') }}
+              <h3 class="text-xl font-bold bg-gradient-to-r from-green-300 to-emerald-300 bg-clip-text text-transparent">
+                {{ $t('game.spotifyConnect.title', 'Spotify Connect') }}
               </h3>
             </div>
-            <p class="text-blue-200 mb-4 font-medium">
-              {{ $t('game.mobileGameMode') }}
+            <p class="text-green-200 mb-4 font-medium">
+              {{ $t('game.spotifyConnect.description', 'Music will play through your Spotify app') }}
             </p>
-            <div class="bg-blue-800/30 rounded-xl p-4 border border-blue-500/30">
-              <p class="text-blue-100 text-sm font-medium">
-                {{ $t('game.listenCarefully') }}
+            <div class="bg-green-800/30 rounded-xl p-4 border border-green-500/30">
+              <p class="text-green-100 text-sm font-medium mb-2">
+                📱 {{ $t('game.spotifyConnect.instructions', 'Make sure your Spotify app is open on this device') }}
+              </p>
+              <p class="text-green-200 text-xs">
+                {{ $t('game.spotifyConnect.note', 'Audio will play through your device speakers or headphones') }}
               </p>
             </div>
           </div>
@@ -269,12 +272,16 @@ const isMobileDevice = computed(() => {
 })
 
 const canPlayFullTrack = computed(() => {
-  // Spotify Web Playback SDK has limited mobile support
-  return hasSpotifyUri.value && spotifyService.isPlayerReady() && !isMobileDevice.value
+  // On mobile: use Spotify Connect if authenticated
+  // On desktop: use Web Playback SDK if ready
+  if (isMobileDevice.value) {
+    return hasSpotifyUri.value && spotifyService.isAuthenticated()
+  }
+  return hasSpotifyUri.value && spotifyService.isPlayerReady()
 })
 
 const canPlayAudio = computed(() => {
-  return canPlayFullTrack.value
+  return canPlayFullTrack.value || !!props.track.preview_url
 })
 
 // Methods
@@ -282,13 +289,17 @@ async function togglePlayback() {
   console.log('=== TOGGLE PLAYBACK DEBUG ===')
   console.log('Current isPlaying state:', isPlaying.value)
   console.log('Can play full track:', canPlayFullTrack.value)
+  console.log('Is mobile device:', isMobileDevice.value)
   console.log('Has Spotify URI:', hasSpotifyUri.value)
   console.log('Track URI:', props.track.uri)
-  console.log('Device ID available:', !!spotifyService.deviceId)
   
   try {
     if (canPlayFullTrack.value && props.track.uri) {
-      console.log('🎵 Using Spotify Web Playback SDK...')
+      if (isMobileDevice.value) {
+        console.log('🎵 Using Spotify Connect for mobile...')
+      } else {
+        console.log('🎵 Using Spotify Web Playback SDK for desktop...')
+      }
       
       if (isPlaying.value) {
         console.log('⏸️ Pausing playback...')
@@ -303,42 +314,71 @@ async function togglePlayback() {
         if (success) {
           isPlaying.value = true
           console.log('✅ Play successful')
+          
+          // Monitor playback state
+          if (isMobileDevice.value) {
+            monitorSpotifyConnectPlayback()
+          } else {
+            monitorSpotifyPlayback()
+          }
         } else {
           console.error('❌ Play failed')
         }
       }
     } else {
       console.log('❌ Cannot play full track - missing requirements')
-      console.log('  - Can play full track:', canPlayFullTrack.value)
-      console.log('  - Has URI:', !!props.track.uri)
-      console.log('  - Player ready:', spotifyService.isPlayerReady())
     }
   } catch (error) {
     console.error('❌ Playback error:', error)
+    
+    // Show user-friendly error for mobile
+    if (isMobileDevice.value && error.message.includes('No active Spotify device')) {
+      alert('Please open the Spotify app on your device first, then try again.')
+    }
   }
   
   console.log('Final isPlaying state:', isPlaying.value)
   console.log('=== END TOGGLE PLAYBACK DEBUG ===')
 }
 
-async function restartTrack() {
-  console.log('Restart track called')
-  
-  if (canPlayFullTrack.value) {
-    // Restart full track via Spotify
-    const success = await spotifyService.playTrack(props.track.uri!)
-    if (success) {
-      isPlaying.value = true
-      monitorSpotifyPlayback()
+// Add method to monitor Spotify Connect playback
+function monitorSpotifyConnectPlayback() {
+  const checkPlayback = async () => {
+    if (!canPlayFullTrack.value || !isMobileDevice.value) return
+    
+    const state = await spotifyService.getSpotifyConnectState()
+    if (state) {
+      const isCurrentTrack = state.item?.uri === props.track.uri
+      const isActuallyPlaying = state.is_playing && isCurrentTrack
+      
+      console.log('Spotify Connect state check:', {
+        is_playing: state.is_playing,
+        currentTrackUri: state.item?.uri,
+        expectedUri: props.track.uri,
+        isCurrentTrack,
+        isActuallyPlaying,
+        componentIsPlaying: isPlaying.value
+      })
+      
+      // Sync component state with actual playback
+      if (isPlaying.value !== isActuallyPlaying) {
+        console.log(`🔄 Syncing Spotify Connect state: ${isPlaying.value} → ${isActuallyPlaying}`)
+        isPlaying.value = isActuallyPlaying
+      }
+      
+      if (isPlaying.value) {
+        setTimeout(checkPlayback, 2000) // Check again in 2 seconds
+      }
+    } else {
+      // No active playback
+      if (isPlaying.value) {
+        console.log('No active Spotify Connect playback detected')
+        isPlaying.value = false
+      }
     }
   }
-}
-
-async function stopPlayback() {
-  if (canPlayFullTrack.value) {
-    await spotifyService.stopPlayback()
-  }
-  isPlaying.value = false
+  
+  checkPlayback()
 }
 
 // Monitor Spotify playback state
