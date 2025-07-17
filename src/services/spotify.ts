@@ -745,6 +745,13 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
     console.log('Initializing Spotify Web Playback SDK...')
     console.log('User Agent:', navigator.userAgent)
     
+    // Check if this is a mobile device and skip initialization
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+    if (isMobile) {
+      console.log('Mobile device detected - skipping Spotify Web Playback SDK initialization')
+      return
+    }
+    
     if (!window.Spotify) {
       console.error('Spotify Web Playback SDK still not loaded - waiting for SDK ready callback')
       return
@@ -945,16 +952,25 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
     }
   }
 
-  // Pause playback
+  // Pause playback (mobile-aware)
   async pausePlayback(): Promise<boolean> {
-    if (!this.player) return false
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+    
+    if (isMobile) {
+      console.log('🔄 Pausing via Spotify Connect...')
+      return this.pauseSpotifyConnect()
+    } else {
+      console.log('🔄 Pausing via Web Playback SDK...')
+      // Use Web Playback SDK for desktop
+      if (!this.player) return false
 
-    try {
-      await this.player.pause()
-      return true
-    } catch (error) {
-      console.error('Error pausing playback:', error)
-      return false
+      try {
+        await this.player.pause()
+        return true
+      } catch (error) {
+        console.error('Error pausing playback:', error)
+        return false
+      }
     }
   }
 
@@ -1005,7 +1021,7 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
 
   // Check if player is ready
   isPlayerReady(): boolean {
-    const ready = this.playerReady && this.player && this.deviceId
+    const ready = !!(this.playerReady && this.player && this.deviceId)
     console.log('Player ready check:', {
       playerReady: this.playerReady,
       hasPlayer: !!this.player,
@@ -1180,18 +1196,6 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
     }
   }
 
-  async pausePlayback(): Promise<boolean> {
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
-    
-    if (isMobile) {
-      console.log('🔄 Pausing via Spotify Connect...')
-      return this.pauseSpotifyConnect()
-    } else {
-      console.log('🔄 Pausing via Web Playback SDK...')
-      // Your existing pause method for Web Playback SDK
-      return this.pauseTrack()
-    }
-  }
 }
 
 export const spotifyService = new SpotifyService()
