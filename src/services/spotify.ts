@@ -716,30 +716,73 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
   }
 
   // Initialize Spotify Web Playback SDK
-  private initializeWebPlaybackSDK() {
-    // Skip Web Playback SDK on mobile devices due to limited support
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
-    if (isMobile) {
-      console.log('Mobile device detected - skipping Spotify Web Playback SDK initialization')
+  private async initializeWebPlaybackSDK() {
+    // Remove or modify the mobile detection logic
+    // const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+    // if (isMobile) {
+    //   console.log('mobile device detected - skipping spotify web playback sdk initialization')
+    //   return
+    // }
+
+    // NEW CODE: Allow Web Playback SDK on all devices
+    console.log('Initializing Spotify Web Playback SDK...')
+    console.log('User Agent:', navigator.userAgent)
+    
+    if (!window.Spotify) {
+      console.error('Spotify Web Playback SDK not loaded')
       return
     }
-    
-    // Load the SDK script if not already loaded
-    if (!document.querySelector('script[src="https://sdk.scdn.co/spotify-player.js"]')) {
-      const script = document.createElement('script')
-      script.src = 'https://sdk.scdn.co/spotify-player.js'
-      script.async = true
-      document.body.appendChild(script)
-    }
 
-    // Set up the ready callback
-    window.onSpotifyWebPlaybackSDKReady = () => {
-      this.isSDKReady = true
-      console.log('Spotify Web Playback SDK ready')
+    try {
+      this.player = new window.Spotify.Player({
+        name: 'Hipster Music Game',
+        getOAuthToken: (cb: (token: string) => void) => {
+          const token = this.getValidAccessToken()
+          if (token) {
+            cb(token)
+          } else {
+            console.error('No valid access token available')
+          }
+        },
+        volume: 0.5
+      })
+
+      // Add error handlers
+      this.player.addListener('initialization_error', ({ message }) => {
+        console.error('Spotify initialization error:', message)
+      })
+
+      this.player.addListener('authentication_error', ({ message }) => {
+        console.error('Spotify authentication error:', message)
+      })
+
+      this.player.addListener('account_error', ({ message }) => {
+        console.error('Spotify account error:', message)
+      })
+
+      this.player.addListener('playback_error', ({ message }) => {
+        console.error('Spotify playback error:', message)
+      })
+
+      // Ready handler
+      this.player.addListener('ready', ({ device_id }) => {
+        console.log('✅ Spotify Web Playback SDK ready! Device ID:', device_id)
+        this.deviceId = device_id
+        this.playerReady = true
+      })
+
+      // Not ready handler
+      this.player.addListener('not_ready', ({ device_id }) => {
+        console.log('❌ Spotify Web Playback SDK not ready. Device ID:', device_id)
+        this.playerReady = false
+      })
+
+      // Connect the player
+      const connected = await this.player.connect()
+      console.log('Spotify player connection result:', connected)
       
-      if (this.isAuthenticated()) {
-        this.initializePlayer()
-      }
+    } catch (error) {
+      console.error('Failed to initialize Spotify Web Playback SDK:', error)
     }
   }
 
@@ -1010,7 +1053,14 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
 
   // Check if player is ready
   isPlayerReady(): boolean {
-    return this.isSDKReady && !!this.player && !!this.deviceId
+    const ready = this.playerReady && this.player && this.deviceId
+    console.log('Player ready check:', {
+      playerReady: this.playerReady,
+      hasPlayer: !!this.player,
+      hasDeviceId: !!this.deviceId,
+      finalResult: ready
+    })
+    return ready
   }
 
   // Get the current playing track URI
