@@ -45,23 +45,23 @@
         </div>
 
         <!-- Custom Audio Player -->
-        <div class="mb-4">
-          <div v-if="!canPlayAudio && isMobileDevice && hasSpotifyUri" class="bg-gradient-to-r from-green-900/50 to-emerald-900/50 border border-green-400/30 rounded-xl p-4 text-center backdrop-blur-sm">
-            <div class="flex items-center justify-center mb-2">
-              <div class="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center mr-2 shadow-lg">
-                <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
+        <div class="mb-6">
+          <div v-if="!canPlayAudio && isMobileDevice && hasSpotifyUri" class="bg-gradient-to-r from-green-900/50 to-emerald-900/50 border border-green-400/30 rounded-2xl p-6 text-center backdrop-blur-sm">
+            <div class="flex items-center justify-center mb-3">
+              <div class="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center mr-3 shadow-lg">
+                <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/>
                 </svg>
               </div>
-              <h3 class="text-lg font-bold bg-gradient-to-r from-green-300 to-emerald-300 bg-clip-text text-transparent">
+              <h3 class="text-xl font-bold bg-gradient-to-r from-green-300 to-emerald-300 bg-clip-text text-transparent">
                 {{ $t('game.spotifyConnect.title', 'Spotify Connect') }}
               </h3>
             </div>
-            <p class="text-green-200 mb-3 text-sm font-medium">
+            <p class="text-green-200 mb-4 font-medium">
               {{ $t('game.spotifyConnect.description', 'Music will play through your Spotify app') }}
             </p>
-            <div class="bg-green-800/30 rounded-lg p-3 border border-green-500/30">
-              <p class="text-green-100 text-xs font-medium mb-1">
+            <div class="bg-green-800/30 rounded-xl p-4 border border-green-500/30">
+              <p class="text-green-100 text-sm font-medium mb-2">
                 📱 {{ $t('game.spotifyConnect.instructions', 'Make sure your Spotify app is open on this device') }}
               </p>
               <p class="text-green-200 text-xs">
@@ -70,38 +70,38 @@
             </div>
           </div>
           
-          <div v-else-if="!canPlayFullTrack" class="bg-gradient-to-r from-blue-900/50 to-purple-900/50 border border-blue-400/30 rounded-xl p-4 text-center backdrop-blur-sm">
-            <div class="flex items-center justify-center mb-2">
-              <div class="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mr-2 shadow-lg">
-                <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div v-else-if="!canPlayFullTrack" class="bg-gradient-to-r from-blue-900/50 to-purple-900/50 border border-blue-400/30 rounded-2xl p-6 text-center backdrop-blur-sm">
+            <div class="flex items-center justify-center mb-3">
+              <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mr-3 shadow-lg">
+                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path>
                 </svg>
               </div>
-              <h3 class="text-lg font-bold bg-gradient-to-r from-blue-300 to-purple-300 bg-clip-text text-transparent">
+              <h3 class="text-xl font-bold bg-gradient-to-r from-blue-300 to-purple-300 bg-clip-text text-transparent">
                 {{ hasSpotifyUri ? $t('game.premiumRequired') : $t('game.demoMode') }}
               </h3>
             </div>
-            <p class="text-blue-200 mb-2 text-sm font-medium">
+            <p class="text-blue-200 mb-3 font-medium">
               {{ hasSpotifyUri ? $t('game.needsPremium') : $t('game.needSpotifyForAudio') }}
             </p>
-            <p class="text-xs text-blue-300 font-semibold">
+            <p class="text-sm text-blue-300 font-semibold">
               <strong>{{ hasSpotifyUri ? $t('game.premiumNeededForFullPlay') : $t('game.needSpotifyForAudio') }}</strong>
             </p>
-            <p class="text-xs text-blue-400 mt-1 opacity-80">{{ $t('game.demoModeInstructions') }}</p>
+            <p class="text-xs text-blue-400 mt-2 opacity-80">{{ $t('game.demoModeInstructions') }}</p>
           </div>
           
-          <!-- Compact Custom Player Interface -->
-          <div v-if="canPlayAudio" class="music-player-controls bg-gradient-to-br from-gray-900/80 to-black/80 rounded-xl p-4 backdrop-blur-sm border border-gray-700/50 shadow-xl">
-            <!-- Compact Controls -->
-            <div class="flex items-center justify-center space-x-4">
+          <!-- Custom Player Interface -->
+          <div v-if="canPlayAudio" class="music-player-controls bg-gradient-to-br from-gray-900/80 to-black/80 rounded-2xl p-6 backdrop-blur-sm border border-gray-700/50 shadow-2xl">
+            <!-- Main Controls -->
+            <div class="flex items-center justify-center space-x-8 mb-6">
               <button
                 @click="restartTrack"
                 class="control-btn group relative"
                 :disabled="!canPlayAudio"
                 title="Restart"
               >
-                <div class="w-10 h-10 bg-gradient-to-br from-gray-800 to-gray-900 rounded-full flex items-center justify-center border border-gray-600/50 shadow-lg group-hover:from-purple-600 group-hover:to-pink-600 group-hover:border-purple-400/50 transition-all duration-300 group-hover:scale-105">
-                  <svg class="w-4 h-4 text-gray-300 group-hover:text-white transition-colors duration-300" fill="currentColor" viewBox="0 0 20 20">
+                <div class="w-12 h-12 bg-gradient-to-br from-gray-800 to-gray-900 rounded-full flex items-center justify-center border border-gray-600/50 shadow-lg group-hover:from-purple-600 group-hover:to-pink-600 group-hover:border-purple-400/50 transition-all duration-300 group-hover:scale-110">
+                  <svg class="w-5 h-5 text-gray-300 group-hover:text-white transition-colors duration-300" fill="currentColor" viewBox="0 0 20 20">
                     <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd" />
                   </svg>
                 </div>
@@ -112,12 +112,12 @@
                 class="play-btn group relative"
                 :disabled="!canPlayAudio"
               >
-                <div class="w-14 h-14 bg-gradient-to-br from-purple-600 to-pink-600 rounded-full flex items-center justify-center shadow-xl shadow-purple-500/40 group-hover:from-purple-500 group-hover:to-pink-500 transition-all duration-300 group-hover:scale-105 group-hover:shadow-purple-400/50">
-                  <div v-if="isLoading" class="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
-                  <svg v-else-if="isPlaying" class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+                <div class="w-16 h-16 bg-gradient-to-br from-purple-600 to-pink-600 rounded-full flex items-center justify-center shadow-2xl shadow-purple-500/50 group-hover:from-purple-500 group-hover:to-pink-500 transition-all duration-300 group-hover:scale-110 group-hover:shadow-purple-400/60">
+                  <div v-if="isLoading" class="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+                  <svg v-else-if="isPlaying" class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
                     <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
                   </svg>
-                  <svg v-else class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+                  <svg v-else class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
                     <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
                   </svg>
                 </div>

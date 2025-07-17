@@ -65,6 +65,15 @@
             </button>
           </div>
 
+          <!-- Add this after the Spotify login section for testing -->
+          <div v-if="isSpotifyAuthenticated" class="mb-4 p-4 bg-blue-900/40 border border-blue-500/30 rounded-lg">
+            <h3 class="text-white font-bold mb-2">🔧 Mobile Debug Test</h3>
+            <button @click="testSpotifyPlayback" class="btn btn-secondary">
+              Test Spotify Web Playback
+            </button>
+            <p class="text-sm text-white/80 mt-2" v-if="debugMessage">{{ debugMessage }}</p>
+          </div>
+
           <!-- Game Setup Form -->
           <form v-if="isSpotifyAuthenticated" @submit.prevent="startGame" class="space-y-6">
             
