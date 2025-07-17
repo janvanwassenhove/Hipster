@@ -746,7 +746,7 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
     console.log('User Agent:', navigator.userAgent)
     
     // Check if this is a mobile device and skip initialization
-§    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|CriOS/i.test(navigator.userAgent)
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|CriOS/i.test(navigator.userAgent)
     if (isMobile) {
       console.log('Mobile device detected - skipping Spotify Web Playback SDK initialization')
       return
