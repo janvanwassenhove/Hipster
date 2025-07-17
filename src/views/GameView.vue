@@ -362,10 +362,10 @@ onMounted(() => {
   // Refresh Spotify auth state
   refreshSpotifyAuth()
   
-  // Check auth state periodically in case it changes
+  // Check auth state less frequently
   const authCheckInterval = setInterval(() => {
     refreshSpotifyAuth()
-  }, 2000) // Check every 2 seconds
+  }, 30000) // Check every 30 seconds instead of 2
   
   // Clean up interval on unmount
   onUnmounted(() => {

@@ -35,7 +35,8 @@ const gameStore = useGameStore()
 onMounted(async () => {
   // Check for Spotify OAuth callback
   const urlParams = new URLSearchParams(window.location.search)
-  if (urlParams.has('code')) {
+  if (urlParams.has('code') && !sessionStorage.getItem('oauth_callback_processed')) {
+    sessionStorage.setItem('oauth_callback_processed', 'true')
     isLoading.value = true
     try {
       await spotifyService.handleCallback()
@@ -43,6 +44,7 @@ onMounted(async () => {
       console.error('OAuth callback error:', error)
     } finally {
       isLoading.value = false
+      sessionStorage.removeItem('oauth_callback_processed')
     }
   }
 

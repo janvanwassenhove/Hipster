@@ -56,6 +56,7 @@ class SpotifyService {
   private deviceId: string | null = null
   private isSDKReady = false
   private currentTrackUri: string | null = null
+  private isAuthenticating = false // Add this flag
 
   constructor() {
     this.loadAuthState()
@@ -79,25 +80,34 @@ class SpotifyService {
 
   // Start Spotify OAuth flow with PKCE
   async initiateLogin(): Promise<void> {
-    const codeVerifier = this.generateCodeVerifier()
-    const codeChallenge = await this.generateCodeChallenge(codeVerifier)
+    if (this.isAuthenticating) {
+      console.log('Authentication already in progress, skipping...')
+      return
+    }
     
-    // Store code verifier in localStorage for later use
-    localStorage.setItem('spotify_code_verifier', codeVerifier)
+    this.isAuthenticating = true
+    
+    try {
+      const codeVerifier = this.generateCodeVerifier()
+      const codeChallenge = await this.generateCodeChallenge(codeVerifier)
+      
+      localStorage.setItem('spotify_code_verifier', codeVerifier)
+      console.log('Spotify redirect URI:', SPOTIFY_REDIRECT_URI)
 
-    console.log('Spotify redirect URI:', SPOTIFY_REDIRECT_URI)
+      const params = new URLSearchParams({
+        response_type: 'code',
+        client_id: SPOTIFY_CLIENT_ID,
+        scope: SPOTIFY_SCOPES,
+        redirect_uri: SPOTIFY_REDIRECT_URI,
+        code_challenge_method: 'S256',
+        code_challenge: codeChallenge,
+        state: Math.random().toString(36).substring(7)
+      })
 
-    const params = new URLSearchParams({
-      response_type: 'code',
-      client_id: SPOTIFY_CLIENT_ID,
-      scope: SPOTIFY_SCOPES,
-      redirect_uri: SPOTIFY_REDIRECT_URI,
-      code_challenge_method: 'S256',
-      code_challenge: codeChallenge,
-      state: Math.random().toString(36).substring(7)
-    })
-
-    window.location.href = `https://accounts.spotify.com/authorize?${params}`
+      window.location.href = `https://accounts.spotify.com/authorize?${params}`
+    } finally {
+      this.isAuthenticating = false
+    }
   }
 
   // Handle OAuth callback
