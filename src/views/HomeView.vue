@@ -1,30 +1,8 @@
 <template>
   <div class="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950 to-slate-900 text-white p-8">
     <!-- Spotify Login Check -->
-    <div v-if="!isSpotifyAuthenticated" class="mb-8 p-6 bg-gradient-to-r from-purple-900/40 to-pink-900/40 border border-purple-500/30 rounded-2xl backdrop-blur-sm">
-            <div class="flex items-center space-x-4 mb-4">
-              <div class="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center">
-                <span class="text-2xl">🎵</span>
-              </div>
-              <div>
-                <h3 class="font-bold text-xl text-white">{{ $t('game.spotify.required') }}</h3>
-                <p class="text-white font-medium">{{ $t('game.spotify.loginRequired') }}</p>
-              </div>
-            </div>
-            <button
-              @click="loginToSpotify"
-              :disabled="isLoggingIn"
-              class="btn bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white w-full font-bold text-lg py-4 shadow-lg hover:shadow-green-500/25"
-            >
-              <span v-if="isLoggingIn" class="flex items-center justify-center">
-                <div class="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent mr-2"></div>
-                {{ $t('common.loading') }}
-              </span>
-              <span v-else class="flex items-center justify-center">
-                🎵 {{ $t('game.spotify.login') }}
-              </span>
-            </button>
-          </div>   <!-- Header -->
+ 
+    <!-- Header -->
     <header class="p-4 flex justify-between items-center">
       <div class="flex items-center space-x-2">
         <h1 class="text-3xl font-bold text-white">{{ $t('game.title') }}</h1>
