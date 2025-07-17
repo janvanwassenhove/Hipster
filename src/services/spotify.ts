@@ -309,8 +309,55 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
     return data
   }
 
-  // Convert SongData to Track format
-  private convertSongToTrack(song: SongData): Track {
+  private async searchSpotifyForTrack(song: SongData): Promise<any> {
+    if (!this.accessToken) return null
+    
+    try {
+      const query = `track:"${song.titel}" artist:"${song.uitvoerder}"`
+      const response = await fetch(
+        `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=1`,
+        {
+          headers: {
+            'Authorization': `Bearer ${this.accessToken}`
+          }
+        }
+      )
+      
+      if (response.ok) {
+        const data = await response.json()
+        return data.tracks.items[0] || null
+      }
+    } catch (error) {
+      console.warn('Failed to search Spotify for track:', error)
+    }
+    
+    return null
+  }
+
+  private async convertSongToTrack(song: SongData): Promise<Track> {
+    // Try to get real Spotify data first
+    const spotifyTrack = await this.searchSpotifyForTrack(song)
+    
+    if (spotifyTrack?.album?.images?.length > 0) {
+      // Use real Spotify album images
+      return {
+        id: `demo-${song.titel}-${song.uitvoerder}`,
+        name: song.titel,
+        artists: [{ name: song.uitvoerder, id: 'demo-artist' }],
+        album: {
+          id: spotifyTrack.album.id,
+          name: spotifyTrack.album.name,
+          images: spotifyTrack.album.images, // Real Spotify images!
+          release_date: song.jaar.toString()
+        },
+        duration_ms: 30000,
+        preview_url: spotifyTrack.preview_url || null,
+        external_urls: spotifyTrack.external_urls || { spotify: '' },
+        images: spotifyTrack.images || []
+      }
+    }
+    
+    // Fallback to generated SVG if Spotify search fails
     const artistColors = [
       '#8B5CF6', '#EF4444', '#F59E0B', '#10B981', '#3B82F6', 
       '#F97316', '#EC4899', '#6366F1', '#84CC16', '#06B6D4'
@@ -1295,6 +1342,18 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
     } else {
       console.log('🔄 Using Web Playback SDK for desktop...')
       return this.playTrack(trackUri) // Your existing Web Playback SDK method
+    }
+  }
+
+  async getRandomTrack(theme?: string): Promise<Track> {
+    if (this.accessToken && this.useSpotifyTracks) {
+      // Existing Spotify API logic
+      return this.getSpotifyTrack(theme)
+    } else {
+      // Enhanced local track with potential Spotify images
+      const songs = this.getFilteredSongs(theme)
+      const randomSong = songs[Math.floor(Math.random() * songs.length)]
+      return await this.convertSongToTrack(randomSong) // Now async!
     }
   }
 
