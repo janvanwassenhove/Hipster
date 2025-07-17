@@ -111,6 +111,7 @@
                     :src="getTrackImage(track)"
                     :alt="track.name"
                     class="w-16 h-16 object-cover"
+                    @error="handleImageError"
                   />
                   <div
                     v-else
@@ -241,7 +242,12 @@ const timelineSpan = computed(() => {
 
 // Methods
 function getTrackImage(track: Track): string {
-  return track.images?.[0]?.url || track.album.images?.[0]?.url || '/placeholder-album.png'
+  return track.images?.[0]?.url || track.album?.images?.[0]?.url || '/placeholder-album.png'
+}
+
+function handleImageError(event: Event) {
+  const img = event.target as HTMLImageElement
+  img.src = '/placeholder-album.png'
 }
 
 function getArtistNames(track: Track): string {

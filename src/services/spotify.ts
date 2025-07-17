@@ -57,6 +57,7 @@ class SpotifyService {
   private playerReady = false // Add this property
   private currentTrackUri: string | null = null
   private isAuthenticating = false
+  private deviceKeepAliveInterval: NodeJS.Timeout | null = null
 
   constructor() {
     this.loadAuthState()
@@ -1076,121 +1077,169 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
 
   // Add method to play on any active device (Spotify Connect)
   async playOnSpotifyConnect(trackUri: string): Promise<boolean> {
-    try {
-      // Get available devices
-      const devices = await this.getAvailableDevices()
-      console.log('Found devices for Spotify Connect:', devices)
-      
-      // Find an active device or use the first available one
-      const activeDevice = devices.find(d => d.is_active) || devices[0]
-      
-      if (!activeDevice) {
-        console.error('No Spotify devices available. User needs to open Spotify app.')
-        throw new Error('No Spotify devices available. Please open the Spotify app on your device.')
-      }
-      
-      console.log('Using device for playback:', activeDevice.name, activeDevice.id)
-      
-      // Transfer playback to the device and start playing
-      const response = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${activeDevice.id}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${this.authState.accessToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          uris: [trackUri]
+    const maxRetries = 2
+    let lastError: Error | null = null
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`Starting Spotify Connect playback (attempt ${attempt}/${maxRetries})...`)
+        
+        // Ensure we have an active device
+        const deviceId = await this.ensureDeviceActive()
+        
+        if (!deviceId) {
+          throw new Error('Could not activate any Spotify device')
+        }
+        
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 8000)
+        
+        // Start playback on the active device
+        const response = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${this.authState.accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            uris: [trackUri]
+          }),
+          signal: controller.signal
         })
-      })
-
-      if (response.ok || response.status === 204) {
-        console.log('✅ Successfully started playback via Spotify Connect')
-        return true
-      } else {
-        const errorText = await response.text()
-        console.error('Failed to start playback:', response.status, errorText)
         
-        if (response.status === 404) {
-          throw new Error('No active Spotify device found. Please open Spotify app and start playing something first.')
+        clearTimeout(timeoutId)
+
+        if (response.ok || response.status === 204) {
+          console.log('✅ Successfully started playback via Spotify Connect')
+          
+          // Start keep-alive to maintain device connection
+          this.startDeviceKeepAlive()
+          
+          return true
+        } else if (response.status === 401) {
+          console.warn('🔑 Token expired during playback, refreshing...')
+          await this.refreshAccessToken()
+          if (attempt < maxRetries) continue
+        } else {
+          const errorText = await response.text()
+          console.error('Failed to start playback:', response.status, errorText)
+          
+          if (response.status === 404) {
+            throw new Error('Device became inactive. Please interact with your Spotify app and try again.')
+          }
         }
         
         return false
-      }
-    } catch (error) {
-      console.error('Error with Spotify Connect playback:', error)
-      throw error
-    }
-  }
-
-  // Add method to pause via Spotify Connect
-  async pauseSpotifyConnect(): Promise<boolean> {
-    try {
-      const response = await fetch('https://api.spotify.com/v1/me/player/pause', {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${this.authState.accessToken}`
+      } catch (error) {
+        lastError = error as Error
+        console.error(`Playback attempt ${attempt} failed:`, error)
+        
+        if (attempt < maxRetries && !error.message.includes('No Spotify devices available')) {
+          const delay = 1000 * attempt
+          console.log(`⏳ Retrying playback in ${delay}ms...`)
+          await new Promise(resolve => setTimeout(delay))
+        } else {
+          throw error
         }
-      })
-
-      if (response.ok || response.status === 204) {
-        console.log('✅ Successfully paused playback via Spotify Connect')
-        return true
-      } else {
-        console.error('Failed to pause playback:', response.status)
-        return false
       }
-    } catch (error) {
-      console.error('Error pausing Spotify Connect:', error)
-      return false
     }
+    
+    throw lastError || new Error('Playback failed after all retries')
   }
 
-  // Add method to get current playback state via Web API
-  async getSpotifyConnectState(): Promise<any> {
+  // Add method to keep device active
+  private async keepDeviceActive(): Promise<void> {
     try {
+      // Just get current state to keep the device "alive"
       const response = await fetch('https://api.spotify.com/v1/me/player', {
         headers: {
           'Authorization': `Bearer ${this.authState.accessToken}`
         }
       })
-
-      if (response.ok) {
-        return await response.json()
-      } else if (response.status === 204) {
-        // No content means no active playback
-        return null
+      
+      if (response.status === 401) {
+        await this.refreshAccessToken()
       }
-      return null
+      
+      console.log('🔄 Device keep-alive ping sent')
     } catch (error) {
-      console.error('Error getting Spotify Connect state:', error)
-      return null
+      console.warn('Keep-alive ping failed:', error)
     }
   }
 
-  // Update your existing methods to use Spotify Connect on mobile
-  async startPlayback(trackUri: string): Promise<boolean> {
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+  // Start device keep-alive when user starts playing
+  startDeviceKeepAlive(): void {
+    if (this.deviceKeepAliveInterval) {
+      clearInterval(this.deviceKeepAliveInterval)
+    }
     
-    if (isMobile) {
-      console.log('🔄 Using Spotify Connect for mobile playback...')
-      return this.playOnSpotifyConnect(trackUri)
-    } else {
-      console.log('🔄 Using Web Playback SDK for desktop...')
-      return this.playTrack(trackUri) // Your existing Web Playback SDK method
+    // Ping every 30 seconds to keep device active
+    this.deviceKeepAliveInterval = setInterval(() => {
+      this.keepDeviceActive()
+    }, 10000)
+    
+    console.log('✅ Started device keep-alive (30s intervals)')
+  }
+
+  // Stop keep-alive when no longer needed
+  stopDeviceKeepAlive(): void {
+    if (this.deviceKeepAliveInterval) {
+      clearInterval(this.deviceKeepAliveInterval)
+      this.deviceKeepAliveInterval = null
+      console.log('🛑 Stopped device keep-alive')
     }
   }
 
-  async pausePlayback(): Promise<boolean> {
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
-    
-    if (isMobile) {
-      console.log('🔄 Pausing via Spotify Connect...')
-      return this.pauseSpotifyConnect()
-    } else {
-      console.log('🔄 Pausing via Web Playback SDK...')
-      // Your existing pause method for Web Playback SDK
-      return this.pauseTrack()
+  // Enhanced method to ensure device is active before playback
+  async ensureDeviceActive(): Promise<string | null> {
+    try {
+      const devices = await this.getAvailableDevices()
+      console.log('All available devices:', devices.map(d => ({ name: d.name, active: d.is_active, id: d.id })))
+      
+      // Find an active device first
+      let activeDevice = devices.find(d => d.is_active)
+      
+      if (activeDevice) {
+        console.log('✅ Found active device:', activeDevice.name)
+        return activeDevice.id
+      }
+      
+      // If no active device, try to activate the first available one
+      const availableDevice = devices[0]
+      if (availableDevice) {
+        console.log('🔄 No active device found, activating:', availableDevice.name)
+        
+        // Transfer playback to make device active
+        const transferResponse = await fetch('https://api.spotify.com/v1/me/player', {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${this.authState.accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            device_ids: [availableDevice.id],
+            play: false // Don't start playing, just transfer
+          })
+        })
+        
+        if (transferResponse.ok || transferResponse.status === 204) {
+          console.log('✅ Device activated successfully')
+          return availableDevice.id
+        } else {
+          console.error('Failed to activate device:', transferResponse.status)
+        }
+      }
+      
+      throw new Error('No Spotify devices available. Please open the Spotify app on your device.')
+    } catch (error) {
+      console.error('Error ensuring device is active:', error)
+      throw error
     }
+  }
+
+  // Clean up on service destruction
+  destroy(): void {
+    this.stopDeviceKeepAlive()
   }
 }
 
