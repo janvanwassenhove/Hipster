@@ -167,13 +167,16 @@
     <!-- Current Track (draggable) -->
     <div
       v-if="canPlace && currentTrack"
-      class="p-6 bg-gradient-to-r from-blue-900/50 to-purple-900/50 border-2 border-blue-400/30 rounded-2xl cursor-move touch-manipulation select-none backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]"
+      ref="scrollContainer"
+      class="timeline-container p-6 bg-gradient-to-r from-blue-900/50 to-purple-900/50 border-2 border-blue-400/30 rounded-2xl cursor-move touch-manipulation select-none backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]"
       draggable="true"
       @dragstart="handleDragStart"
       @dragend="handleDragEnd"
       @touchstart="handleTouchStart"
       @touchmove="handleTouchMove"
       @touchend="handleTouchEnd"
+      @mousemove="handleMouseMove"
+      @mouseup="handleMouseUp"
       :style="{ touchAction: 'none' }"
     >
       <div class="flex items-center space-x-4">
@@ -205,7 +208,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onUnmounted } from 'vue'
+import { ref, computed, onUnmounted, watch } from 'vue'
 import type { Player, Track } from '@/types'
 
 interface Props {
@@ -231,6 +234,9 @@ const isDragging = ref(false)
 const touchStartPos = ref({ x: 0, y: 0 })
 const currentTouchPos = ref({ x: 0, y: 0 })
 const dragClone = ref<HTMLElement | null>(null)
+const dragPosition = ref({ x: 0, y: 0 })
+const scrollContainer = ref<HTMLElement | null>(null)
+let autoScrollInterval: number | null = null
 
 // Computed
 const timelineSpan = computed(() => {
@@ -347,8 +353,10 @@ function handleTouchMove(event: TouchEvent) {
   // Move the clone with better offset
   const offsetX = 50
   const offsetY = 50
-  dragClone.value.style.left = `${touch.clientX - offsetX}px`
-  dragClone.value.style.top = `${touch.clientY - offsetY}px`
+  if (dragClone.value) {
+    dragClone.value.style.left = `${touch.clientX - offsetX}px`
+    dragClone.value.style.top = `${touch.clientY - offsetY}px`
+  }
   
   // Check for drop zones
   const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY)
@@ -429,174 +437,7 @@ function handleTouchEnd(event: TouchEvent) {
   }
 }
 
-// Initialize drag over positions array
-function initializeDragOverPositions() {
-  dragOverPositions.value = new Array(props.player.timeline.length + 1).fill(false)
-}
-
-// Cleanup function for touch interactions
-function cleanupTouchState() {
-  isDragging.value = false
-  dragOverFirst.value = false
-  dragOverPositions.value.fill(false)
-  
-  if (dragClone.value && document.body.contains(dragClone.value)) {
-    document.body.removeChild(dragClone.value)
-    dragClone.value = null
-  }
-  
-  // Remove dragging class from any elements
-  const draggingElements = document.querySelectorAll('.dragging')
-  draggingElements.forEach(el => el.classList.remove('dragging'))
-}
-
-// Clean up on component unmount
-onUnmounted(() => {
-  stopAutoScroll()
-  cleanupTouchState()
-})
-
-// Watch for timeline changes to update drag over positions
-import { watch } from 'vue'
-watch(
-  () => props.player.timeline.length,
-  () => {
-    initializeDragOverPositions()
-  },
-  { immediate: true }
-)
-
-// Add auto-scroll functionality
-const scrollContainer = ref<HTMLElement | null>(null)
-let autoScrollInterval: number | null = null
-
-function startAutoScroll(clientY: number) {
-  if (autoScrollInterval) return
-  
-  autoScrollInterval = setInterval(() => {
-    const viewportHeight = window.innerHeight
-    const scrollThreshold = 100 // pixels from edge to trigger scroll
-    const scrollSpeed = 5 // pixels per interval
-    
-    if (clientY < scrollThreshold) {
-      // Scroll up
-      window.scrollBy(0, -scrollSpeed)
-    } else if (clientY > viewportHeight - scrollThreshold) {
-      // Scroll down
-      window.scrollBy(0, scrollSpeed)
-    }
-  }, 16) // ~60fps
-}
-
-function stopAutoScroll() {
-  if (autoScrollInterval) {
-    clearInterval(autoScrollInterval)
-    autoScrollInterval = null
-  }
-}
-
-// Update existing touch handlers
-function handleTouchMove(event: TouchEvent) {
-  if (!isDragging.value) return
-  
-  event.preventDefault()
-  const touch = event.touches[0]
-  
-  // Start auto-scroll based on touch position
-  startAutoScroll(touch.clientY)
-  
-  // Update drag position
-  dragPosition.value = {
-    x: touch.clientX,
-    y: touch.clientY
-  }
-  
-  // Move the clone with better offset
-  const offsetX = 50
-  const offsetY = 50
-  dragClone.value.style.left = `${touch.clientX - offsetX}px`
-  dragClone.value.style.top = `${touch.clientY - offsetY}px`
-  
-  // Check for drop zones
-  const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY)
-  const dropZone = elementBelow?.closest('[data-drop-zone]')
-  
-  // Reset all drag over states
-  dragOverFirst.value = false
-  dragOverPositions.value.fill(false)
-  
-  if (dropZone) {
-    const position = parseInt(dropZone.getAttribute('data-drop-zone') || '0')
-    if (position === 0) {
-      dragOverFirst.value = true
-    } else if (position <= dragOverPositions.value.length) {
-      dragOverPositions.value[position] = true
-    }
-  }
-}
-
-function handleTouchEnd(event: TouchEvent) {
-  // Stop auto-scroll
-  stopAutoScroll()
-  
-  if (!isDragging.value) return
-  
-  try {
-    event.preventDefault()
-    isDragging.value = false
-    
-    // Find drop target
-    const touch = event.changedTouches[0]
-    if (!touch) {
-      cleanupTouchState()
-      return
-    }
-    
-    const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY)
-    const dropZone = elementBelow?.closest('[data-drop-zone]')
-    
-    // Clean up visual elements
-    if (dragClone.value) {
-      // Add a smooth fade-out effect before removing
-      dragClone.value.style.transition = 'opacity 0.2s ease-out'
-      dragClone.value.style.opacity = '0'
-      
-      setTimeout(() => {
-        if (dragClone.value && document.body.contains(dragClone.value)) {
-          document.body.removeChild(dragClone.value)
-        }
-        dragClone.value = null
-      }, 200)
-    }
-    
-    // Remove dragging class from original
-    const draggingElement = document.querySelector('.dragging')
-    if (draggingElement) {
-      draggingElement.classList.remove('dragging')
-    }
-    
-    // Reset drag over states
-    dragOverFirst.value = false
-    dragOverPositions.value.fill(false)
-    
-    // Handle drop if valid
-    if (dropZone && props.currentTrack) {
-      const dropPosition = parseInt(dropZone.getAttribute('data-drop-zone') || '0')
-      
-      // Add haptic feedback for successful drop
-      if ('vibrate' in navigator) {
-        navigator.vibrate(100)
-      }
-      
-      emit('placeTrack', props.currentTrack, dropPosition)
-    }
-  } catch (error) {
-    console.warn('Touch end error:', error)
-    cleanupTouchState()
-  }
-}
-
-// Also update mouse handlers for desktop
+// Mouse handlers for desktop
 function handleMouseMove(event: MouseEvent) {
   if (!isDragging.value) return
   
@@ -637,6 +478,32 @@ function handleMouseUp() {
   dragOverPositions.value.fill(false)
 }
 
+// Auto-scroll functionality
+function startAutoScroll(clientY: number) {
+  if (autoScrollInterval) return
+  
+  autoScrollInterval = setInterval(() => {
+    const viewportHeight = window.innerHeight
+    const scrollThreshold = 100 // pixels from edge to trigger scroll
+    const scrollSpeed = 5 // pixels per interval
+    
+    if (clientY < scrollThreshold) {
+      // Scroll up
+      window.scrollBy(0, -scrollSpeed)
+    } else if (clientY > viewportHeight - scrollThreshold) {
+      // Scroll down
+      window.scrollBy(0, scrollSpeed)
+    }
+  }, 16) // ~60fps
+}
+
+function stopAutoScroll() {
+  if (autoScrollInterval) {
+    clearInterval(autoScrollInterval)
+    autoScrollInterval = null
+  }
+}
+
 // Initialize drag over positions array
 function initializeDragOverPositions() {
   dragOverPositions.value = new Array(props.player.timeline.length + 1).fill(false)
@@ -665,7 +532,6 @@ onUnmounted(() => {
 })
 
 // Watch for timeline changes to update drag over positions
-import { watch } from 'vue'
 watch(
   () => props.player.timeline.length,
   () => {
