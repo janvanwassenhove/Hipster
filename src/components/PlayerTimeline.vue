@@ -247,7 +247,18 @@ const timelineSpan = computed(() => {
 
 // Methods
 function getTrackImage(track: Track): string {
-  return track.images?.[0]?.url || track.album.images?.[0]?.url || '/placeholder-album.png'
+  // Check for direct track images first
+  if (track.images && track.images.length > 0 && track.images[0]?.url) {
+    return track.images[0].url
+  }
+  
+  // Check for album images
+  if (track.album && track.album.images && track.album.images.length > 0 && track.album.images[0]?.url) {
+    return track.album.images[0].url
+  }
+  
+  // Fallback to placeholder
+  return '/placeholder-album.png'
 }
 
 function getArtistNames(track: Track): string {

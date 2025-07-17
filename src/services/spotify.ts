@@ -354,7 +354,7 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
         release_date: `${song.jaar}-01-01`,
         year: song.jaar,
         external_urls: spotifyTrack.external_urls || { spotify: '' },
-        images: spotifyTrack.images || [],
+        images: spotifyTrack.album.images || [], // Use album images for track images
         revealed: false,
         uri: song.uri
       }
