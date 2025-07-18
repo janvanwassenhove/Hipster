@@ -98,6 +98,8 @@ export default {
       placing: 'Sleep de kaart naar de juiste positie',
       correct: 'Correct! Uitgebracht in {year}',
       incorrect: 'Fout! Dit werd uitgebracht in {year}',
+      wrongPlacement: 'Verkeerd geplaatst!',
+      releasedIn: 'Uitgebracht in {year}',
       points: '+{points} punten!',
       correctPlacement: 'Kijk waar dit nummer had moeten worden geplaatst:',
       studyTimeline: 'Bestudeer de tijdlijn om de juiste chronologische volgorde te leren.',

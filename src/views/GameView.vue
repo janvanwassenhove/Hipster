@@ -132,7 +132,14 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 18.5c-.77.833.192 2.5 1.732 2.5z"></path>
                   </svg>
                 </div>
-                <h3 class="text-2xl font-bold text-red-200">{{ $t('game.turn.incorrect', { year: currentTrack?.year }) }}</h3>
+                <div class="text-center">
+                  <h3 class="text-2xl font-bold text-red-200 mb-2">{{ $t('game.turn.wrongPlacement') }}</h3>
+                  <div class="text-red-100">
+                    <p class="text-lg font-semibold">{{ currentTrack?.name }}</p>
+                    <p class="text-base">{{ currentTrack?.artists.map(a => a.name).join(', ') }}</p>
+                    <p class="text-sm opacity-90">{{ $t('game.turn.releasedIn', { year: currentTrack?.year }) }}</p>
+                  </div>
+                </div>
               </div>
               <p class="text-red-200 text-lg mb-4">{{ $t('game.turn.correctPlacement') }}</p>
               <p class="text-red-300 text-sm">{{ $t('game.turn.studyTimeline') }}</p>
