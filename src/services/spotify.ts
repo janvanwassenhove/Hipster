@@ -61,6 +61,7 @@ class SpotifyService {
   private lastAuthCheck = 0
   private authCheckInProgress = false // Prevent concurrent auth checks
   private lastTokenRefresh = 0 // Prevent excessive token refresh attempts
+  private sessionMaintenanceInterval: number | null = null // For mobile session maintenance
 
   constructor() {
     this.loadAuthState()
@@ -701,6 +702,9 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
   logout(): void {
     console.log('Logging out and clearing Spotify authentication')
     
+    // Stop session maintenance
+    this.stopSessionMaintenance()
+    
     // Disconnect the player if it exists
     if (this.player) {
       this.player.disconnect()
@@ -903,7 +907,7 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
     // Check if this is a mobile device and skip initialization
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|CriOS/i.test(navigator.userAgent)
     if (isMobile) {
-      console.log('Mobile device detected - skipping Spotify Web Playback SDK initialization')
+      console.log('📱 Mobile device detected - skipping Web Playback SDK, will use Spotify Connect API only')
       return
     }
     
@@ -977,16 +981,22 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
       console.log('🔄 Initializing player after authentication')
       await this.initializeWebPlaybackSDK()
     }
+    
+    // Start session maintenance for mobile devices
+    this.startSessionMaintenance()
   }
 
-  // Play a track using Spotify Web API
+  // Play a track using Spotify Web API (with fallback to Spotify Connect)
   async playTrack(trackUri: string): Promise<boolean> {
-    if (!this.isAuthenticated() || !this.deviceId) {
-      console.warn('Cannot play track: not authenticated or no device available')
-      console.log('Authenticated:', this.isAuthenticated())
-      console.log('Device ID:', this.deviceId)
-      console.log('Player ready:', this.isPlayerReady())
+    if (!this.isAuthenticated()) {
+      console.warn('Cannot play track: not authenticated')
       return false
+    }
+
+    // Check if we have a valid Web Playback SDK setup
+    if (!this.deviceId || !this.isPlayerReady()) {
+      console.warn('Web Playback SDK not ready, falling back to Spotify Connect')
+      return this.playOnSpotifyConnect(trackUri)
     }
 
     try {
@@ -996,6 +1006,15 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
       if (!await this.ensureValidToken()) {
         console.error('Failed to ensure valid token')
         return false
+      }
+
+      // First, check if our device is still alive by getting device list
+      const devices = await this.getAvailableDevices()
+      const ourDevice = devices.find(d => d.id === this.deviceId)
+      
+      if (!ourDevice) {
+        console.warn('Web Playback SDK device no longer available, falling back to Spotify Connect')
+        return this.playOnSpotifyConnect(trackUri)
       }
 
       // First, ensure this device is the active device
@@ -1015,7 +1034,12 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
       if (!transferResponse.ok && transferResponse.status !== 204) {
         const transferError = await transferResponse.text()
         console.warn('Failed to set active device:', transferResponse.status, transferError)
-        // Continue anyway - might still work
+        
+        // If device activation failed, try Spotify Connect
+        if (transferResponse.status === 404) {
+          console.warn('Device not found, falling back to Spotify Connect')
+          return this.playOnSpotifyConnect(trackUri)
+        }
       } else {
         console.log('✅ Device set as active')
         // Wait a moment for the device transfer to complete
@@ -1056,16 +1080,17 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
         }
 
         if (response.status === 404) {
-          console.error('❌ No active device found - trying to activate Web Playback SDK device')
-          // The device might not be properly activated, try alternative approach
-          return await this.playTrackDirectly(trackUri)
+          console.error('❌ No active device found - trying Spotify Connect fallback')
+          return this.playOnSpotifyConnect(trackUri)
         }
         
         return false
       }
     } catch (error) {
       console.error('Error playing track:', error)
-      return false
+      // Try Spotify Connect as fallback
+      console.log('Attempting Spotify Connect fallback...')
+      return this.playOnSpotifyConnect(trackUri)
     }
   }
 
@@ -1073,7 +1098,7 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
   private async playTrackDirectly(trackUri: string): Promise<boolean> {
     if (!this.player) {
       console.error('No player available for direct playback')
-      return false
+      return this.playOnSpotifyConnect(trackUri)
     }
 
     try {
@@ -1099,10 +1124,49 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
       } else {
         const errorText = await response.text()
         console.error('❌ Direct playback failed:', response.status, errorText)
+        
+        // If direct playback fails, try Spotify Connect
+        if (response.status === 404) {
+          console.log('Device not found, falling back to Spotify Connect')
+          return this.playOnSpotifyConnect(trackUri)
+        }
+        
         return false
       }
     } catch (error) {
       console.error('Error in direct playback:', error)
+      return this.playOnSpotifyConnect(trackUri)
+    }
+  }
+
+  // Method to reactivate Web Playback SDK when it becomes inactive
+  async reactivateWebPlaybackSDK(): Promise<boolean> {
+    if (!this.player) {
+      console.log('No player to reactivate')
+      return false
+    }
+
+    try {
+      console.log('🔄 Attempting to reactivate Web Playback SDK...')
+      
+      // Disconnect and reconnect the player
+      await this.player.disconnect()
+      
+      // Wait a moment before reconnecting
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      
+      // Reconnect
+      const connected = await this.player.connect()
+      
+      if (connected) {
+        console.log('✅ Successfully reactivated Web Playback SDK')
+        return true
+      } else {
+        console.error('❌ Failed to reactivate Web Playback SDK')
+        return false
+      }
+    } catch (error) {
+      console.error('Error reactivating Web Playback SDK:', error)
       return false
     }
   }
@@ -1112,19 +1176,25 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|CriOS/i.test(navigator.userAgent)
     
     if (isMobile) {
-      console.log('🔄 Pausing via Spotify Connect...')
+      console.log('� Mobile: Pausing via Spotify Connect...')
       return this.pauseSpotifyConnect()
     } else {
-      console.log('🔄 Pausing via Web Playback SDK...')
+      console.log('�️ Desktop: Pausing via Web Playback SDK...')
       // Use Web Playback SDK for desktop
-      if (!this.player) return false
+      if (!this.player) {
+        console.log('🔄 No Web Playback SDK player, trying Spotify Connect...')
+        return this.pauseSpotifyConnect()
+      }
 
       try {
         await this.player.pause()
+        console.log('✅ Desktop: Web Playback SDK pause successful')
         return true
       } catch (error) {
-        console.error('Error pausing playback:', error)
-        return false
+        console.error('❌ Desktop: Web Playback SDK pause failed:', error)
+        // Fallback to Spotify Connect
+        console.log('🔄 Desktop: Trying Spotify Connect pause as fallback...')
+        return this.pauseSpotifyConnect()
       }
     }
   }
@@ -1174,7 +1244,7 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
     }
   }
 
-  // Check if player is ready
+  // Check if player is ready (with session validation)
   isPlayerReady(): boolean {
     const ready = !!(this.playerReady && this.player && this.deviceId)
     
@@ -1190,6 +1260,104 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
     }
     
     return ready
+  }
+
+  // Check if current playback session is still active
+  async isPlaybackSessionActive(): Promise<boolean> {
+    try {
+      const state = await this.getSpotifyConnectState()
+      return state !== null && state.device !== null
+    } catch (error) {
+      console.error('Error checking playback session:', error)
+      return false
+    }
+  }
+
+  // Comprehensive method to ensure playback capability
+  async ensurePlaybackReady(): Promise<boolean> {
+    console.log('🔄 Ensuring playback readiness...')
+    
+    if (!this.isAuthenticated()) {
+      console.error('❌ Not authenticated')
+      return false
+    }
+
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|CriOS/i.test(navigator.userAgent)
+    
+    if (isMobile) {
+      // For mobile, always use Spotify Connect - check if we have any available devices
+      console.log('📱 Mobile device: Using Spotify Connect exclusively')
+      const devices = await this.getAvailableDevices()
+      const hasDevices = devices.length > 0
+      
+      if (!hasDevices) {
+        console.error('❌ No Spotify devices available on mobile')
+        console.error('💡 User needs to open Spotify app first')
+        return false
+      }
+      
+      console.log('✅ Mobile: Spotify devices available for Spotify Connect')
+      return true
+    } else {
+      // For desktop, try Web Playback SDK first, then fallback to Spotify Connect
+      console.log('🖥️ Desktop device: Trying Web Playback SDK first')
+      
+      if (!this.isPlayerReady()) {
+        console.log('🔄 Desktop: Web Playback SDK not ready, attempting to initialize...')
+        
+        if (!this.playerInitializationAttempted) {
+          this.initializePlayerIfReady()
+          // Wait a moment for initialization
+          await new Promise(resolve => setTimeout(resolve, 3000))
+        }
+        
+        if (!this.isPlayerReady()) {
+          console.warn('⚠️ Desktop: Web Playback SDK still not ready, will use Spotify Connect fallback')
+          // Check if we have Spotify Connect devices as fallback
+          const devices = await this.getAvailableDevices()
+          const hasDevices = devices.length > 0
+          
+          if (!hasDevices) {
+            console.error('❌ No Spotify devices available for fallback')
+            return false
+          }
+          
+          console.log('✅ Desktop: Spotify Connect devices available as fallback')
+          return true
+        }
+        
+        console.log('✅ Desktop: Web Playback SDK ready')
+        return true
+      }
+      
+      // Check if our Web Playback SDK device is still valid
+      const devices = await this.getAvailableDevices()
+      const ourDevice = devices.find(d => d.id === this.deviceId)
+      
+      if (!ourDevice) {
+        console.warn('⚠️ Desktop: Web Playback SDK device no longer available')
+        
+        // Try to reactivate
+        const reactivated = await this.reactivateWebPlaybackSDK()
+        if (reactivated) {
+          console.log('✅ Desktop: Web Playback SDK reactivated')
+          return true
+        }
+        
+        // Check for Spotify Connect fallback
+        const hasOtherDevices = devices.length > 0
+        if (hasOtherDevices) {
+          console.log('✅ Desktop: Spotify Connect devices available as fallback')
+          return true
+        }
+        
+        console.error('❌ Desktop: No devices available')
+        return false
+      }
+      
+      console.log('✅ Desktop: Web Playback SDK device still available')
+      return true
+    }
   }
 
   // Get the current playing track URI
@@ -1251,24 +1419,90 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
     }
   }
 
+  // Check if any devices are available and active
+  async hasActiveDevice(): Promise<boolean> {
+    try {
+      const devices = await this.getAvailableDevices()
+      return devices.some(device => device.is_active)
+    } catch (error) {
+      console.error('Error checking for active devices:', error)
+      return false
+    }
+  }
+
+  // Check if any devices are available (active or inactive)
+  async hasAvailableDevices(): Promise<boolean> {
+    try {
+      const devices = await this.getAvailableDevices()
+      return devices.length > 0
+    } catch (error) {
+      console.error('Error checking for available devices:', error)
+      return false
+    }
+  }
+
   // Add method to play on any active device (Spotify Connect)
   async playOnSpotifyConnect(trackUri: string): Promise<boolean> {
     try {
+      console.log('🔄 Attempting Spotify Connect playback...')
+      
       // Get available devices
       const devices = await this.getAvailableDevices()
-      console.log('Found devices for Spotify Connect:', devices)
+      console.log('Found devices for Spotify Connect:', devices.map(d => ({ name: d.name, id: d.id, is_active: d.is_active, type: d.type })))
       
-      // Find an active device or use the first available one
-      const activeDevice = devices.find(d => d.is_active) || devices[0]
+      // Find an active device first
+      let activeDevice = devices.find(d => d.is_active)
       
       if (!activeDevice) {
-        console.error('No Spotify devices available. User needs to open Spotify app.')
-        throw new Error('No Spotify devices available. Please open the Spotify app on your device.')
+        // No active device found - try to activate the most recent one
+        // Prefer non-web devices (mobile/desktop apps) over web players
+        const availableDevice = devices.find(d => !d.is_restricted && d.type !== 'Computer') || 
+                               devices.find(d => !d.is_restricted) || 
+                               devices[0]
+        
+        if (!availableDevice) {
+          console.error('❌ No Spotify devices available.')
+          console.error('💡 User needs to open Spotify app on their device first.')
+          throw new Error('NO_DEVICES_AVAILABLE')
+        }
+        
+        console.log('🔄 No active device found. Attempting to activate:', availableDevice.name, `(${availableDevice.type})`)
+        
+        // Try to transfer playback to activate the device
+        const transferResponse = await fetch('https://api.spotify.com/v1/me/player', {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${this.authState.accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            device_ids: [availableDevice.id],
+            play: false
+          })
+        })
+
+        if (transferResponse.ok || transferResponse.status === 204) {
+          console.log('✅ Successfully activated device:', availableDevice.name)
+          activeDevice = availableDevice
+          // Wait a moment for the device to become active
+          await new Promise(resolve => setTimeout(resolve, 1500))
+        } else {
+          const errorText = await transferResponse.text()
+          console.error('❌ Failed to activate device:', transferResponse.status, errorText)
+          
+          if (transferResponse.status === 404) {
+            console.error('💡 Device disappeared. User may need to reopen Spotify app.')
+            throw new Error('DEVICE_NOT_FOUND')
+          }
+          
+          console.error('💡 Device activation failed. Trying to play anyway...')
+          activeDevice = availableDevice // Try anyway
+        }
       }
       
-      console.log('Using device for playback:', activeDevice.name, activeDevice.id)
+      console.log('🎵 Using device for playback:', activeDevice.name, `(${activeDevice.type})`)
       
-      // Transfer playback to the device and start playing
+      // Now try to play the track
       const response = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${activeDevice.id}`, {
         method: 'PUT',
         headers: {
@@ -1282,19 +1516,53 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
 
       if (response.ok || response.status === 204) {
         console.log('✅ Successfully started playback via Spotify Connect')
+        this.currentTrackUri = trackUri
         return true
       } else {
         const errorText = await response.text()
-        console.error('Failed to start playback:', response.status, errorText)
+        console.error('❌ Failed to start playback:', response.status, errorText)
         
         if (response.status === 404) {
-          throw new Error('No active Spotify device found. Please open Spotify app and start playing something first.')
+          console.error('💡 Device became inactive. User may need to tap play in Spotify app.')
+          throw new Error('DEVICE_BECAME_INACTIVE')
         }
         
-        return false
+        if (response.status === 403) {
+          console.error('💡 Premium subscription required for full track playback.')
+          throw new Error('PREMIUM_REQUIRED')
+        }
+        
+        if (response.status === 401) {
+          console.error('💡 Authorization expired. Need to re-authenticate.')
+          throw new Error('AUTH_EXPIRED')
+        }
+        
+        throw new Error('PLAYBACK_FAILED')
       }
     } catch (error) {
-      console.error('Error with Spotify Connect playback:', error)
+      console.error('❌ Spotify Connect playback error:', error)
+      
+      // Provide user-friendly error messages
+      if (error instanceof Error) {
+        switch (error.message) {
+          case 'NO_DEVICES_AVAILABLE':
+            console.error('💡 Solution: Open Spotify app on your device first, then try again.')
+            break
+          case 'DEVICE_NOT_FOUND':
+            console.error('💡 Solution: Make sure Spotify app is open and connected to internet.')
+            break
+          case 'DEVICE_BECAME_INACTIVE':
+            console.error('💡 Solution: Tap play in your Spotify app, then return to the game.')
+            break
+          case 'PREMIUM_REQUIRED':
+            console.error('💡 Solution: Spotify Premium subscription required for full track playback.')
+            break
+          case 'AUTH_EXPIRED':
+            console.error('💡 Solution: Re-authenticate with Spotify.')
+            break
+        }
+      }
+      
       throw error
     }
   }
@@ -1344,16 +1612,175 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
     }
   }
 
-  // Update your existing methods to use Spotify Connect on mobile
+  // Method to maintain active Spotify Connect session (especially for mobile)
+  async maintainActiveSession(): Promise<boolean> {
+    try {
+      // Check current playback state
+      const state = await this.getSpotifyConnectState()
+      
+      if (!state || !state.device) {
+        console.log('🔄 No active Spotify session detected, attempting to activate...')
+        
+        // Get available devices
+        const devices = await this.getAvailableDevices()
+        const availableDevice = devices.find(d => !d.is_restricted && d.type !== 'Computer') || 
+                               devices.find(d => !d.is_restricted) || 
+                               devices[0]
+        
+        if (!availableDevice) {
+          console.error('❌ No Spotify devices available for session maintenance')
+          return false
+        }
+        
+        // Transfer playback to activate the device (without starting playback)
+        const transferResponse = await fetch('https://api.spotify.com/v1/me/player', {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${this.authState.accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            device_ids: [availableDevice.id],
+            play: false  // Don't start playing, just activate
+          })
+        })
+
+        if (transferResponse.ok || transferResponse.status === 204) {
+          console.log('✅ Successfully reactivated Spotify session on device:', availableDevice.name)
+          return true
+        } else {
+          console.error('❌ Failed to reactivate Spotify session')
+          return false
+        }
+      }
+      
+      console.log('✅ Spotify session is active on device:', state.device.name)
+      return true
+    } catch (error) {
+      console.error('Error maintaining active session:', error)
+      return false
+    }
+  }
+
+  // Start periodic session maintenance (for mobile devices)
+  startSessionMaintenance(): void {
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|CriOS/i.test(navigator.userAgent)
+    
+    if (!isMobile || !this.isAuthenticated()) {
+      console.log('Session maintenance not needed for desktop or unauthenticated users')
+      return
+    }
+    
+    // Clear any existing interval
+    if (this.sessionMaintenanceInterval) {
+      clearInterval(this.sessionMaintenanceInterval)
+    }
+    
+    console.log('📱 Starting Spotify session maintenance for mobile device...')
+    
+    // Check and maintain session every 30 seconds
+    this.sessionMaintenanceInterval = setInterval(async () => {
+      if (this.isAuthenticated()) {
+        await this.maintainActiveSession()
+      }
+    }, 5000)
+  }
+
+  // Stop session maintenance
+  stopSessionMaintenance(): void {
+    if (this.sessionMaintenanceInterval) {
+      clearInterval(this.sessionMaintenanceInterval)
+      this.sessionMaintenanceInterval = null
+      console.log('🔄 Stopped Spotify session maintenance')
+    }
+  }
+
+  // Keep Spotify Connect session active (for mobile devices)
+  async keepSpotifyConnectActive(): Promise<void> {
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|CriOS/i.test(navigator.userAgent)
+    
+    if (!isMobile || !this.isAuthenticated()) {
+      return
+    }
+
+    try {
+      // Check if we have active playback
+      const state = await this.getSpotifyConnectState()
+      
+      if (state && state.is_playing) {
+        console.log('📱 Mobile: Spotify Connect session is active')
+      } else {
+        console.log('📱 Mobile: No active Spotify Connect session')
+        
+        // Check if we have available devices
+        const devices = await this.getAvailableDevices()
+        if (devices.length > 0) {
+          console.log('📱 Mobile: Spotify devices available but not active')
+        } else {
+          console.log('📱 Mobile: No Spotify devices available')
+        }
+      }
+    } catch (error) {
+      console.error('Error keeping Spotify Connect active:', error)
+    }
+  }
+
+  // Update your existing methods to use Spotify Connect on mobile (with retry logic)
   async startPlayback(trackUri: string): Promise<boolean> {
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|CriOS/i.test(navigator.userAgent)
     
     if (isMobile) {
-      console.log('🔄 Using Spotify Connect for mobile playback...')
-      return this.playOnSpotifyConnect(trackUri)
+      console.log('� Mobile: Using Spotify Connect exclusively for playback...')
+      
+      // For mobile, always use Spotify Connect with retry logic
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          console.log(`🔄 Mobile Spotify Connect attempt ${attempt}/3...`)
+          const success = await this.playOnSpotifyConnect(trackUri)
+          if (success) {
+            console.log('✅ Mobile: Spotify Connect playback successful')
+            return true
+          }
+        } catch (error: any) {
+          console.error(`❌ Mobile Spotify Connect attempt ${attempt} failed:`, error.message)
+          
+          if (error.message === 'NO_DEVICES_AVAILABLE') {
+            console.error('💡 No devices available - user needs to open Spotify app')
+            break // Don't retry if no devices are available
+          }
+          
+          if (error.message === 'DEVICE_BECAME_INACTIVE' && attempt < 3) {
+            console.log('� Device became inactive, waiting before retry...')
+            await new Promise(resolve => setTimeout(resolve, 2000))
+            continue
+          }
+          
+          if (attempt === 3) {
+            throw error
+          }
+          
+          // Wait before retrying
+          await new Promise(resolve => setTimeout(resolve, 1000))
+        }
+      }
+      
+      return false
     } else {
-      console.log('🔄 Using Web Playback SDK for desktop...')
-      return this.playTrack(trackUri) // Your existing Web Playback SDK method
+      console.log('�🔄 Using Web Playback SDK for desktop...')
+      
+      // For desktop, try Web Playback SDK first, then fallback to Spotify Connect
+      try {
+        const success = await this.playTrack(trackUri)
+        if (success) {
+          return true
+        }
+      } catch (error) {
+        console.error('Desktop playback failed:', error)
+      }
+      
+      // If Web Playback SDK fails, try Spotify Connect as fallback
+      console.log('🔄 Desktop Web Playback SDK failed, trying Spotify Connect...')
+      return this.playOnSpotifyConnect(trackUri)
     }
   }
 

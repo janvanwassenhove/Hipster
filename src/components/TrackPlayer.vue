@@ -46,6 +46,65 @@
 
         <!-- Custom Audio Player -->
         <div class="mb-3">
+          <!-- Device Help Modal -->
+          <div v-if="showDeviceHelp" class="bg-gradient-to-r from-amber-900/40 to-orange-900/40 border border-amber-400/30 rounded-xl p-4 text-center backdrop-blur-sm mb-4">
+            <div class="flex items-center justify-between mb-3">
+              <div class="flex items-center">
+                <div class="w-8 h-8 bg-gradient-to-br from-amber-500 to-orange-500 rounded-full flex items-center justify-center mr-3 animate-pulse">
+                  <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.996-.833-2.464 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+                  </svg>
+                </div>
+                <h3 class="text-sm font-bold bg-gradient-to-r from-amber-300 to-orange-300 bg-clip-text text-transparent">
+                  {{ deviceError === 'NO_DEVICES' ? $t('game.deviceHelp.noDevices.title', 'No Spotify App Found') : 
+                     deviceError === 'DEVICE_INACTIVE' ? $t('game.deviceHelp.inactive.title', 'Spotify App Inactive') :
+                     deviceError === 'ACTIVATION_FAILED' ? $t('game.deviceHelp.activationFailed.title', 'Device Activation Failed') :
+                     $t('game.deviceHelp.generic.title', 'Playback Issue') }}
+                </h3>
+              </div>
+              <button @click="dismissDeviceHelp" class="text-amber-300 hover:text-amber-100 transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+              </button>
+            </div>
+            
+            <div class="text-left space-y-2">
+              <p class="text-amber-200 text-xs font-medium">
+                {{ deviceError === 'NO_DEVICES' ? $t('game.deviceHelp.noDevices.message', 'No Spotify devices detected.') :
+                   deviceError === 'DEVICE_INACTIVE' ? $t('game.deviceHelp.inactive.message', 'Your Spotify app became inactive after being idle.') :
+                   deviceError === 'ACTIVATION_FAILED' ? $t('game.deviceHelp.activationFailed.message', 'Could not activate your Spotify device.') :
+                   $t('game.deviceHelp.generic.message', 'There was a problem with playback.') }}
+              </p>
+              
+              <div class="bg-amber-800/30 rounded-lg p-3 text-xs">
+                <p class="text-amber-100 font-medium mb-2">{{ $t('game.deviceHelp.steps.title', 'Quick Fix:') }}</p>
+                <ol class="text-amber-200 space-y-1 list-decimal list-inside">
+                  <li>{{ $t('game.deviceHelp.steps.step1', 'Open the Spotify app on your device') }}</li>
+                  <li>{{ $t('game.deviceHelp.steps.step2', 'Play any song (you can pause it right away)') }}</li>
+                  <li>{{ $t('game.deviceHelp.steps.step3', 'Come back to this game and try again') }}</li>
+                </ol>
+              </div>
+              
+              <div class="flex justify-center space-x-3 mt-4">
+                <button @click="retryPlayback" 
+                        :disabled="isLoading"
+                        class="px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-lg text-xs font-medium hover:from-amber-600 hover:to-orange-600 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed">
+                  <span v-if="isLoading" class="flex items-center">
+                    <svg class="w-3 h-3 mr-2 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                    </svg>
+                    {{ $t('game.deviceHelp.retrying', 'Retrying...') }}
+                  </span>
+                  <span v-else>{{ $t('game.deviceHelp.retry', 'Try Again') }}</span>
+                </button>
+                <button @click="dismissDeviceHelp" class="px-4 py-2 bg-gray-600 text-white rounded-lg text-xs font-medium hover:bg-gray-700 transition-colors">
+                  {{ $t('game.deviceHelp.dismiss', 'Dismiss') }}
+                </button>
+              </div>
+            </div>
+          </div>
+          
           <div v-if="!canPlayAudio && isMobileDevice && hasSpotifyUri" class="bg-gradient-to-r from-green-900/30 to-emerald-900/30 border border-green-400/30 rounded-xl p-4 text-center backdrop-blur-sm">
             <div class="flex items-center justify-center mb-2">
               <div class="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center mr-2 shadow-lg">
@@ -205,6 +264,8 @@ const volume = ref(0.7)
 const isMuted = ref(false)
 const isDraggingProgress = ref(false)
 const isDraggingVolume = ref(false)
+const deviceError = ref<string | null>(null)
+const showDeviceHelp = ref(false)
 
 // Computed
 const trackImage = computed(() => {
@@ -256,12 +317,22 @@ const canPlayFullTrack = computed(() => {
 })
 
 const canPlayAudio = computed(() => {
-  return canPlayFullTrack.value || !!props.track.preview_url
+  return canPlayFullTrack.value
 })
 
 // Methods
 async function togglePlayback() {
+  isLoading.value = true
+  deviceError.value = null
+  showDeviceHelp.value = false
+
   try {
+    // First, ensure playback is ready
+    const playbackReady = await spotifyService.ensurePlaybackReady()
+    if (!playbackReady) {
+      throw new Error('NO_DEVICES_AVAILABLE')
+    }
+
     if (canPlayFullTrack.value && props.track.uri) {
       if (isPlaying.value) {
         const success = await spotifyService.pausePlayback()
@@ -285,17 +356,49 @@ async function togglePlayback() {
   } catch (error: any) {
     console.error('Playback error:', error)
     
-    // Show user-friendly error for mobile
-    if (isMobileDevice.value && error.message.includes('No active Spotify device')) {
-      alert('Please open the Spotify app on your device first, then try again.')
+    // Handle different error types
+    if (error.message === 'NO_DEVICES_AVAILABLE') {
+      deviceError.value = 'NO_DEVICES'
+      showDeviceHelp.value = true
+    } else if (error.message === 'DEVICE_NOT_FOUND' || error.message === 'DEVICE_BECAME_INACTIVE') {
+      deviceError.value = 'DEVICE_INACTIVE'
+      showDeviceHelp.value = true
+    } else if (error.message === 'PREMIUM_REQUIRED') {
+      deviceError.value = 'PREMIUM_REQUIRED'
+    } else if (error.message === 'DEVICE_ACTIVATION_FAILED') {
+      deviceError.value = 'ACTIVATION_FAILED'
+      showDeviceHelp.value = true
+    } else if (error.message.includes('No active Spotify device') || error.message.includes('No Spotify devices available')) {
+      deviceError.value = 'DEVICE_INACTIVE'
+      showDeviceHelp.value = true
+    } else {
+      deviceError.value = 'PLAYBACK_FAILED'
     }
+  } finally {
+    isLoading.value = false
   }
+}
+
+// Add method to dismiss device help
+function dismissDeviceHelp() {
+  showDeviceHelp.value = false
+  deviceError.value = null
+}
+
+// Add method to retry playback
+async function retryPlayback() {
+  showDeviceHelp.value = false
+  deviceError.value = null
+  await togglePlayback()
 }
 
 // Add method to monitor Spotify Connect playback
 function monitorSpotifyConnectPlayback() {
   const checkPlayback = async () => {
     if (!canPlayFullTrack.value || !isMobileDevice.value) return
+    
+    // Keep the Spotify Connect session active
+    await spotifyService.keepSpotifyConnectActive()
     
     const state = await spotifyService.getSpotifyConnectState()
     if (state) {
@@ -308,12 +411,22 @@ function monitorSpotifyConnectPlayback() {
       }
       
       if (isPlaying.value) {
-        setTimeout(checkPlayback, 2000) // Check again in 2 seconds
+        setTimeout(checkPlayback, 5000) // Check again in 5 seconds (longer interval)
       }
     } else {
-      // No active playback
+      // No active playback - device might have become inactive
       if (isPlaying.value) {
+        console.log('🔇 No active playback detected - device may have become inactive')
         isPlaying.value = false
+        
+        // Check if we should show device help
+        if (!showDeviceHelp.value && !deviceError.value) {
+          const hasDevices = await spotifyService.hasAvailableDevices()
+          if (hasDevices) {
+            deviceError.value = 'DEVICE_INACTIVE'
+            showDeviceHelp.value = true
+          }
+        }
       }
     }
   }
@@ -410,6 +523,10 @@ watch(() => props.track, async (newTrack, oldTrack) => {
   if (newTrack && newTrack !== oldTrack) {
     console.log('New track detected:', newTrack.name)
     
+    // Reset error states for new track
+    deviceError.value = null
+    showDeviceHelp.value = false
+    
     // Wait a moment for the audio element to be ready
     await nextTick()
     
@@ -432,8 +549,14 @@ watch(() => props.track, async (newTrack, oldTrack) => {
       if (canPlayAudio.value && !isPlaying.value) {
         console.log('Auto-starting playback for new track:', newTrack.name)
         try {
-          await togglePlayback()
-          console.log('✅ Auto-playback started successfully')
+          // Check if playback is ready before attempting auto-start
+          const playbackReady = await spotifyService.ensurePlaybackReady()
+          if (playbackReady) {
+            await togglePlayback()
+            console.log('✅ Auto-playback started successfully')
+          } else {
+            console.log('🔇 Auto-playback skipped - no devices available')
+          }
         } catch (error) {
           if (isMobile) {
             console.log('🔇 Auto-playback blocked on mobile - user interaction required')

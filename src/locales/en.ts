@@ -100,6 +100,37 @@ export default {
       notConnected: 'Not connected to Spotify',
       logout: 'Logout'
     },
+    spotifyConnect: {
+      title: 'Spotify Connect',
+      description: 'Music will play through your Spotify app'
+    },
+    deviceHelp: {
+      noDevices: {
+        title: 'No Spotify App Found',
+        message: 'No Spotify devices detected.'
+      },
+      inactive: {
+        title: 'Spotify App Inactive',
+        message: 'Your Spotify app became inactive after being idle.'
+      },
+      activationFailed: {
+        title: 'Device Activation Failed',
+        message: 'Could not activate your Spotify device.'
+      },
+      generic: {
+        title: 'Playback Issue',
+        message: 'There was a problem with playback.'
+      },
+      steps: {
+        title: 'Quick Fix:',
+        step1: 'Open the Spotify app on your device',
+        step2: 'Play any song (you can pause it right away)',
+        step3: 'Come back to this game and try again'
+      },
+      retry: 'Try Again',
+      retrying: 'Retrying...',
+      dismiss: 'Dismiss'
+    },
     turn: {
       currentPlayer: "It's {player}'s turn!",
       passDevice: 'Pass the device to {player}',
