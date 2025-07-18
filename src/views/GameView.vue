@@ -115,8 +115,36 @@
         <TrackPlayer
           v-if="currentTrack"
           :track="currentTrack"
+          :show-result="showResult"
+          :show-answer="showAnswer"
+          :is-correct="lastPlacementResult.isCorrect"
+          :points-earned="lastPlacementResult.pointsEarned"
           @place-track="handlePlaceTrack"
         />
+
+        <!-- Continue Button for Wrong Answers -->
+        <div v-if="showCorrectAnswer && !lastPlacementResult.isCorrect" class="text-center mb-6">
+          <div class="card bg-gradient-to-r from-red-900/40 to-pink-900/40 border border-red-400/30 backdrop-blur-sm">
+            <div class="mb-4">
+              <div class="flex items-center justify-center mb-3">
+                <div class="w-12 h-12 bg-gradient-to-br from-red-500 to-pink-500 rounded-full flex items-center justify-center mr-3">
+                  <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 18.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                  </svg>
+                </div>
+                <h3 class="text-2xl font-bold text-red-200">{{ $t('game.turn.incorrect', { year: currentTrack?.year }) }}</h3>
+              </div>
+              <p class="text-red-200 text-lg mb-4">{{ $t('game.turn.correctPlacement') }}</p>
+              <p class="text-red-300 text-sm">{{ $t('game.turn.studyTimeline') }}</p>
+            </div>
+            <button 
+              @click="continueAfterWrongAnswer"
+              class="px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold rounded-xl transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-blue-500/25"
+            >
+              {{ $t('game.turn.continue') }}
+            </button>
+          </div>
+        </div>
 
         <!-- Current Player Timeline -->
         <div v-if="currentPlayer && currentPlayer.timeline" class="max-w-4xl mx-auto">
@@ -132,7 +160,7 @@
 
         <!-- Scores -->
         <div class="card">
-          <h3 class="text-lg font-semibold mb-4">{{ $t('game.score.title') }}</h3>
+          <h3 class="text-lg font-semibold mb-4 text-gray-100">{{ $t('game.score.title') }}</h3>
           <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div
               v-for="player in players"
@@ -225,7 +253,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useGameStore } from '@/stores/game'
 import { spotifyService } from '@/services/spotify'
@@ -241,6 +269,10 @@ const isLoadingTrack = ref(false)
 const showHintDialog = ref(false)
 const hintMessage = ref('')
 const spotifyAuthState = ref(spotifyService.isAuthenticated())
+const showResult = ref(false)
+const showAnswer = ref(false)
+const showCorrectAnswer = ref(false)
+const lastPlacementResult = ref({ isCorrect: false, pointsEarned: 0 })
 
 // Computed
 const players = computed(() => gameStore.players)
@@ -285,6 +317,11 @@ const sortedPlayers = computed(() =>
 // Methods
 async function loadNextTrack() {
   isLoadingTrack.value = true
+  // Reset feedback states for new track
+  showResult.value = false
+  showAnswer.value = false
+  lastPlacementResult.value = { isCorrect: false, pointsEarned: 0 }
+  
   try {
     console.log('Loading next track...')
     const track = await gameStore.getNextTrack()
@@ -305,10 +342,73 @@ async function loadNextTrack() {
 function handlePlaceTrack(track: Track, position: number) {
   const isCorrect = gameStore.placeTrackOnTimeline(track, position)
   
-  // Show result feedback
+  // Calculate points earned (similar to game store logic)
+  let pointsEarned = 0
+  if (isCorrect && currentPlayer.value) {
+    pointsEarned = 1
+    if (currentPlayer.value.timeline.length >= 5) pointsEarned = 2
+    if (currentPlayer.value.timeline.length >= 8) pointsEarned = 3
+  }
+  
+  // Store the result
+  lastPlacementResult.value = { isCorrect, pointsEarned }
+  
+  // Show result feedback immediately
+  showResult.value = true
+  
+  // Show answer (album cover and full track info) after a brief delay
   setTimeout(() => {
-    gameStore.nextPlayer()
-  }, 2000)
+    showAnswer.value = true
+  }, 500)
+  
+  if (isCorrect) {
+    // For correct answers, proceed normally
+    setTimeout(() => {
+      // Reset the feedback states
+      showResult.value = false
+      showAnswer.value = false
+      // Move to next player
+      gameStore.nextPlayer()
+    }, 4000)
+  } else {
+    // For wrong answers, show the correct answer and wait for user to continue
+    setTimeout(() => {
+      // Show the correct placement by temporarily placing the track correctly
+      showCorrectAnswer.value = true
+      
+      // Find correct position and place the track there temporarily
+      if (currentPlayer.value && currentTrack.value) {
+        const correctPosition = findCorrectPosition(currentTrack.value, currentPlayer.value.timeline)
+        const tempTrack = { ...currentTrack.value, revealed: true }
+        gameStore.addTrackToTimelineAtPosition(tempTrack, correctPosition)
+      }
+    }, 1500)
+  }
+}
+
+function findCorrectPosition(track: Track, timeline: Track[]): number {
+  // Find where this track should be placed chronologically
+  for (let i = 0; i < timeline.length; i++) {
+    if (track.year <= timeline[i].year) {
+      return i
+    }
+  }
+  return timeline.length
+}
+
+function continueAfterWrongAnswer() {
+  // Remove the temporarily placed track
+  if (currentTrack.value && currentPlayer.value) {
+    gameStore.removeTrackFromTimeline(currentTrack.value.id)
+  }
+  
+  // Reset all feedback states
+  showResult.value = false
+  showAnswer.value = false
+  showCorrectAnswer.value = false
+  
+  // Move to next player
+  gameStore.nextPlayer()
 }
 
 function handleUseToken(ability: string) {
@@ -395,5 +495,15 @@ onMounted(() => {
   onUnmounted(() => {
     clearInterval(authCheckInterval)
   })
+})
+
+// Watch for track changes to reset feedback states
+watch(currentTrack, (newTrack) => {
+  if (newTrack) {
+    // Reset feedback states when a new track is loaded
+    showResult.value = false
+    showAnswer.value = false
+    lastPlacementResult.value = { isCorrect: false, pointsEarned: 0 }
+  }
 })
 </script>

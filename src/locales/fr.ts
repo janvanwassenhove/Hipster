@@ -98,7 +98,10 @@ export default {
       placing: 'Glissez la carte à la bonne position',
       correct: 'Correct! Sorti en {year}',
       incorrect: 'Incorrect! Ceci est sorti en {year}',
-      points: '+{points} points!'
+      points: '+{points} points!',
+      correctPlacement: 'Regardez où cette piste aurait dû être placée:',
+      studyTimeline: 'Étudiez la chronologie pour apprendre l\'ordre chronologique correct.',
+      continue: 'Continuer'
     },
     timeline: {
       title: 'Chronologie',

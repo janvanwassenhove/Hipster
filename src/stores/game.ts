@@ -190,6 +190,27 @@ export const useGameStore = defineStore('game', () => {
     saveGameState()
   }
 
+  function addTrackToTimelineAtPosition(track: Track, position: number) {
+    const player = currentPlayer.value
+    if (!player) return
+    
+    // Add track at the specified position
+    player.timeline.splice(position, 0, track)
+    saveGameState()
+  }
+
+  function removeTrackFromTimeline(trackId: string) {
+    const player = currentPlayer.value
+    if (!player) return
+    
+    // Remove track from timeline
+    const trackIndex = player.timeline.findIndex(t => t.id === trackId)
+    if (trackIndex !== -1) {
+      player.timeline.splice(trackIndex, 1)
+      saveGameState()
+    }
+  }
+
   function resetGame() {
     players.value = []
     currentPlayerIndex.value = 0
@@ -344,6 +365,8 @@ export const useGameStore = defineStore('game', () => {
     placeTrackOnTimeline,
     checkForBonusTokens,
     nextPlayer,
+    addTrackToTimelineAtPosition,
+    removeTrackFromTimeline,
     resetGame,
     useToken,
     awardBonusToken,

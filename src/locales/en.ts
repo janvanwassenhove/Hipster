@@ -109,7 +109,10 @@ export default {
       placing: 'Drag the card to the correct position',
       correct: 'Correct! Released in {year}',
       incorrect: 'Incorrect! This was released in {year}',
-      points: '+{points} points!'
+      points: '+{points} points!',
+      correctPlacement: 'Look at where this track should have been placed:',
+      studyTimeline: 'Study the timeline to learn the correct chronological order.',
+      continue: 'Continue'
     },
     timeline: {
       title: 'Timeline',

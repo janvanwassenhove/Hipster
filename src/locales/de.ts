@@ -109,7 +109,10 @@ export default {
       placing: 'Ziehe die Karte an die richtige Position',
       correct: 'Richtig! Veröffentlicht in {year}',
       incorrect: 'Falsch! Dies wurde in {year} veröffentlicht',
-      points: '+{points} Punkte!'
+      points: '+{points} Punkte!',
+      correctPlacement: 'Schau wo dieser Track hätte platziert werden sollen:',
+      studyTimeline: 'Studiere die Zeitlinie um die richtige chronologische Reihenfolge zu lernen.',
+      continue: 'Weiter'
     },
     timeline: {
       title: 'Zeitlinie',
