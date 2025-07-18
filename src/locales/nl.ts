@@ -103,7 +103,12 @@ export default {
     timeline: {
       title: 'Tijdlijn',
       empty: 'Nog geen nummers',
-      placeHere: 'Plaats hier'
+      placeHere: 'Plaats hier',
+      tapToSelect: 'Tik om deze positie te selecteren',
+      selectedPosition: 'Geselecteerde positie',
+      confirmPlacement: 'Plaats nummer hier',
+      cancelSelection: 'Annuleren',
+      mobileInstructions: 'Tik op een tijdlijnpositie hieronder om dit nummer te plaatsen'
     },
     score: {
       title: 'Hipster Tokens',

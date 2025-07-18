@@ -103,7 +103,12 @@ export default {
     timeline: {
       title: 'Chronologie',
       empty: 'Aucune piste encore',
-      placeHere: 'Placer ici'
+      placeHere: 'Placer ici',
+      tapToSelect: 'Touchez pour sélectionner cette position',
+      selectedPosition: 'Position sélectionnée',
+      confirmPlacement: 'Placer la piste ici',
+      cancelSelection: 'Annuler',
+      mobileInstructions: 'Touchez une position de chronologie ci-dessous pour placer cette piste'
     },
     score: {
       title: 'Jetons Hipster',

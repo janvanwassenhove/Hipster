@@ -114,7 +114,12 @@ export default {
     timeline: {
       title: 'Zeitlinie',
       empty: 'Noch keine Tracks',
-      placeHere: 'Hier platzieren'
+      placeHere: 'Hier platzieren',
+      tapToSelect: 'Tippen um diese Position zu wählen',
+      selectedPosition: 'Ausgewählte Position',
+      confirmPlacement: 'Track hier platzieren',
+      cancelSelection: 'Abbrechen',
+      mobileInstructions: 'Tippen Sie auf einen Zeitlinie-Slot unten, um diesen Track zu platzieren'
     },
     score: {
       title: 'Hipster Token',

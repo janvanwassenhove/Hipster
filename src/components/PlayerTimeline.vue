@@ -67,14 +67,26 @@
           <div
             v-if="canPlace"
             class="timeline-slot mt-6 group"
-            :class="{ 'drag-over': dragOverFirst }"
+            :class="{ 
+              'drag-over': dragOverFirst,
+              'selected': selectedPosition === 0 && isMobileDevice
+            }"
             @dragover.prevent="dragOverFirst = true"
             @dragleave.prevent="dragOverFirst = false"
             @drop.prevent="handleDrop(0)"
+            @touchstart.prevent="isMobileDevice ? handleTimelineSlotTouch(0) : null"
+            @click="isMobileDevice ? handleTimelineSlotTouch(0) : null"
             :data-drop-zone="0"
           >
-            <div class="p-8 border-2 border-dashed border-gray-500 rounded-2xl group-hover:border-purple-400 transition-colors duration-300 bg-gradient-to-br from-gray-800/30 to-gray-900/30 backdrop-blur-sm">
-              <p class="text-center text-gray-300 font-medium">{{ $t('game.timeline.placeHere') }}</p>
+            <div 
+              class="p-8 border-2 border-dashed border-gray-500 rounded-2xl group-hover:border-purple-400 transition-colors duration-300 bg-gradient-to-br from-gray-800/30 to-gray-900/30 backdrop-blur-sm"
+              :class="{ 
+                'border-green-400 bg-green-500/20': selectedPosition === 0 && isMobileDevice 
+              }"
+            >
+              <p class="text-center text-gray-300 font-medium">
+                {{ isMobileDevice ? $t('game.timeline.tapToSelect') : $t('game.timeline.placeHere') }}
+              </p>
             </div>
           </div>
         </div>
@@ -85,14 +97,26 @@
           <div
             v-if="canPlace"
             class="timeline-slot h-20 group"
-            :class="{ 'drag-over': dragOverPositions[0] }"
+            :class="{ 
+              'drag-over': dragOverPositions[0],
+              'selected': selectedPosition === 0 && isMobileDevice
+            }"
             @dragover.prevent="dragOverPositions[0] = true"
             @dragleave.prevent="dragOverPositions[0] = false"
             @drop.prevent="handleDrop(0)"
+            @touchstart.prevent="isMobileDevice ? handleTimelineSlotTouch(0) : null"
+            @click="isMobileDevice ? handleTimelineSlotTouch(0) : null"
             :data-drop-zone="0"
           >
-            <div class="h-full border-2 border-dashed border-gray-600 rounded-xl group-hover:border-cyan-400 transition-colors duration-300 bg-gradient-to-r from-gray-800/20 to-gray-700/20 backdrop-blur-sm flex items-center justify-center">
-              <p class="text-center text-gray-400 text-sm font-medium">{{ $t('game.placeEarlier') }}</p>
+            <div 
+              class="h-full border-2 border-dashed border-gray-600 rounded-xl group-hover:border-cyan-400 transition-colors duration-300 bg-gradient-to-r from-gray-800/20 to-gray-700/20 backdrop-blur-sm flex items-center justify-center"
+              :class="{ 
+                'border-green-400 bg-green-500/20': selectedPosition === 0 && isMobileDevice 
+              }"
+            >
+              <p class="text-center text-gray-400 text-sm font-medium">
+                {{ isMobileDevice ? $t('game.timeline.tapToSelect') : $t('game.placeEarlier') }}
+              </p>
             </div>
           </div>
 
@@ -135,14 +159,26 @@
             <div
               v-if="canPlace && index < (player.timeline?.length || 0) - 1"
               class="timeline-slot h-20 mt-3 group"
-              :class="{ 'drag-over': dragOverPositions[index + 1] }"
+              :class="{ 
+                'drag-over': dragOverPositions[index + 1],
+                'selected': selectedPosition === index + 1 && isMobileDevice
+              }"
               @dragover.prevent="dragOverPositions[index + 1] = true"
               @dragleave.prevent="dragOverPositions[index + 1] = false"
               @drop.prevent="handleDrop(index + 1)"
+              @touchstart.prevent="isMobileDevice ? handleTimelineSlotTouch(index + 1) : null"
+              @click="isMobileDevice ? handleTimelineSlotTouch(index + 1) : null"
               :data-drop-zone="index + 1"
             >
-              <div class="h-full border-2 border-dashed border-gray-600 rounded-xl group-hover:border-purple-400 transition-colors duration-300 bg-gradient-to-r from-gray-800/20 to-gray-700/20 backdrop-blur-sm flex items-center justify-center">
-                <p class="text-center text-gray-400 text-sm font-medium">{{ $t('game.placeBetween') }}</p>
+              <div 
+                class="h-full border-2 border-dashed border-gray-600 rounded-xl group-hover:border-purple-400 transition-colors duration-300 bg-gradient-to-r from-gray-800/20 to-gray-700/20 backdrop-blur-sm flex items-center justify-center"
+                :class="{ 
+                  'border-green-400 bg-green-500/20': selectedPosition === index + 1 && isMobileDevice 
+                }"
+              >
+                <p class="text-center text-gray-400 text-sm font-medium">
+                  {{ isMobileDevice ? $t('game.timeline.tapToSelect') : $t('game.placeBetween') }}
+                </p>
               </div>
             </div>
           </div>
@@ -151,14 +187,26 @@
         <div
           v-if="canPlace"
           class="timeline-slot h-20 group"
-          :class="{ 'drag-over': dragOverPositions[player.timeline?.length || 0] }"
+          :class="{ 
+            'drag-over': dragOverPositions[player.timeline?.length || 0],
+            'selected': selectedPosition === (player.timeline?.length || 0) && isMobileDevice
+          }"
           @dragover.prevent="dragOverPositions[player.timeline?.length || 0] = true"
           @dragleave.prevent="dragOverPositions[player.timeline?.length || 0] = false"
           @drop.prevent="handleDrop(player.timeline?.length || 0)"
+          @touchstart.prevent="isMobileDevice ? handleTimelineSlotTouch(player.timeline?.length || 0) : null"
+          @click="isMobileDevice ? handleTimelineSlotTouch(player.timeline?.length || 0) : null"
           :data-drop-zone="player.timeline?.length || 0"
         >
-          <div class="h-full border-2 border-dashed border-gray-600 rounded-xl group-hover:border-cyan-400 transition-colors duration-300 bg-gradient-to-r from-gray-800/20 to-gray-700/20 backdrop-blur-sm flex items-center justify-center">
-            <p class="text-center text-gray-400 text-sm font-medium">{{ $t('game.placeLater') }}</p>
+          <div 
+            class="h-full border-2 border-dashed border-gray-600 rounded-xl group-hover:border-cyan-400 transition-colors duration-300 bg-gradient-to-r from-gray-800/20 to-gray-700/20 backdrop-blur-sm flex items-center justify-center"
+            :class="{ 
+              'border-green-400 bg-green-500/20': selectedPosition === (player.timeline?.length || 0) && isMobileDevice 
+            }"
+          >
+            <p class="text-center text-gray-400 text-sm font-medium">
+              {{ isMobileDevice ? $t('game.timeline.tapToSelect') : $t('game.placeLater') }}
+            </p>
           </div>
         </div>
       </div>
@@ -204,6 +252,52 @@
       </div>
     </div>
     </div>
+
+    <!-- Mobile Touch Confirmation Dialog -->
+    <div v-if="showConfirmation && isMobileDevice" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div class="bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 border border-purple-500/20 shadow-2xl shadow-purple-500/10 rounded-2xl p-6 max-w-sm w-full mx-auto relative overflow-hidden">
+        <!-- Animated background patterns -->
+        <div class="absolute inset-0 opacity-10">
+          <div class="absolute top-0 left-0 w-24 h-24 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-full blur-3xl animate-pulse"></div>
+          <div class="absolute bottom-0 right-0 w-32 h-32 bg-gradient-to-br from-purple-500 to-pink-600 rounded-full blur-3xl animate-pulse delay-1000"></div>
+        </div>
+        
+        <div class="relative z-10">
+          <!-- Header -->
+          <div class="flex items-center space-x-3 mb-4">
+            <div class="w-10 h-10 bg-gradient-to-br from-green-500 to-blue-600 rounded-full flex items-center justify-center shadow-lg">
+              <span class="text-xl">📍</span>
+            </div>
+            <h3 class="text-xl font-bold bg-gradient-to-r from-green-300 to-blue-300 bg-clip-text text-transparent">
+              {{ $t('game.timeline.selectedPosition') }}
+            </h3>
+          </div>
+          
+          <!-- Position description -->
+          <div class="mb-6">
+            <p class="text-gray-200 text-lg leading-relaxed">
+              {{ getPositionDescription(selectedPosition) }}
+            </p>
+          </div>
+          
+          <!-- Action buttons -->
+          <div class="flex space-x-3">
+            <button 
+              @click="cancelSelection"
+              class="flex-1 px-4 py-3 bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-500 hover:to-gray-600 text-white font-medium rounded-xl transition-all duration-300 hover:scale-105 shadow-lg"
+            >
+              {{ $t('game.timeline.cancelSelection') }}
+            </button>
+            <button 
+              @click="confirmPlacement"
+              class="flex-1 px-4 py-3 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-500 hover:to-blue-500 text-white font-bold rounded-xl transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-green-500/25"
+            >
+              {{ $t('game.timeline.confirmPlacement') }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -229,6 +323,10 @@ const emit = defineEmits<{
 const dragOverFirst = ref(false)
 const dragOverPositions = ref<boolean[]>([])
 
+// Touch-to-select state for mobile
+const selectedPosition = ref<number | null>(null)
+const showConfirmation = ref(false)
+
 // Touch state for mobile drag and drop
 const isDragging = ref(false)
 const touchStartPos = ref({ x: 0, y: 0 })
@@ -237,6 +335,11 @@ const dragClone = ref<HTMLElement | null>(null)
 const dragPosition = ref({ x: 0, y: 0 })
 const scrollContainer = ref<HTMLElement | null>(null)
 let autoScrollInterval: number | null = null
+
+// Detect if user is on mobile/touch device
+const isMobileDevice = computed(() => {
+  return 'ontouchstart' in window || navigator.maxTouchPoints > 0
+})
 
 // Computed
 const timelineSpan = computed(() => {
@@ -300,6 +403,52 @@ function handleDrop(position: number) {
 
 function useTokenAbility(ability: string) {
   emit('useToken', ability)
+}
+
+// Touch-to-select methods for mobile
+function handleTimelineSlotTouch(position: number) {
+  if (!props.currentTrack || !props.canPlace) return
+  
+  // Select this position
+  selectedPosition.value = position
+  showConfirmation.value = true
+  
+  // Add haptic feedback
+  if ('vibrate' in navigator) {
+    navigator.vibrate(50)
+  }
+}
+
+function getPositionDescription(position: number | null): string {
+  if (position === null) return ''
+  
+  const timeline = props.player?.timeline || []
+  const timelineLength = timeline.length
+  
+  if (position === 0) {
+    if (timelineLength === 0) {
+      return 'Place as your first track'
+    } else {
+      return `Place before ${timeline[0].name} (${timeline[0].year})`
+    }
+  } else if (position === timelineLength) {
+    return `Place after ${timeline[timelineLength - 1].name} (${timeline[timelineLength - 1].year})`
+  } else {
+    return `Place between ${timeline[position - 1].name} (${timeline[position - 1].year}) and ${timeline[position].name} (${timeline[position].year})`
+  }
+}
+
+function confirmPlacement() {
+  if (selectedPosition.value !== null && props.currentTrack) {
+    emit('placeTrack', props.currentTrack, selectedPosition.value)
+    selectedPosition.value = null
+    showConfirmation.value = false
+  }
+}
+
+function cancelSelection() {
+  selectedPosition.value = null
+  showConfirmation.value = false
 }
 
 // Touch event handlers for mobile drag and drop

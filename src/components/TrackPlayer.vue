@@ -164,7 +164,7 @@
           </p>
         </div>
         <p class="text-purple-200 text-sm font-medium">
-          {{ $t('game.dragToTimeline') }}
+          {{ isMobileDevice ? $t('game.timeline.mobileInstructions') : $t('game.dragToTimeline') }}
         </p>
       </div>
     </div>
