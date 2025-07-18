@@ -65,7 +65,7 @@
             </button>
             
             <!-- Debug info -->
-            <div v-if="debugMessage" class="mt-4 p-3 bg-gray-800 rounded-lg text-sm">
+            <div v-if="debugMessage" class="mt-4 p-3 bg-gray-800 rounded-lg text-sm" style="display: none;">
               <p class="text-gray-300">Debug: {{ debugMessage }}</p>
               <button @click="refreshAuthState" class="mt-2 text-xs bg-blue-600 hover:bg-blue-700 px-2 py-1 rounded">
                 Refresh Auth State
