@@ -63,6 +63,14 @@
                 🎵 {{ $t('game.spotify.login') }}
               </span>
             </button>
+            
+            <!-- Debug info -->
+            <div v-if="debugMessage" class="mt-4 p-3 bg-gray-800 rounded-lg text-sm">
+              <p class="text-gray-300">Debug: {{ debugMessage }}</p>
+              <button @click="refreshAuthState" class="mt-2 text-xs bg-blue-600 hover:bg-blue-700 px-2 py-1 rounded">
+                Refresh Auth State
+              </button>
+            </div>
           </div>
 
           <!-- Game Setup Form -->
@@ -145,7 +153,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useGameStore } from '@/stores/game'
 import { spotifyService } from '@/services/spotify'
@@ -161,7 +169,7 @@ const targetSongs = ref(10)
 const selectedTheme = ref<Theme | ''>('')
 const isLoggingIn = ref(false)
 const isSpotifyAuthenticated = ref(false)
-const debugMessage = ref('')
+const debugMessage = ref('Auth state will be checked...')
 
 // Computed
 const hasSavedGame = computed(() => gameStore.players.length > 0 && gameStore.gamePhase !== 'setup')
@@ -177,6 +185,10 @@ const canStartGame = computed(() => {
 })
 
 // Methods
+function refreshAuthState() {
+  isSpotifyAuthenticated.value = spotifyService.isAuthenticated()
+}
+
 async function loginToSpotify() {
   isLoggingIn.value = true
   try {
@@ -213,17 +225,6 @@ async function testSpotifyPlayback() {
   try {
     console.log('Testing Spotify playback on mobile...')
     
-    // Check volume level
-    if (spotifyService.player) {
-      const volume = await spotifyService.player.getVolume()
-      console.log('Current player volume:', volume)
-      
-      if (volume === 0) {
-        console.log('Volume is 0, setting to 50%...')
-        await spotifyService.player.setVolume(0.5)
-      }
-    }
-    
     const isReady = spotifyService.isPlayerReady()
     debugMessage.value = `Player ready: ${isReady}`
     
@@ -239,7 +240,7 @@ async function testSpotifyPlayback() {
     }
   } catch (error) {
     console.error('Test failed:', error)
-    debugMessage.value = `Test failed: ${error.message}`
+    debugMessage.value = `Test failed: ${error instanceof Error ? error.message : 'Unknown error'}`
   }
 }
 
@@ -266,10 +267,53 @@ onMounted(() => {
       console.error('Error loading saved player names:', error)
     }
   }
+  
+  // Poll for authentication state changes (in case OAuth callback is processing)
+  const checkAuthInterval = setInterval(() => {
+    const currentAuthState = spotifyService.isAuthenticated()
+    if (currentAuthState !== isSpotifyAuthenticated.value) {
+      isSpotifyAuthenticated.value = currentAuthState
+      if (currentAuthState) {
+        spotifyService.initializePlayerIfReady()
+        clearInterval(checkAuthInterval)
+      }
+    }
+  }, 500)
+  
+  // Clear interval after 10 seconds to avoid infinite polling
+  setTimeout(() => {
+    clearInterval(checkAuthInterval)
+  }, 10000)
+  
+  // Add focus event listener to check auth when user returns to page
+  const handleFocus = () => {
+    const currentAuthState = spotifyService.isAuthenticated()
+    if (currentAuthState !== isSpotifyAuthenticated.value) {
+      isSpotifyAuthenticated.value = currentAuthState
+      if (currentAuthState) {
+        spotifyService.initializePlayerIfReady()
+      }
+    }
+  }
+  
+  window.addEventListener('focus', handleFocus)
+  
+  // Cleanup on unmount
+  onUnmounted(() => {
+    window.removeEventListener('focus', handleFocus)
+    clearInterval(checkAuthInterval)
+  })
 })
 
 // Watch for player name changes to save them
 import { watch } from 'vue'
+
+// Watch for authentication state changes and update the page
+watch(isSpotifyAuthenticated, (newAuth) => {
+  if (newAuth) {
+    spotifyService.initializePlayerIfReady()
+  }
+}, { immediate: true })
 
 // Watch player count changes to ensure proper reactivity
 watch(playerCount, (newCount) => {

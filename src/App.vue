@@ -40,6 +40,8 @@ onMounted(async () => {
     isLoading.value = true
     try {
       await spotifyService.handleCallback()
+      // Clear URL parameters after successful callback
+      window.history.replaceState({}, document.title, window.location.pathname)
     } catch (error) {
       console.error('OAuth callback error:', error)
     } finally {
