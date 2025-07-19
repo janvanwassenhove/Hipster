@@ -16,6 +16,13 @@
     
     <!-- Spotify Web Playback SDK -->
     <script src="https://sdk.scdn.co/spotify-player.js"></script>
+    <!-- Mobile Console Debug Tool (remove in production) -->
+    <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
+    <script>
+      if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+        eruda.init();
+      }
+    </script>
     <script type="module" crossorigin src="/Hipster/assets/index-x2DyAyEc.js"></script>
     <link rel="stylesheet" crossorigin href="/Hipster/assets/index-DtoJgXh5.css">
   <link rel="manifest" href="/Hipster/manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/Hipster/registerSW.js"></script></head>
