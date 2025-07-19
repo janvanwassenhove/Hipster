@@ -286,8 +286,11 @@
             <p>Selected Position: {{ selectedPosition }}</p>
             <p>Show Confirmation: {{ showConfirmation }}</p>
             <p>Current Track: {{ !!currentTrack }}</p>
+            <p>Can Place: {{ canPlace }}</p>
             <p>Touch Events Supported: {{ touchSupported }}</p>
             <p>Max Touch Points: {{ maxTouchPoints }}</p>
+            <p>User Agent: {{ userAgent }}</p>
+            <p>Window Size: {{ windowSize }}</p>
             <button @click="testDebugFunction" class="bg-red-500 text-white px-2 py-1 rounded mt-1">Test Debug</button>
             
             <!-- Debug Event Log -->
@@ -371,13 +374,36 @@ const selectedPosition = ref<number | null>(null)
 const showConfirmation = ref(false)
 const buttonTouchState = ref({ isPressed: false, action: '' })
 
-// Debug state for mobile
-const showDebugInfo = ref(false)
-const debugMessage = ref('')
+// Debug state for mobile troubleshooting
+const showDebugInfo = ref(true) // Enable by default for testing
 const debugEvents = ref<string[]>([])
-
-// Touch event tracking for debugging
+const debugMessage = ref('')
 const touchEventCounter = ref(0)
+
+// Debug helper functions
+function addDebugEvent(message: string) {
+  const timestamp = new Date().toLocaleTimeString()
+  const logMessage = `[${timestamp}] ${message}`
+  debugEvents.value.unshift(logMessage)
+  debugMessage.value = logMessage
+  console.log('MOBILE_DEBUG:', logMessage)
+  
+  // Keep only last 10 events
+  if (debugEvents.value.length > 10) {
+    debugEvents.value = debugEvents.value.slice(0, 10)
+  }
+}
+
+function toggleDebugInfo() {
+  showDebugInfo.value = !showDebugInfo.value
+  addDebugEvent(`Debug info ${showDebugInfo.value ? 'enabled' : 'disabled'}`)
+}
+
+function testDebugFunction() {
+  addDebugEvent('Debug button clicked - system working')
+}
+
+// Touch state for mobile drag and drop (removed on mobile devices)
 
 // Detect if user is on mobile/touch device
 const isMobileDevice = computed(() => {
@@ -387,6 +413,12 @@ const isMobileDevice = computed(() => {
 // Debug computed properties for template access
 const touchSupported = computed(() => 'ontouchstart' in window)
 const maxTouchPoints = computed(() => navigator.maxTouchPoints || 0)
+const userAgent = computed(() => navigator.userAgent)
+const windowSize = computed(() => `${window.innerWidth}x${window.innerHeight}`)
+
+// Initialize debug logging
+addDebugEvent('PlayerTimeline component initialized')
+addDebugEvent(`Environment: ${isMobileDevice.value ? 'Mobile' : 'Desktop'}, Touch: ${touchSupported.value}`)
 
 // Computed
 const timelineSpan = computed(() => {
@@ -454,15 +486,23 @@ function useTokenAbility(ability: string) {
 
 // Touch-to-select methods for mobile
 function handleTimelineSlotTouch(position: number) {
-  if (!props.currentTrack || !props.canPlace) return
+  addDebugEvent(`Timeline slot touched: position ${position}`)
+  
+  if (!props.currentTrack || !props.canPlace) {
+    addDebugEvent(`Cannot place: currentTrack=${!!props.currentTrack}, canPlace=${props.canPlace}`)
+    return
+  }
   
   // Select this position
   selectedPosition.value = position
   showConfirmation.value = true
   
+  addDebugEvent(`Dialog opened: position=${position}, showConfirmation=${showConfirmation.value}`)
+  
   // Add haptic feedback
   if ('vibrate' in navigator) {
     navigator.vibrate(50)
+    addDebugEvent('Haptic feedback triggered')
   }
 }
 
@@ -526,6 +566,16 @@ watch(
   },
   { immediate: true }
 )
+
+// Watch for confirmation dialog state changes
+watch(showConfirmation, (newValue, oldValue) => {
+  if (newValue && !oldValue) {
+    addDebugEvent(`Confirmation dialog opened - position: ${selectedPosition.value}`)
+    addDebugEvent(`Device info - Mobile: ${isMobileDevice.value}, Touch: ${touchSupported.value}, MaxTouch: ${maxTouchPoints.value}`)
+  } else if (!newValue && oldValue) {
+    addDebugEvent('Confirmation dialog closed')
+  }
+})
 
 // Button event handlers for mobile confirmation dialog
 function handleCancelClick(event: Event) {
@@ -638,9 +688,10 @@ function handleTouchCancel(event: TouchEvent) {
 // Simplified button handlers that should always work
 function performCancel(event?: Event) {
   console.log('performCancel called')
-  logDebugEvent('performCancel called')
+  addDebugEvent('performCancel called')
   
   if (event) {
+    addDebugEvent(`Cancel event: ${event.type}, target: ${(event.target as HTMLElement)?.tagName}`)
     event.preventDefault()
     event.stopPropagation()
   }
@@ -648,18 +699,20 @@ function performCancel(event?: Event) {
   // Add haptic feedback
   if ('vibrate' in navigator) {
     navigator.vibrate(50)
+    addDebugEvent('Cancel haptic feedback triggered')
   }
   
   selectedPosition.value = null
   showConfirmation.value = false
-  logDebugEvent('Dialog closed via cancel')
+  addDebugEvent(`Dialog closed via cancel: position=${selectedPosition.value}, shown=${showConfirmation.value}`)
 }
 
 function performConfirm(event?: Event) {
   console.log('performConfirm called')
-  logDebugEvent('performConfirm called')
+  addDebugEvent('performConfirm called')
   
   if (event) {
+    addDebugEvent(`Confirm event: ${event.type}, target: ${(event.target as HTMLElement)?.tagName}`)
     event.preventDefault()
     event.stopPropagation()
   }
@@ -667,31 +720,17 @@ function performConfirm(event?: Event) {
   // Add haptic feedback
   if ('vibrate' in navigator) {
     navigator.vibrate(100)
+    addDebugEvent('Confirm haptic feedback triggered')
   }
   
   if (selectedPosition.value !== null && props.currentTrack) {
+    addDebugEvent(`Placing track "${props.currentTrack.name}" at position ${selectedPosition.value}`)
     emit('placeTrack', props.currentTrack, selectedPosition.value)
     selectedPosition.value = null
     showConfirmation.value = false
-    logDebugEvent('Track placed successfully')
+    addDebugEvent('Track placed successfully - dialog closed')
   } else {
-    logDebugEvent('Cannot confirm - missing track or position')
-  }
-}
-
-// Debug functions for mobile testing
-function toggleDebugInfo() {
-  showDebugInfo.value = !showDebugInfo.value
-  debugMessage.value = `Debug toggled: ${showDebugInfo.value}`
-}
-
-function testDebugFunction() {
-  debugMessage.value = `Test clicked at ${new Date().toLocaleTimeString()}`
-  console.log('Test debug function called')
-  
-  // Add haptic feedback
-  if ('vibrate' in navigator) {
-    navigator.vibrate([50, 100, 50])
+    addDebugEvent(`Cannot confirm - position=${selectedPosition.value}, track=${props.currentTrack?.name || 'null'}`)
   }
 }
 
@@ -711,7 +750,7 @@ function logDebugEvent(event: string) {
 // Enhanced touch event handlers with debugging
 function handleTouchStart(action: string, event: TouchEvent) {
   touchEventCounter.value++
-  logDebugEvent(`TouchStart ${action} (#${touchEventCounter.value})`)
+  addDebugEvent(`TouchStart ${action} (#${touchEventCounter.value})`)
   
   event.preventDefault()
   event.stopPropagation()
@@ -723,10 +762,12 @@ function handleTouchStart(action: string, event: TouchEvent) {
   target.style.transform = 'scale(0.95)'
   target.style.opacity = '0.8'
   target.style.backgroundColor = action === 'cancel' ? '#ef4444' : '#10b981'
+  
+  addDebugEvent(`Visual feedback applied to ${action} button`)
 }
 
 function handleTouchEnd(action: string, event: TouchEvent) {
-  logDebugEvent(`TouchEnd ${action} (#${touchEventCounter.value})`)
+  addDebugEvent(`TouchEnd ${action} (#${touchEventCounter.value})`)
   
   event.preventDefault()
   event.stopPropagation()
@@ -739,36 +780,37 @@ function handleTouchEnd(action: string, event: TouchEvent) {
   
   // Only execute if this was the button being pressed
   if (buttonTouchState.value.isPressed && buttonTouchState.value.action === action) {
-    logDebugEvent(`Executing ${action} action`)
+    addDebugEvent(`Executing ${action} action`)
     
     // Add haptic feedback
     if ('vibrate' in navigator) {
       navigator.vibrate(action === 'cancel' ? 50 : 100)
+      addDebugEvent(`Haptic feedback triggered for ${action}`)
     }
     
     buttonTouchState.value = { isPressed: false, action: '' }
     
     // Execute the action
     if (action === 'cancel') {
-      logDebugEvent('Calling cancelSelection')
-      cancelSelection()
+      addDebugEvent('Calling performCancel')
+      performCancel()
     } else if (action === 'confirm') {
-      logDebugEvent('Calling confirmPlacement')
-      confirmPlacement()
+      addDebugEvent('Calling performConfirm')
+      performConfirm()
     }
   } else {
-    logDebugEvent(`TouchEnd ignored - state mismatch: ${JSON.stringify(buttonTouchState.value)}`)
+    addDebugEvent(`TouchEnd ignored - state mismatch: expected=${action}, actual=${buttonTouchState.value.action}`)
   }
 }
 
 function handleMouseDown(action: string, event: MouseEvent) {
-  logDebugEvent(`MouseDown ${action}`)
+  addDebugEvent(`MouseDown ${action}`)
   event.preventDefault()
   event.stopPropagation()
 }
 
 function handleMouseUp(action: string, event: MouseEvent) {
-  logDebugEvent(`MouseUp ${action}`)
+  addDebugEvent(`MouseUp ${action}`)
   event.preventDefault()
   event.stopPropagation()
 }
