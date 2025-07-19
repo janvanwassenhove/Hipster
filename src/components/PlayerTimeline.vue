@@ -68,12 +68,12 @@
             v-if="canPlace"
             class="timeline-slot mt-6 group"
             :class="{ 
-              'drag-over': dragOverFirst,
+              'drag-over': !isMobileDevice && dragOverFirst,
               'selected': selectedPosition === 0 && isMobileDevice
             }"
-            @dragover.prevent="dragOverFirst = true"
-            @dragleave.prevent="dragOverFirst = false"
-            @drop.prevent="handleDrop(0)"
+            @dragover.prevent="!isMobileDevice ? (dragOverFirst = true) : null"
+            @dragleave.prevent="!isMobileDevice ? (dragOverFirst = false) : null"
+            @drop.prevent="!isMobileDevice ? handleDrop(0) : null"
             @touchstart.prevent="isMobileDevice ? handleTimelineSlotTouch(0) : null"
             @click="isMobileDevice ? handleTimelineSlotTouch(0) : null"
             :data-drop-zone="0"
@@ -98,12 +98,12 @@
             v-if="canPlace"
             class="timeline-slot h-20 group"
             :class="{ 
-              'drag-over': dragOverPositions[0],
+              'drag-over': !isMobileDevice && dragOverPositions[0],
               'selected': selectedPosition === 0 && isMobileDevice
             }"
-            @dragover.prevent="dragOverPositions[0] = true"
-            @dragleave.prevent="dragOverPositions[0] = false"
-            @drop.prevent="handleDrop(0)"
+            @dragover.prevent="!isMobileDevice ? (dragOverPositions[0] = true) : null"
+            @dragleave.prevent="!isMobileDevice ? (dragOverPositions[0] = false) : null"
+            @drop.prevent="!isMobileDevice ? handleDrop(0) : null"
             @touchstart.prevent="isMobileDevice ? handleTimelineSlotTouch(0) : null"
             @click="isMobileDevice ? handleTimelineSlotTouch(0) : null"
             :data-drop-zone="0"
@@ -188,12 +188,12 @@
           v-if="canPlace"
           class="timeline-slot h-20 group"
           :class="{ 
-            'drag-over': dragOverPositions[player.timeline?.length || 0],
+            'drag-over': !isMobileDevice && dragOverPositions[player.timeline?.length || 0],
             'selected': selectedPosition === (player.timeline?.length || 0) && isMobileDevice
           }"
-          @dragover.prevent="dragOverPositions[player.timeline?.length || 0] = true"
-          @dragleave.prevent="dragOverPositions[player.timeline?.length || 0] = false"
-          @drop.prevent="handleDrop(player.timeline?.length || 0)"
+          @dragover.prevent="!isMobileDevice ? (dragOverPositions[player.timeline?.length || 0] = true) : null"
+          @dragleave.prevent="!isMobileDevice ? (dragOverPositions[player.timeline?.length || 0] = false) : null"
+          @drop.prevent="!isMobileDevice ? handleDrop(player.timeline?.length || 0) : null"
           @touchstart.prevent="isMobileDevice ? handleTimelineSlotTouch(player.timeline?.length || 0) : null"
           @click="isMobileDevice ? handleTimelineSlotTouch(player.timeline?.length || 0) : null"
           :data-drop-zone="player.timeline?.length || 0"
@@ -212,20 +212,15 @@
       </div>
     </div>
 
-    <!-- Current Track (draggable) -->
+    <!-- Current Track (draggable for desktop, tap-to-place for mobile) -->
     <div
       v-if="canPlace && currentTrack"
-      ref="scrollContainer"
-      class="timeline-container p-6 bg-gradient-to-r from-blue-900/50 to-purple-900/50 border-2 border-blue-400/30 rounded-2xl cursor-move touch-manipulation select-none backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]"
-      draggable="true"
-      @dragstart="handleDragStart"
-      @dragend="handleDragEnd"
-      @touchstart="handleTouchStart"
-      @touchmove="handleTouchMove"
-      @touchend="handleTouchEnd"
-      @mousemove="handleMouseMove"
-      @mouseup="handleMouseUp"
-      :style="{ touchAction: 'none' }"
+      class="timeline-container p-6 bg-gradient-to-r from-blue-900/50 to-purple-900/50 border-2 border-blue-400/30 rounded-2xl select-none backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]"
+      :class="isMobileDevice ? 'cursor-pointer' : 'cursor-move'"
+      :draggable="!isMobileDevice"
+      @dragstart="!isMobileDevice ? handleDragStart : null"
+      @dragend="!isMobileDevice ? handleDragEnd : null"
+      @click="isMobileDevice ? showMobilePlacementInstructions : null"
     >
       <div class="flex items-center space-x-4">
         <!-- Hidden Album Cover - show placeholder instead -->
@@ -236,7 +231,7 @@
         </div>
         <div class="flex-1 min-w-0">
           <p class="font-bold text-lg text-blue-200">{{ $t('game.newTrack') }}</p>
-          <p class="text-sm text-blue-300 font-medium">{{ $t('game.dragToPlace') }}</p>
+          <p class="text-sm text-blue-300 font-medium">{{ isMobileDevice ? $t('game.tapToPlace') : $t('game.dragToPlace') }}</p>
         </div>
         <div class="text-blue-300">
           <span class="text-3xl animate-pulse">🎵</span>
@@ -323,7 +318,7 @@ const emit = defineEmits<{
   useToken: [ability: string]
 }>()
 
-// Reactive state
+// Reactive state - only for desktop drag and drop
 const dragOverFirst = ref(false)
 const dragOverPositions = ref<boolean[]>([])
 
@@ -331,15 +326,6 @@ const dragOverPositions = ref<boolean[]>([])
 const selectedPosition = ref<number | null>(null)
 const showConfirmation = ref(false)
 const buttonTouchState = ref({ isPressed: false, action: '' })
-
-// Touch state for mobile drag and drop
-const isDragging = ref(false)
-const touchStartPos = ref({ x: 0, y: 0 })
-const currentTouchPos = ref({ x: 0, y: 0 })
-const dragClone = ref<HTMLElement | null>(null)
-const dragPosition = ref({ x: 0, y: 0 })
-const scrollContainer = ref<HTMLElement | null>(null)
-let autoScrollInterval: number | null = null
 
 // Detect if user is on mobile/touch device
 const isMobileDevice = computed(() => {
@@ -443,6 +429,11 @@ function getPositionDescription(position: number | null): string {
   }
 }
 
+function cancelSelection() {
+  selectedPosition.value = null
+  showConfirmation.value = false
+}
+
 function confirmPlacement() {
   if (selectedPosition.value !== null && props.currentTrack) {
     emit('placeTrack', props.currentTrack, selectedPosition.value)
@@ -451,222 +442,12 @@ function confirmPlacement() {
   }
 }
 
-function cancelSelection() {
-  selectedPosition.value = null
-  showConfirmation.value = false
-}
-
-// Touch event handlers for mobile drag and drop
-function handleTouchStart(event: TouchEvent) {
-  if (!props.currentTrack || !props.canPlace) return
-  
-  try {
-    event.preventDefault()
-    isDragging.value = true
-    
-    const touch = event.touches[0]
-    if (!touch) return
-    
-    touchStartPos.value = { x: touch.clientX, y: touch.clientY }
-    currentTouchPos.value = { x: touch.clientX, y: touch.clientY }
-    
-    // Create visual clone for dragging
-    const target = event.target as HTMLElement
-    const rect = target.getBoundingClientRect()
-    
-    dragClone.value = target.cloneNode(true) as HTMLElement
-    dragClone.value.style.position = 'fixed'
-    dragClone.value.style.top = `${rect.top}px`
-    dragClone.value.style.left = `${rect.left}px`
-    dragClone.value.style.width = `${rect.width}px`
-    dragClone.value.style.height = `${rect.height}px`
-    dragClone.value.style.zIndex = '9999'
-    dragClone.value.style.opacity = '0.8'
-    dragClone.value.style.transform = 'rotate(2deg)'
-    dragClone.value.style.pointerEvents = 'none'
-    dragClone.value.classList.add('dragging')
-    
-    document.body.appendChild(dragClone.value)
-    
-    // Add dragging class to original
-    target.classList.add('dragging')
-    
-    // Add visual feedback with slight vibration effect (if supported)
-    if ('vibrate' in navigator) {
-      navigator.vibrate(50)
-    }
-  } catch (error) {
-    console.warn('Touch start error:', error)
-    cleanupTouchState()
-  }
-}
-
-function handleTouchMove(event: TouchEvent) {
-  if (!isDragging.value) return
-  
-  event.preventDefault()
-  const touch = event.touches[0]
-  
-  // Start auto-scroll based on touch position
-  startAutoScroll(touch.clientY)
-  
-  // Update drag position
-  dragPosition.value = {
-    x: touch.clientX,
-    y: touch.clientY
-  }
-  
-  // Move the clone with better offset
-  const offsetX = 50
-  const offsetY = 50
-  if (dragClone.value) {
-    dragClone.value.style.left = `${touch.clientX - offsetX}px`
-    dragClone.value.style.top = `${touch.clientY - offsetY}px`
-  }
-  
-  // Check for drop zones
-  const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY)
-  const dropZone = elementBelow?.closest('[data-drop-zone]')
-  
-  // Reset all drag over states
-  dragOverFirst.value = false
-  dragOverPositions.value.fill(false)
-  
-  if (dropZone) {
-    const position = parseInt(dropZone.getAttribute('data-drop-zone') || '0')
-    if (position === 0) {
-      dragOverFirst.value = true
-    } else if (position <= dragOverPositions.value.length) {
-      dragOverPositions.value[position] = true
-    }
-  }
-}
-
-function handleTouchEnd(event: TouchEvent) {
-  // Stop auto-scroll
-  stopAutoScroll()
-  
-  if (!isDragging.value) return
-  
-  try {
-    event.preventDefault()
-    isDragging.value = false
-    
-    // Find drop target
-    const touch = event.changedTouches[0]
-    if (!touch) {
-      cleanupTouchState()
-      return
-    }
-    
-    const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY)
-    const dropZone = elementBelow?.closest('[data-drop-zone]')
-    
-    // Clean up visual elements
-    if (dragClone.value) {
-      // Add a smooth fade-out effect before removing
-      dragClone.value.style.transition = 'opacity 0.2s ease-out'
-      dragClone.value.style.opacity = '0'
-      
-      setTimeout(() => {
-        if (dragClone.value && document.body.contains(dragClone.value)) {
-          document.body.removeChild(dragClone.value)
-        }
-        dragClone.value = null
-      }, 200)
-    }
-    
-    // Remove dragging class from original
-    const draggingElement = document.querySelector('.dragging')
-    if (draggingElement) {
-      draggingElement.classList.remove('dragging')
-    }
-    
-    // Reset drag over states
-    dragOverFirst.value = false
-    dragOverPositions.value.fill(false)
-    
-    // Handle drop if valid
-    if (dropZone && props.currentTrack) {
-      const dropPosition = parseInt(dropZone.getAttribute('data-drop-zone') || '0')
-      
-      // Add haptic feedback for successful drop
-      if ('vibrate' in navigator) {
-        navigator.vibrate(100)
-      }
-      
-      emit('placeTrack', props.currentTrack, dropPosition)
-    }
-  } catch (error) {
-    console.warn('Touch end error:', error)
-    cleanupTouchState()
-  }
-}
-
-// Mouse handlers for desktop
-function handleMouseMove(event: MouseEvent) {
-  if (!isDragging.value) return
-  
-  // Start auto-scroll for mouse drag too
-  startAutoScroll(event.clientY)
-  
-  // Update drag position
-  dragPosition.value = {
-    x: event.clientX,
-    y: event.clientY
-  }
-}
-
-function handleMouseUp() {
-  stopAutoScroll()
-  // Clean up visual elements
-  if (dragClone.value) {
-    // Add a smooth fade-out effect before removing
-    dragClone.value.style.transition = 'opacity 0.2s ease-out'
-    dragClone.value.style.opacity = '0'
-    
-    setTimeout(() => {
-      if (dragClone.value && document.body.contains(dragClone.value)) {
-        document.body.removeChild(dragClone.value)
-      }
-      dragClone.value = null
-    }, 200)
-  }
-  
-  // Remove dragging class from original
-  const draggingElement = document.querySelector('.dragging')
-  if (draggingElement) {
-    draggingElement.classList.remove('dragging')
-  }
-  
-  // Reset drag over states
-  dragOverFirst.value = false
-  dragOverPositions.value.fill(false)
-}
-
-// Auto-scroll functionality
-function startAutoScroll(clientY: number) {
-  if (autoScrollInterval) return
-  
-  autoScrollInterval = setInterval(() => {
-    const viewportHeight = window.innerHeight
-    const scrollThreshold = 100 // pixels from edge to trigger scroll
-    const scrollSpeed = 5 // pixels per interval
-    
-    if (clientY < scrollThreshold) {
-      // Scroll up
-      window.scrollBy(0, -scrollSpeed)
-    } else if (clientY > viewportHeight - scrollThreshold) {
-      // Scroll down
-      window.scrollBy(0, scrollSpeed)
-    }
-  }, 16) // ~60fps
-}
-
-function stopAutoScroll() {
-  if (autoScrollInterval) {
-    clearInterval(autoScrollInterval)
-    autoScrollInterval = null
+// Mobile placement instructions
+function showMobilePlacementInstructions() {
+  // For now, we can show a simple instruction or tooltip
+  // This could be expanded to show a help dialog
+  if ('vibrate' in navigator) {
+    navigator.vibrate(50)
   }
 }
 
@@ -676,26 +457,9 @@ function initializeDragOverPositions() {
   dragOverPositions.value = new Array(timeline.length + 1).fill(false)
 }
 
-// Cleanup function for touch interactions
-function cleanupTouchState() {
-  isDragging.value = false
-  dragOverFirst.value = false
-  dragOverPositions.value.fill(false)
-  
-  if (dragClone.value && document.body.contains(dragClone.value)) {
-    document.body.removeChild(dragClone.value)
-    dragClone.value = null
-  }
-  
-  // Remove dragging class from any elements
-  const draggingElements = document.querySelectorAll('.dragging')
-  draggingElements.forEach(el => el.classList.remove('dragging'))
-}
-
 // Clean up on component unmount
 onUnmounted(() => {
-  stopAutoScroll()
-  cleanupTouchState()
+  // Cleanup for desktop drag and drop only
 })
 
 // Watch for timeline changes to update drag over positions
