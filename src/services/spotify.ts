@@ -62,6 +62,7 @@ class SpotifyService {
   private authCheckInProgress = false // Prevent concurrent auth checks
   private lastTokenRefresh = 0 // Prevent excessive token refresh attempts
   private sessionMaintenanceInterval: number | null = null // For mobile session maintenance
+  private tokenRefreshInterval: number | null = null // For automatic token refresh
 
   constructor() {
     this.loadAuthState()
@@ -77,6 +78,43 @@ class SpotifyService {
       console.log('✅ Spotify Web Playback SDK already loaded')
       this.initializeWebPlaybackSDK()
     }
+
+    // Start automatic token refresh if authenticated
+    if (this.isAuthenticated()) {
+      this.startTokenRefreshTimer()
+    }
+    
+    // Set up visibility change handler for mobile session management
+    this.setupVisibilityChangeHandler()
+  }
+
+  // Set up visibility change handler to help maintain mobile sessions
+  private setupVisibilityChangeHandler(): void {
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|CriOS/i.test(navigator.userAgent)
+    
+    if (!isMobile) {
+      return // Only needed for mobile
+    }
+    
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && this.isAuthenticated()) {
+        console.log('📱 Mobile: App became visible - checking session status...')
+        // When app becomes visible again, immediately check session
+        setTimeout(async () => {
+          await this.maintainActiveSession()
+        }, 1000)
+      }
+    })
+    
+    // Also handle page focus events
+    window.addEventListener('focus', () => {
+      if (this.isAuthenticated()) {
+        console.log('📱 Mobile: App gained focus - refreshing session...')
+        setTimeout(async () => {
+          await this.maintainActiveSession()
+        }, 500)
+      }
+    })
   }
 
   // Generate PKCE code verifier and challenge
@@ -683,11 +721,18 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
     this.lastAuthCheck = now
     
     try {
-      // Check if token has expired
-      if (this.authState.expiresAt && now >= this.authState.expiresAt) {
-        console.log('Token has expired, logging out')
-        this.logout()
-        return false
+      // Check if token will expire soon (within 5 minutes) and refresh it
+      if (this.authState.expiresAt && now >= (this.authState.expiresAt - 300000)) {
+        console.log('Token is expiring soon or has expired, attempting refresh...')
+        // Don't block on refresh, but trigger it in background
+        this.refreshTokenInBackground()
+        
+        // If token is already expired, return false
+        if (now >= this.authState.expiresAt) {
+          console.log('Token has expired, logging out')
+          this.logout()
+          return false
+        }
       }
       
       const isAuth = this.authState.isAuthenticated && !!this.authState.accessToken
@@ -695,6 +740,57 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
       return isAuth
     } finally {
       this.authCheckInProgress = false
+    }
+  }
+
+  // Background token refresh to avoid blocking operations
+  private async refreshTokenInBackground(): Promise<void> {
+    try {
+      await this.refreshAccessToken()
+      console.log('✅ Background token refresh successful')
+    } catch (error) {
+      console.error('❌ Background token refresh failed:', error)
+    }
+  }
+
+  // Start automatic token refresh timer
+  private startTokenRefreshTimer(): void {
+    if (this.tokenRefreshInterval) {
+      clearInterval(this.tokenRefreshInterval)
+    }
+
+    if (!this.authState.expiresAt) {
+      return
+    }
+
+    // Calculate time until token expires (minus 5 minutes buffer)
+    const expiresIn = this.authState.expiresAt - Date.now() - 300000 // 5 minutes before expiry
+    
+    if (expiresIn <= 0) {
+      // Token is already expired or about to expire, refresh immediately
+      this.refreshTokenInBackground()
+      return
+    }
+
+    console.log(`⏰ Token refresh scheduled in ${Math.round(expiresIn / 1000 / 60)} minutes`)
+
+    this.tokenRefreshInterval = setTimeout(async () => {
+      console.log('⏰ Automatic token refresh triggered')
+      await this.refreshTokenInBackground()
+      
+      // Schedule next refresh
+      if (this.isAuthenticated()) {
+        this.startTokenRefreshTimer()
+      }
+    }, expiresIn)
+  }
+
+  // Stop automatic token refresh timer
+  private stopTokenRefreshTimer(): void {
+    if (this.tokenRefreshInterval) {
+      clearTimeout(this.tokenRefreshInterval)
+      this.tokenRefreshInterval = null
+      console.log('⏰ Stopped automatic token refresh')
     }
   }
 
@@ -1615,10 +1711,54 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
   // Method to maintain active Spotify Connect session (especially for mobile)
   async maintainActiveSession(): Promise<boolean> {
     try {
+      // First, check if we need to refresh the access token
+      if (this.authState.expiresAt && Date.now() >= (this.authState.expiresAt - 300000)) {
+        console.log('📱 Mobile: Refreshing token as part of session maintenance...')
+        try {
+          await this.refreshAccessToken()
+        } catch (error) {
+          console.error('📱 Mobile: Token refresh failed during session maintenance:', error)
+          return false
+        }
+      }
+
       // Check current playback state
       const state = await this.getSpotifyConnectState()
       
-      if (!state || !state.device) {
+      if (state && state.device) {
+        console.log('📱 Mobile: Spotify Connect session is active on:', state.device.name)
+        
+        // Instead of just pinging, send a more meaningful request to keep session alive
+        // Use the "currently playing" endpoint which is lighter but keeps the session active
+        try {
+          const response = await fetch('https://api.spotify.com/v1/me/player/currently-playing', {
+            headers: {
+              'Authorization': `Bearer ${this.authState.accessToken}`
+            }
+          })
+          
+          if (response.ok || response.status === 204) {
+            console.log('📱 Mobile: Successfully maintained session via currently-playing check')
+            
+            // Additionally, send a volume check to the specific device to keep it warm
+            try {
+              await fetch(`https://api.spotify.com/v1/me/player?device_id=${state.device.id}`, {
+                headers: {
+                  'Authorization': `Bearer ${this.authState.accessToken}`
+                }
+              })
+              console.log('📱 Mobile: Device-specific ping successful')
+            } catch (error) {
+              console.warn('📱 Mobile: Device-specific ping failed (but session maintained):', error)
+            }
+          } else {
+            console.warn('📱 Mobile: Currently-playing check failed:', response.status)
+          }
+        } catch (error) {
+          console.warn('📱 Mobile: Failed to maintain session via currently-playing:', error)
+        }
+        return true
+      } else {
         console.log('🔄 No active Spotify session detected, attempting to activate...')
         
         // Get available devices
@@ -1632,7 +1772,7 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
           return false
         }
         
-        // Transfer playback to activate the device (without starting playback)
+        // Transfer playbook to activate the device (without starting playback)
         const transferResponse = await fetch('https://api.spotify.com/v1/me/player', {
           method: 'PUT',
           headers: {
@@ -1647,15 +1787,26 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
 
         if (transferResponse.ok || transferResponse.status === 204) {
           console.log('✅ Successfully reactivated Spotify session on device:', availableDevice.name)
+          
+          // Wait a moment for activation to complete
+          await new Promise(resolve => setTimeout(resolve, 1000))
+          
+          // Verify activation by checking devices again
+          const updatedDevices = await this.getAvailableDevices()
+          const activatedDevice = updatedDevices.find(d => d.id === availableDevice.id)
+          
+          if (activatedDevice && activatedDevice.is_active) {
+            console.log('✅ Device activation confirmed:', activatedDevice.name)
+          } else {
+            console.warn('⚠️ Device activation unclear, but continuing...')
+          }
+          
           return true
         } else {
-          console.error('❌ Failed to reactivate Spotify session')
+          console.error('❌ Failed to reactivate Spotify session:', transferResponse.status)
           return false
         }
       }
-      
-      console.log('✅ Spotify session is active on device:', state.device.name)
-      return true
     } catch (error) {
       console.error('Error maintaining active session:', error)
       return false
@@ -1676,14 +1827,30 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
       clearInterval(this.sessionMaintenanceInterval)
     }
     
-    console.log('📱 Starting Spotify session maintenance for mobile device...')
+    console.log('📱 Starting enhanced Spotify session maintenance for mobile device...')
     
-    // Check and maintain session every 30 seconds
+    // More aggressive session maintenance every 15 seconds to prevent 30-second timeout
+    // This is crucial for mobile devices where Spotify Connect sessions are more fragile
     this.sessionMaintenanceInterval = setInterval(async () => {
       if (this.isAuthenticated()) {
+        console.log('🔄 Running session maintenance check...')
+        const success = await this.maintainActiveSession()
+        if (!success) {
+          console.warn('⚠️ Session maintenance failed - connection may be unstable')
+        }
+      } else {
+        console.log('📱 Not authenticated, stopping session maintenance')
+        this.stopSessionMaintenance()
+      }
+    }, 15000) // Changed from 20000 to 15000 (15 seconds) for more aggressive maintenance
+    
+    // Also perform an immediate session check
+    setTimeout(async () => {
+      if (this.isAuthenticated()) {
+        console.log('🔄 Initial session maintenance check...')
         await this.maintainActiveSession()
       }
-    }, 5000)
+    }, 2000) // Initial check after 2 seconds
   }
 
   // Stop session maintenance
@@ -1708,14 +1875,53 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
       const state = await this.getSpotifyConnectState()
       
       if (state && state.is_playing) {
-        console.log('📱 Mobile: Spotify Connect session is active')
+        console.log('📱 Mobile: Spotify Connect session is active with playback')
+        
+        // Send a light keepalive request to maintain connection
+        try {
+          await fetch('https://api.spotify.com/v1/me/player/queue', {
+            headers: {
+              'Authorization': `Bearer ${this.authState.accessToken}`
+            }
+          })
+          console.log('📱 Mobile: Queue check successful - session maintained')
+        } catch (error) {
+          console.warn('📱 Mobile: Queue check failed:', error)
+        }
       } else {
-        console.log('📱 Mobile: No active Spotify Connect session')
+        console.log('📱 Mobile: No active Spotify Connect session or no playback')
         
         // Check if we have available devices
         const devices = await this.getAvailableDevices()
         if (devices.length > 0) {
           console.log('📱 Mobile: Spotify devices available but not active')
+          
+          // Try to activate a device without starting playback
+          const preferredDevice = devices.find(d => !d.is_restricted && d.type !== 'Computer') || 
+                                 devices.find(d => !d.is_restricted) || 
+                                 devices[0]
+          
+          if (preferredDevice) {
+            try {
+              const response = await fetch('https://api.spotify.com/v1/me/player', {
+                method: 'PUT',
+                headers: {
+                  'Authorization': `Bearer ${this.authState.accessToken}`,
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  device_ids: [preferredDevice.id],
+                  play: false
+                })
+              })
+              
+              if (response.ok || response.status === 204) {
+                console.log('📱 Mobile: Successfully activated device for session maintenance:', preferredDevice.name)
+              }
+            } catch (error) {
+              console.warn('📱 Mobile: Failed to activate device for session maintenance:', error)
+            }
+          }
         } else {
           console.log('📱 Mobile: No Spotify devices available')
         }
@@ -1730,12 +1936,19 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|CriOS/i.test(navigator.userAgent)
     
     if (isMobile) {
-      console.log('� Mobile: Using Spotify Connect exclusively for playback...')
+      console.log('📱 Mobile: Using Spotify Connect exclusively for playback...')
       
-      // For mobile, always use Spotify Connect with retry logic
+      // For mobile, always use Spotify Connect with enhanced retry logic
       for (let attempt = 1; attempt <= 3; attempt++) {
         try {
           console.log(`🔄 Mobile Spotify Connect attempt ${attempt}/3...`)
+          
+          // Before attempting playback, ensure session is active
+          await this.maintainActiveSession()
+          
+          // Wait a moment for session to stabilize
+          await new Promise(resolve => setTimeout(resolve, 500))
+          
           const success = await this.playOnSpotifyConnect(trackUri)
           if (success) {
             console.log('✅ Mobile: Spotify Connect playback successful')
@@ -1750,23 +1963,34 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
           }
           
           if (error.message === 'DEVICE_BECAME_INACTIVE' && attempt < 3) {
-            console.log('� Device became inactive, waiting before retry...')
+            console.log('🔄 Device became inactive, trying to reactivate session...')
+            // Try to reactivate session before retry
+            await this.maintainActiveSession()
             await new Promise(resolve => setTimeout(resolve, 2000))
             continue
+          }
+          
+          if (error.message === 'AUTH_EXPIRED') {
+            console.log('🔄 Auth expired, trying to refresh token...')
+            const tokenRefreshed = await this.refreshAccessToken()
+            if (tokenRefreshed && attempt < 3) {
+              await new Promise(resolve => setTimeout(resolve, 1000))
+              continue
+            }
           }
           
           if (attempt === 3) {
             throw error
           }
           
-          // Wait before retrying
-          await new Promise(resolve => setTimeout(resolve, 1000))
+          // Wait before retrying with progressive backoff
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempt))
         }
       }
       
       return false
     } else {
-      console.log('�🔄 Using Web Playback SDK for desktop...')
+      console.log('�️ Desktop: Using Web Playback SDK for desktop...')
       
       // For desktop, try Web Playback SDK first, then fallback to Spotify Connect
       try {
