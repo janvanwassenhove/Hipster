@@ -16,7 +16,14 @@ export default {
     title: 'Hipster',
     subtitle: 'Music Timeline Game',
     newGame: 'New Game',
-    continue: 'Continue Game',
+    introduction: 'The Ultimate Music Timeline Challenge',
+    howToPlay: 'How to Play',
+    rules: {
+      step1: 'Listen to a mystery track from the past decades',
+      step2: 'Guess when it was released and place it on your timeline',
+      step3: 'Build your timeline in chronological order',
+      step4: 'First player to correctly place {target} songs wins!'
+    },
     players: 'Players',
     round: 'Round',
     playerCount: 'Number of players (2-4)',

@@ -16,7 +16,14 @@ export default {
     title: 'Hipster',
     subtitle: 'Musik-Zeitstrahl-Spiel',
     newGame: 'Neues Spiel',
-    continue: 'Spiel Fortsetzen',
+    introduction: 'Die Ultimative Musik-Zeitstrahl-Herausforderung',
+    howToPlay: 'Wie Man Spielt',
+    rules: {
+      step1: 'Höre einen mysteriösen Track aus vergangenen Jahrzehnten',
+      step2: 'Rate wann er veröffentlicht wurde und platziere ihn auf deiner Zeitlinie',
+      step3: 'Baue deine Zeitlinie in chronologischer Reihenfolge',
+      step4: 'Erster Spieler der {target} Lieder korrekt platziert gewinnt!'
+    },
     players: 'Spieler',
     round: 'Runde',
     playerCount: 'Anzahl Spieler (2-4)',

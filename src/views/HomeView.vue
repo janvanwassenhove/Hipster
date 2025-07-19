@@ -21,20 +21,56 @@
     <main class="flex-1 container mx-auto px-4 py-8">
       <div class="max-w-2xl mx-auto">
         
-        <!-- Continue Game Card (if saved game exists) -->
-        <div v-if="hasSavedGame" class="card mb-6 bounce-in">
-          <h2 class="text-2xl font-bold mb-4 text-white">{{ $t('game.continue') }}</h2>
-          <div class="flex justify-between items-center">
-            <div>
-              <p class="text-slate-300 font-medium">{{ $t('game.players') }}: {{ savedGamePlayers.join(', ') }}</p>
-              <p class="text-slate-300 font-medium">{{ $t('game.round') }}: {{ savedGameRound }}</p>
+        <!-- Game Introduction -->
+        <div class="card mb-8">
+          <!-- Hipster Logo/Image -->
+          <div class="text-center mb-6">
+            <img 
+                src="/hipster.png" 
+              alt="Hipster Music Game" 
+              class="w-48 h-48 mx-auto rounded-2xl shadow-xl object-cover border border-purple-500/20"
+              onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'"
+            />
+            <!-- Fallback if image doesn't exist -->
+            <div class="w-48 h-48 mx-auto rounded-2xl bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center shadow-xl border border-purple-500/20" style="display: none;">
+              <span class="text-6xl">🎵</span>
             </div>
-            <button @click="continueGame" class="btn btn-primary">
-              {{ $t('common.continue') }}
-            </button>
+          </div>
+          
+          <!-- Game Introduction Text -->
+          <div class="text-center mb-8">
+            <h2 class="text-3xl font-bold mb-4 text-white bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+              {{ $t('game.introduction') }}
+            </h2>
+            
+            <!-- How to Play -->
+            <div class="bg-gradient-to-r from-slate-800/50 to-purple-900/50 border border-purple-500/20 rounded-xl p-6 backdrop-blur-sm">
+              <h3 class="text-xl font-bold text-white mb-4 flex items-center justify-center">
+                <span class="mr-2">🎯</span>
+                {{ $t('game.howToPlay') }}
+              </h3>
+              <div class="space-y-3 text-left">
+                <div class="flex items-start space-x-3">
+                  <span class="bg-purple-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold flex-shrink-0 mt-0.5">1</span>
+                  <p class="text-white font-medium">{{ $t('game.rules.step1') }}</p>
+                </div>
+                <div class="flex items-start space-x-3">
+                  <span class="bg-purple-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold flex-shrink-0 mt-0.5">2</span>
+                  <p class="text-white font-medium">{{ $t('game.rules.step2') }}</p>
+                </div>
+                <div class="flex items-start space-x-3">
+                  <span class="bg-purple-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold flex-shrink-0 mt-0.5">3</span>
+                  <p class="text-white font-medium">{{ $t('game.rules.step3') }}</p>
+                </div>
+                <div class="flex items-start space-x-3">
+                  <span class="bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold flex-shrink-0 mt-0.5">🏆</span>
+                  <p class="text-white font-medium">{{ $t('game.rules.step4', { target: targetSongs }) }}</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-
+        
         <!-- New Game Setup -->
         <div class="card">
           <h2 class="text-3xl font-bold mb-8 text-white bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">{{ $t('game.newGame') }}</h2>
@@ -172,10 +208,6 @@ const isSpotifyAuthenticated = ref(false)
 const debugMessage = ref('Auth state will be checked...')
 
 // Computed
-const hasSavedGame = computed(() => gameStore.players.length > 0 && gameStore.gamePhase !== 'setup')
-const savedGamePlayers = computed(() => gameStore.players.map(p => p.name))
-const savedGameRound = computed(() => gameStore.round)
-
 const canStartGame = computed(() => {
   if (!isSpotifyAuthenticated.value) return false
   for (let i = 0; i < playerCount.value; i++) {
@@ -213,10 +245,6 @@ function startGame() {
   })
   
   gameStore.initializePlayers(names)
-  router.push('/game')
-}
-
-function continueGame() {
   router.push('/game')
 }
 

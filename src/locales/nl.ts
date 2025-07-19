@@ -16,7 +16,14 @@ export default {
     title: 'Hipster',
     subtitle: 'Jouw muzikale party game!',
     newGame: 'Nieuw Spel',
-    continue: 'Spel Voortzetten',
+    introduction: 'De Ultieme Muziek Tijdlijn Uitdaging',
+    howToPlay: 'Hoe Te Spelen',
+    rules: {
+      step1: 'Luister naar een mysterieus nummer uit voorbije decennia',
+      step2: 'Raad wanneer het uitkwam en plaats het op je tijdlijn',
+      step3: 'Bouw je tijdlijn in chronologische volgorde',
+      step4: 'Eerste speler die {target} nummers correct plaatst wint!'
+    },
     players: 'Spelers',
     round: 'Ronde',
     playerCount: 'Aantal spelers (2-4)',

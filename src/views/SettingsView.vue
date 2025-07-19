@@ -14,7 +14,7 @@
     <main class="flex-1 container mx-auto px-4 py-8">
       <div class="max-w-lg mx-auto">
         <div class="card">
-          <h2 class="text-xl font-semibold mb-6 text-gray-800">{{ $t('settings.language') }}</h2>
+          <h2 class="text-xl font-semibold mb-6 text-white">{{ $t('settings.language') }}</h2>
           
           <!-- Language Selection -->
           <div class="space-y-3">
@@ -75,11 +75,12 @@
 
           <!-- App Info -->
           <div class="mt-8 pt-6 border-t border-gray-200">
-            <h3 class="text-lg font-semibold mb-4 text-gray-800">{{ $t('settings.about') }}</h3>
-            <div class="text-sm text-gray-600 space-y-2">
+            <h3 class="text-lg font-semibold mb-4 text-white">{{ $t('settings.about') }}</h3>
+            <div class="text-sm text-white space-y-2">
               <p><strong>{{ $t('game.title') }}</strong> v1.0.0</p>
               <p>{{ $t('settings.aboutText') }}</p>
               <p>{{ $t('settings.madeWith') }} ❤️</p>
+              <p>©2025 <a href="https://mityjohn.com/" class="text-blue-500 hover:underline">mityjohn.com/</a></p>
             </div>
           </div>
         </div>

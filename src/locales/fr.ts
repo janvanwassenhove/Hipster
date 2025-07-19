@@ -14,6 +14,17 @@ export default {
   game: {
     title: 'Hipster',
     subtitle: 'Jeu de Chronologie Musicale',
+    newGame: 'Nouveau Jeu',
+    introduction: 'Le Défi Ultime de Chronologie Musicale',
+    howToPlay: 'Comment Jouer',
+    rules: {
+      step1: 'Écoutez une piste mystère des décennies passées',
+      step2: 'Devinez quand elle est sortie et placez-la sur votre chronologie',
+      step3: 'Construisez votre chronologie en ordre chronologique',
+      step4: 'Premier joueur à placer correctement {target} chansons gagne!'
+    },
+    players: 'Joueurs',
+    round: 'Tour',
     playerCount: 'Nombre de joueurs (2-4)',
     playerNames: 'Noms des Joueurs',
     playerName: 'Nom du joueur {number}',
