@@ -284,13 +284,19 @@
           <div class="flex space-x-3">
             <button 
               @click="cancelSelection"
-              class="flex-1 px-4 py-3 bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-500 hover:to-gray-600 text-white font-medium rounded-xl transition-all duration-300 hover:scale-105 shadow-lg"
+              @touchend.prevent="cancelSelection"
+              @touchstart.stop
+              class="flex-1 px-4 py-3 bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-500 hover:to-gray-600 active:from-gray-500 active:to-gray-600 text-white font-medium rounded-xl transition-all duration-300 hover:scale-105 active:scale-95 shadow-lg select-none"
+              style="touch-action: manipulation;"
             >
               {{ $t('game.timeline.cancelSelection') }}
             </button>
             <button 
               @click="confirmPlacement"
-              class="flex-1 px-4 py-3 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-500 hover:to-blue-500 text-white font-bold rounded-xl transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-green-500/25"
+              @touchend.prevent="confirmPlacement"
+              @touchstart.stop
+              class="flex-1 px-4 py-3 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-500 hover:to-blue-500 active:from-green-500 active:to-blue-500 text-white font-bold rounded-xl transition-all duration-300 hover:scale-105 active:scale-95 shadow-lg hover:shadow-green-500/25 select-none"
+              style="touch-action: manipulation;"
             >
               {{ $t('game.timeline.confirmPlacement') }}
             </button>
