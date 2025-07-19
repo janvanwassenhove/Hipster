@@ -249,12 +249,19 @@
     </div>
 
     <!-- Mobile Touch Confirmation Dialog -->
-    <div v-if="showConfirmation && isMobileDevice" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" @click="handleDialogBackgroundClick">
-      <div class="bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 border border-purple-500/20 shadow-2xl shadow-purple-500/10 rounded-2xl p-6 max-w-sm w-full mx-auto relative overflow-hidden" @click.stop>
+    <div v-if="showConfirmation && isMobileDevice" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4" style="z-index: 9999;">
+      <div class="bg-slate-900 border border-purple-500/20 rounded-2xl p-6 max-w-sm w-full mx-auto relative" style="z-index: 10000;">
         
         <!-- EMERGENCY DEBUG MESSAGE -->
-        <div class="bg-red-600 text-white p-2 mb-4 text-center font-bold">
+        <div class="bg-red-600 text-white p-2 mb-4 text-center font-bold" @click="testEmergencyClick">
           TOUCH TO TEST: If you see this, JavaScript is working!
+        </div>
+        
+        <!-- ABSOLUTELY MINIMAL BUTTON TEST -->
+        <div style="background: yellow; padding: 20px; margin: 10px 0;">
+          <button onclick="alert('BASIC ONCLICK WORKS')" style="background: blue; color: white; padding: 10px; font-size: 16px; border: none; width: 100%;">
+            BASIC TEST
+          </button>
         </div>
         
         <!-- Debug Info for Mobile -->
@@ -339,30 +346,16 @@
               YELLOW CONFIRM
             </button>
           </div>
-        </div>          <!-- Action buttons -->
-          <div class="flex space-x-3">
+        </div>          <!-- Action buttons - ULTRA SIMPLIFIED FOR DEBUGGING -->
+          <div class="flex space-x-3 mt-6">
             <!-- Cancel Button -->
-            <button 
-              type="button"
-              @click="handleButtonClick('cancel')"
-              @touchstart="handleButtonTouch('cancel', 'start', $event)"
-              @touchend="handleButtonTouch('cancel', 'end', $event)"
-              class="flex-1 px-4 py-3 bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-500 hover:to-gray-600 active:from-gray-500 active:to-gray-600 text-white font-medium rounded-xl transition-all duration-300 hover:scale-105 active:scale-95 shadow-lg select-none cursor-pointer border-0 outline-none"
-              style="touch-action: manipulation; -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none;"
-            >
-              {{ $t('game.timeline.cancelSelection') }}
+            <button @click="simpleCancel" class="flex-1 bg-red-600 text-white p-4 rounded text-center font-bold">
+              Cancel
             </button>
             
             <!-- Confirm Button -->
-            <button 
-              type="button"
-              @click="handleButtonClick('confirm')"
-              @touchstart="handleButtonTouch('confirm', 'start', $event)"
-              @touchend="handleButtonTouch('confirm', 'end', $event)"
-              class="flex-1 px-4 py-3 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-500 hover:to-blue-500 active:from-green-500 active:to-blue-500 text-white font-bold rounded-xl transition-all duration-300 hover:scale-105 active:scale-95 shadow-lg hover:shadow-green-500/25 select-none cursor-pointer border-0 outline-none"
-              style="touch-action: manipulation; -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none;"
-            >
-              {{ $t('game.timeline.confirmPlacement') }}
+            <button @click="simpleConfirm" class="flex-1 bg-green-600 text-white p-4 rounded text-center font-bold">
+              Confirm
             </button>
           </div>
           
@@ -917,5 +910,11 @@ function ultraBasicTest() {
   console.log('ULTRA_BASIC_TEST called')
   alert('Vue click handler works!')
   addDebugEvent('Ultra basic test clicked')
+}
+
+function testEmergencyClick() {
+  console.log('EMERGENCY CLICK WORKS!')
+  alert('Emergency click worked!')
+  addDebugEvent('Emergency click button works')
 }
 </script>
