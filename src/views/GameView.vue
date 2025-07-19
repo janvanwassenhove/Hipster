@@ -215,8 +215,8 @@
                 class="flex justify-between items-center p-3 rounded-lg"
                 :class="index === 0 ? 'bg-yellow-100' : 'bg-gray-50'"
               >
-                <span class="font-medium">{{ index + 1 }}. {{ player.name }}</span>
-                <span class="font-bold">{{ player.timeline?.length || 0 }} {{ $t('game.songs') }} | {{ player.tokens }} {{ $t('game.score.tokens', { count: player.tokens }) }}</span>
+                <span class="font-medium text-gray-800">{{ index + 1 }}. {{ player.name }}</span>
+                <span class="font-bold text-gray-800">{{ player.timeline?.length || 0 }} {{ $t('game.songs') }} | {{ player.tokens }} {{ $t('game.score.tokens', { count: player.tokens }) }}</span>
               </div>
             </div>
           </div>

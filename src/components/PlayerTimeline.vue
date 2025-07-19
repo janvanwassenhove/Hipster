@@ -280,7 +280,7 @@
               class="flex-1 bg-red-600 hover:bg-red-700 text-white p-4 rounded-xl text-center font-bold transition-colors text-lg shadow-lg"
               style="min-height: 60px; touch-action: manipulation;"
             >
-              ❌ Cancel
+              ❌ {{ $t('common.cancel') }}
             </button>
             
             <!-- Confirm Button -->
@@ -291,7 +291,7 @@
               class="flex-1 bg-green-600 hover:bg-green-700 text-white p-4 rounded-xl text-center font-bold transition-colors text-lg shadow-lg"
               style="min-height: 60px; touch-action: manipulation;"
             >
-              ✅ Confirm
+              ✅ {{ $t('common.confirm') }}
             </button>
           </div>
           
