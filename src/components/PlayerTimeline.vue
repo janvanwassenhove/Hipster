@@ -367,7 +367,7 @@ const selectedPosition = ref<number | null>(null)
 const showConfirmation = ref(false)
 const buttonTouchState = ref({ isPressed: false, action: '' })
 
-// Debug state for mobile troubleshooting
+<!-- Debug state for mobile troubleshooting -->
 const showDebugInfo = ref(true) // Enable by default for testing
 const debugEvents = ref<string[]>([])
 const debugMessage = ref('')
@@ -387,13 +387,13 @@ function addDebugEvent(message: string) {
   }
 }
 
-function toggleDebugInfo() {
-  showDebugInfo.value = !showDebugInfo.value
-  addDebugEvent(`Debug info ${showDebugInfo.value ? 'enabled' : 'disabled'}`)
-}
-
-function testDebugFunction() {
-  addDebugEvent('Debug button clicked - system working')
+// Enhanced debug logging
+function logEvent(message: string, data?: any) {
+  const timestamp = new Date().toLocaleTimeString()
+  const fullMessage = `[${timestamp}] ${message}`
+  
+  console.log('🎵 TIMELINE_DEBUG:', fullMessage, data || '')
+  addDebugEvent(fullMessage)
 }
 
 // Detect if user is on mobile/touch device
@@ -407,9 +407,11 @@ const maxTouchPoints = computed(() => navigator.maxTouchPoints || 0)
 const userAgent = computed(() => navigator.userAgent)
 const windowSize = computed(() => `${window.innerWidth}x${window.innerHeight}`)
 
-// Initialize debug logging
-addDebugEvent('PlayerTimeline component initialized')
-addDebugEvent(`Environment: ${isMobileDevice.value ? 'Mobile' : 'Desktop'}, Touch: ${touchSupported.value}`)
+// Initialize logging
+logEvent('PlayerTimeline component initialized', { 
+  isMobile: isMobileDevice.value, 
+  touchSupport: touchSupported.value 
+})
 
 // IMMEDIATE BASIC TEST - Run as soon as component loads
 console.log('COMPONENT MOUNTED - JS DEFINITELY WORKING')
@@ -481,26 +483,41 @@ function useTokenAbility(ability: string) {
   emit('useToken', ability)
 }
 
-// Touch-to-select methods for mobile
+// Touch-to-select methods for mobile (consolidated single version)
 function handleTimelineSlotTouch(position: number) {
-  addDebugEvent(`Timeline slot touched: position ${position}`)
+  logEvent(`Timeline slot touched: position ${position}`)
   
   if (!props.currentTrack || !props.canPlace) {
-    addDebugEvent(`Cannot place: currentTrack=${!!props.currentTrack}, canPlace=${props.canPlace}`)
+    logEvent(`Cannot place track`, { 
+      hasCurrentTrack: !!props.currentTrack, 
+      canPlace: props.canPlace 
+    })
     return
   }
   
-  // Select this position
+  // Select this position and show dialog
   selectedPosition.value = position
   showConfirmation.value = true
   
-  addDebugEvent(`Dialog opened: position=${position}, showConfirmation=${showConfirmation.value}`)
+  logEvent(`Dialog should open`, { 
+    position: selectedPosition.value, 
+    showConfirmation: showConfirmation.value 
+  })
   
   // Add haptic feedback
   if ('vibrate' in navigator) {
     navigator.vibrate(50)
-    addDebugEvent('Haptic feedback triggered')
+    logEvent('Haptic feedback triggered')
   }
+  
+  // Force a DOM update check
+  setTimeout(() => {
+    const dialog = document.querySelector('[style*="z-index: 99999"]')
+    logEvent('Dialog element check', { 
+      found: !!dialog, 
+      visible: dialog ? getComputedStyle(dialog).display : 'not found' 
+    })
+  }, 100)
 }
 
 function getPositionDescription(position: number | null): string {
@@ -522,26 +539,169 @@ function getPositionDescription(position: number | null): string {
   }
 }
 
-function cancelSelection() {
-  selectedPosition.value = null
-  showConfirmation.value = false
-}
-
-function confirmPlacement() {
-  if (selectedPosition.value !== null && props.currentTrack) {
-    emit('placeTrack', props.currentTrack, selectedPosition.value)
-    selectedPosition.value = null
-    showConfirmation.value = false
-  }
-}
-
 // Mobile placement instructions
 function showMobilePlacementInstructions() {
-  // For now, we can show a simple instruction or tooltip
-  // This could be expanded to show a help dialog
   if ('vibrate' in navigator) {
     navigator.vibrate(50)
   }
+}
+
+// Button handlers with extensive logging
+function handleCancelButton(event: Event) {
+  logEvent('Cancel button clicked (main handler)', { 
+    eventType: event.type, 
+    target: (event.target as HTMLElement)?.tagName 
+  })
+  
+  event.preventDefault()
+  event.stopPropagation()
+  
+  performCancel()
+}
+
+function handleConfirmButton(event: Event) {
+  logEvent('Confirm button clicked (main handler)', { 
+    eventType: event.type, 
+    target: (event.target as HTMLElement)?.tagName 
+  })
+  
+  event.preventDefault()
+  event.stopPropagation()
+  
+  performConfirm()
+}
+
+function handleCancelTouch(event: TouchEvent) {
+  logEvent('Cancel touch start', { 
+    touches: event.touches.length, 
+    target: (event.target as HTMLElement)?.tagName 
+  })
+  
+  event.preventDefault()
+  
+  // Visual feedback
+  const target = event.target as HTMLElement
+  target.style.transform = 'scale(0.95)'
+  target.style.opacity = '0.8'
+  
+  logEvent('Cancel touch visual feedback applied')
+}
+
+function handleCancelTouchEnd(event: TouchEvent) {
+  logEvent('Cancel touch end')
+  
+  event.preventDefault()
+  
+  // Reset visual feedback
+  const target = event.target as HTMLElement
+  target.style.transform = ''
+  target.style.opacity = ''
+  
+  // Execute cancel
+  setTimeout(() => performCancel(), 50)
+}
+
+function handleConfirmTouch(event: TouchEvent) {
+  logEvent('Confirm touch start', { 
+    touches: event.touches.length, 
+    target: (event.target as HTMLElement)?.tagName 
+  })
+  
+  event.preventDefault()
+  
+  // Visual feedback
+  const target = event.target as HTMLElement
+  target.style.transform = 'scale(0.95)'
+  target.style.opacity = '0.8'
+  
+  logEvent('Confirm touch visual feedback applied')
+}
+
+function handleConfirmTouchEnd(event: TouchEvent) {
+  logEvent('Confirm touch end')
+  
+  event.preventDefault()
+  
+  // Reset visual feedback
+  const target = event.target as HTMLElement
+  target.style.transform = ''
+  target.style.opacity = ''
+  
+  // Execute confirm
+  setTimeout(() => performConfirm(), 50)
+}
+
+// Simplified core actions
+function performCancel() {
+  logEvent('Performing cancel action', { 
+    currentPosition: selectedPosition.value, 
+    dialogShown: showConfirmation.value 
+  })
+  
+  if ('vibrate' in navigator) {
+    navigator.vibrate(50)
+  }
+  
+  selectedPosition.value = null
+  showConfirmation.value = false
+  
+  logEvent('Cancel completed', { 
+    position: selectedPosition.value, 
+    dialogShown: showConfirmation.value 
+  })
+}
+
+function performConfirm() {
+  logEvent('Performing confirm action', { 
+    position: selectedPosition.value, 
+    hasTrack: !!props.currentTrack, 
+    trackName: props.currentTrack?.name 
+  })
+  
+  if ('vibrate' in navigator) {
+    navigator.vibrate(100)
+  }
+  
+  if (selectedPosition.value !== null && props.currentTrack) {
+    logEvent('Emitting placeTrack event', { 
+      position: selectedPosition.value, 
+      trackName: props.currentTrack.name 
+    })
+    
+    emit('placeTrack', props.currentTrack, selectedPosition.value)
+    
+    selectedPosition.value = null
+    showConfirmation.value = false
+    
+    logEvent('Confirm completed successfully')
+  } else {
+    logEvent('Confirm failed - missing data', { 
+      position: selectedPosition.value, 
+      hasTrack: !!props.currentTrack 
+    })
+  }
+}
+
+function handleDialogBackgroundClick() {
+  logEvent('Dialog background clicked - ignoring to prevent accidental dismissal')
+  // Don't close on background click to prevent accidents
+}
+
+// Test functions
+function ultraBasicTest() {
+  logEvent('Ultra basic test clicked')
+  alert('Vue click handler works!')
+}
+
+function testEmergencyClick() {
+  logEvent('Emergency test clicked')
+  alert('Emergency click worked! JS is functional!')
+}
+
+// Enhanced toggle function
+function toggleDebugInfo() {
+  showDebugInfo.value = !showDebugInfo.value
+  logEvent(`Debug info ${showDebugInfo.value ? 'enabled' : 'disabled'}`)
 }
 
 // Initialize drag over positions array
@@ -564,186 +724,26 @@ watch(
   { immediate: true }
 )
 
-// Watch for confirmation dialog state changes
+// Watch for dialog state changes with logging
 watch(showConfirmation, (newValue, oldValue) => {
-  if (newValue && !oldValue) {
-    console.log('DIALOG OPENED - JS IS WORKING!')
-    addDebugEvent(`Confirmation dialog opened - position: ${selectedPosition.value}`)
-    addDebugEvent(`Device info - Mobile: ${isMobileDevice.value}, Touch: ${touchSupported.value}, MaxTouch: ${maxTouchPoints.value}`)
-    
-    // Test immediate alert to verify JS execution
+  logEvent(`Dialog state changed: ${oldValue} → ${newValue}`, {
+    position: selectedPosition.value,
+    mobile: isMobileDevice.value,
+    timestamp: Date.now()
+  })
+  
+  if (newValue) {
+    // Check if dialog is actually rendered
     setTimeout(() => {
-      console.log('DELAYED TEST - Still working after 1 second')
-    }, 1000)
-  } else if (!newValue && oldValue) {
-    addDebugEvent('Confirmation dialog closed')
+      const dialogs = document.querySelectorAll('[style*="z-index: 99999"]')
+      logEvent('Dialog render check', { 
+        dialogCount: dialogs.length,
+        bodyChildren: document.body.children.length
+      })
+    }, 50)
   }
 })
-
-// Button event handlers for mobile confirmation dialog
-function handleCancelClick(event: Event) {
-  console.log('Cancel click triggered')
-  event.preventDefault()
-  event.stopPropagation()
-  cancelSelection()
-}
-
-function handleConfirmClick(event: Event) {
-  console.log('Confirm click triggered')
-  event.preventDefault()
-  event.stopPropagation()
-  confirmPlacement()
-}
-
-function handleCancelTouchStart(event: TouchEvent) {
-  console.log('Cancel touch start')
-  event.preventDefault()
-  event.stopPropagation()
-  
-  buttonTouchState.value = { isPressed: true, action: 'cancel' }
-  
-  // Add visual feedback
-  const target = event.target as HTMLElement
-  target.style.transform = 'scale(0.95)'
-  target.style.opacity = '0.8'
-}
-
-function handleCancelTouchEnd(event: TouchEvent) {
-  console.log('Cancel touch end')
-  event.preventDefault()
-  event.stopPropagation()
-  
-  // Reset visual feedback
-  const target = event.target as HTMLElement
-  target.style.transform = ''
-  target.style.opacity = ''
-  
-  // Only execute if this was the button being pressed
-  if (buttonTouchState.value.isPressed && buttonTouchState.value.action === 'cancel') {
-    // Add haptic feedback
-    if ('vibrate' in navigator) {
-      navigator.vibrate(50)
-    }
-    
-    buttonTouchState.value = { isPressed: false, action: '' }
-    
-    // Small delay to ensure visual feedback is seen
-    setTimeout(() => {
-      cancelSelection()
-    }, 50)
-  }
-}
-
-function handleConfirmTouchStart(event: TouchEvent) {
-  console.log('Confirm touch start')
-  event.preventDefault()
-  event.stopPropagation()
-  
-  buttonTouchState.value = { isPressed: true, action: 'confirm' }
-  
-  // Add visual feedback
-  const target = event.target as HTMLElement
-  target.style.transform = 'scale(0.95)'
-  target.style.opacity = '0.8'
-}
-
-function handleConfirmTouchEnd(event: TouchEvent) {
-  console.log('Confirm touch end')
-  event.preventDefault()
-  event.stopPropagation()
-  
-  // Reset visual feedback
-  const target = event.target as HTMLElement
-  target.style.transform = ''
-  target.style.opacity = ''
-  
-  // Only execute if this was the button being pressed
-  if (buttonTouchState.value.isPressed && buttonTouchState.value.action === 'confirm') {
-    // Add haptic feedback
-    if ('vibrate' in navigator) {
-      navigator.vibrate(50)
-    }
-    
-    buttonTouchState.value = { isPressed: false, action: '' }
-    
-    // Small delay to ensure visual feedback is seen
-    setTimeout(() => {
-      confirmPlacement()
-    }, 50)
-  }
-}
-
-function handleDialogBackgroundClick() {
-  // Optional: close dialog when clicking background
-  // For better UX, we might want to keep this disabled to prevent accidental dismissal
-  // cancelSelection()
-}
-
-function handleTouchCancel(event: TouchEvent) {
-  console.log('Touch cancelled')
-  // Reset visual feedback when touch is cancelled
-  const target = event.target as HTMLElement
-  target.style.transform = ''
-  target.style.opacity = ''
-  buttonTouchState.value = { isPressed: false, action: '' }
-}
-
-// Simplified button handlers that should always work
-function performCancel(event?: Event) {
-  console.log('performCancel called')
-  addDebugEvent('performCancel called')
-  
-  if (event) {
-    addDebugEvent(`Cancel event: ${event.type}, target: ${(event.target as HTMLElement)?.tagName}`)
-    event.preventDefault()
-    event.stopPropagation()
-  }
-  
-  // Add haptic feedback
-  if ('vibrate' in navigator) {
-    navigator.vibrate(50)
-    addDebugEvent('Cancel haptic feedback triggered')
-  }
-  
-  selectedPosition.value = null
-  showConfirmation.value = false
-  addDebugEvent(`Dialog closed via cancel: position=${selectedPosition.value}, shown=${showConfirmation.value}`)
-}
-
-function performConfirm(event?: Event) {
-  console.log('performConfirm called')
-  addDebugEvent('performConfirm called')
-  
-  if (event) {
-    addDebugEvent(`Confirm event: ${event.type}, target: ${(event.target as HTMLElement)?.tagName}`)
-    event.preventDefault()
-    event.stopPropagation()
-  }
-  
-  // Add haptic feedback
-  if ('vibrate' in navigator) {
-    navigator.vibrate(100)
-    addDebugEvent('Confirm haptic feedback triggered')
-  }
-  
-  if (selectedPosition.value !== null && props.currentTrack) {
-    addDebugEvent(`Placing track "${props.currentTrack.name}" at position ${selectedPosition.value}`)
-    emit('placeTrack', props.currentTrack, selectedPosition.value)
-    selectedPosition.value = null
-    showConfirmation.value = false
-    addDebugEvent('Track placed successfully - dialog closed')
-  } else {
-    addDebugEvent(`Cannot confirm - position=${selectedPosition.value}, track=${props.currentTrack?.name || 'null'}`)
-  }
-}
-
-function logDebugEvent(event: string) {
-  const timestamp = new Date().toLocaleTimeString()
-  const logMessage = `${timestamp}: ${event}`
-  
-  debugEvents.value.unshift(logMessage)
-  if (debugEvents.value.length > 10) {
-    debugEvents.value = debugEvents.value.slice(0, 10)
+</script>
   }
   
   debugMessage.value = logMessage
