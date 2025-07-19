@@ -67,6 +67,7 @@ export default {
     dragToTimeline: 'Sleep de kaart naar je tijdlijn (of tik en houd vast op mobiel)',
     newTrack: 'Nieuw Nummer',
     dragToPlace: 'Sleep om op tijdlijn te plaatsen (of tik en houd vast)',
+    tapToPlace: 'Tik om te plaatsen',
     placeEarlier: 'Plaats voor dit nummer',
     placeBetween: 'Plaats tussen nummers',
     placeLater: 'Plaats na dit nummer',

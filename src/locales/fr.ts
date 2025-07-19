@@ -63,6 +63,7 @@ export default {
     dragToTimeline: 'Glissez la carte sur votre chronologie (ou appuyez longuement sur mobile)',
     newTrack: 'Nouvelle Piste',
     dragToPlace: 'Glisser pour placer sur la chronologie (ou appuyer longuement)',
+    tapToPlace: 'Toucher pour placer',
     placeEarlier: 'Placer avant cette piste',
     placeBetween: 'Placer entre les pistes',
     placeLater: 'Placer après cette piste',

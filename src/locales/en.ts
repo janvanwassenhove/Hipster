@@ -70,6 +70,7 @@ export default {
     dragToTimeline: 'Drag the card to your timeline (or tap and hold to drag on mobile)',
     newTrack: 'New Track',
     dragToPlace: 'Drag to place on timeline (or tap and hold)',
+    tapToPlace: 'Tap to place',
     placeEarlier: 'Place before this track',
     placeBetween: 'Place between tracks',
     placeLater: 'Place after this track',

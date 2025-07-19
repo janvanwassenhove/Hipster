@@ -70,6 +70,7 @@ export default {
     dragToTimeline: 'Ziehen Sie die Karte auf Ihre Zeitlinie (oder tippen und halten auf dem Handy)',
     newTrack: 'Neuer Track',
     dragToPlace: 'Zum Platzieren auf Zeitlinie ziehen (oder tippen und halten)',
+    tapToPlace: 'Tippen zum Platzieren',
     placeEarlier: 'Vor diesem Track platzieren',
     placeBetween: 'Zwischen Tracks platzieren',
     placeLater: 'Nach diesem Track platzieren',
