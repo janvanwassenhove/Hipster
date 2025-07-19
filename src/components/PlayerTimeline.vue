@@ -251,30 +251,8 @@
     <!-- Mobile Touch Confirmation Dialog -->
     <Teleport to="body" v-if="showConfirmation && isMobileDevice">
       <div class="fixed inset-0 bg-black/70 flex items-center justify-center p-4" style="z-index: 99999;" @click="handleDialogBackgroundClick">
-        <div class="bg-slate-900 border border-purple-500/20 rounded-2xl p-6 max-w-sm w-full mx-auto shadow-2xl" style="z-index: 100000;" @click.stop>
-          
-          <!-- EMERGENCY DEBUG MESSAGE -->
-          <div class="bg-red-600 text-white p-3 mb-4 text-center font-bold rounded cursor-pointer" @click="testEmergencyClick">
-            🚨 TOUCH TO TEST: JavaScript Working!
-          </div>
-          
-          <!-- Debug Info -->
-          <div v-if="showDebugInfo" class="bg-yellow-900/50 text-yellow-200 p-3 mb-4 rounded text-xs">
-            <p><strong>Debug Info:</strong></p>
-            <p>Mobile: {{ isMobileDevice }}</p>
-            <p>Position: {{ selectedPosition }}</p>
-            <p>Show Dialog: {{ showConfirmation }}</p>
-            <p>Current Track: {{ !!currentTrack }}</p>
-            <p>Touch Support: {{ touchSupported }}</p>
-            <p>User Agent: {{ userAgent.substring(0, 50) }}...</p>
-            
-            <!-- Test Buttons -->
-            <div class="mt-2 flex space-x-2">
-              <button @click="ultraBasicTest" class="bg-blue-600 text-white px-2 py-1 rounded">Vue Test</button>
-              <button onclick="alert('Raw JS works!')" class="bg-green-600 text-white px-2 py-1 rounded">Raw Test</button>
-            </div>
-          </div>
-          
+        <div class="bg-slate-900 border border-purple-500/20 rounded-2xl p-6 max-w-sm w-full mx-auto shadow-2xl" style="z-index: 100000;" @click.stop>         
+
           <!-- Header -->
           <div class="flex items-center space-x-3 mb-4">
             <div class="w-10 h-10 bg-gradient-to-br from-green-500 to-blue-600 rounded-full flex items-center justify-center shadow-lg">
@@ -317,23 +295,6 @@
             </button>
           </div>
           
-          <!-- Debug Toggle -->
-          <div class="mt-4 text-center">
-            <button 
-              @click="toggleDebugInfo" 
-              class="text-xs text-gray-400 hover:text-gray-200 underline p-2"
-            >
-              {{ showDebugInfo ? 'Hide Debug' : 'Show Debug' }}
-            </button>
-          </div>
-          
-          <!-- Event Log -->
-          <div v-if="showDebugInfo && debugEvents.length > 0" class="mt-4 p-3 bg-black/30 rounded max-h-32 overflow-y-auto">
-            <p class="font-bold mb-1 text-xs">Recent Events:</p>
-            <div v-for="(event, index) in debugEvents.slice(0, 8)" :key="index" class="text-xs mb-1">
-              {{ event }}
-            </div>
-          </div>
         </div>
       </div>
     </Teleport>
