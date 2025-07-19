@@ -248,33 +248,32 @@
     </div>
 
     <!-- Mobile Touch Confirmation Dialog -->
-    <div v-if="showConfirmation && isMobileDevice" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4" style="z-index: 9999;">
-      <div class="bg-slate-900 border border-purple-500/20 rounded-2xl p-6 max-w-sm w-full mx-auto relative" style="z-index: 10000;">
-        
-        <!-- EMERGENCY DEBUG MESSAGE -->
-        <div class="bg-red-600 text-white p-2 mb-4 text-center font-bold" @click="testEmergencyClick">
-          TOUCH TO TEST: If you see this, JavaScript is working!
-        </div>
-        
-        <!-- ABSOLUTELY MINIMAL BUTTON TEST -->
-        <div style="background: yellow; padding: 20px; margin: 10px 0;">
-          <button onclick="alert('BASIC ONCLICK WORKS')" style="background: blue; color: white; padding: 10px; font-size: 16px; border: none; width: 100%;">
-            BASIC TEST
-          </button>
-        </div>
-        
-        <!-- Debug Info for Mobile -->
-        <div v-if="showDebugInfo" class="absolute top-2 right-2 bg-red-500 text-white text-xs p-1 rounded z-50">
-          DEBUG: {{ debugMessage }}
-        </div>
-        
-        <!-- Animated background patterns -->
-        <div class="absolute inset-0 opacity-10">
-          <div class="absolute top-0 left-0 w-24 h-24 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-full blur-3xl animate-pulse"></div>
-          <div class="absolute bottom-0 right-0 w-32 h-32 bg-gradient-to-br from-purple-500 to-pink-600 rounded-full blur-3xl animate-pulse delay-1000"></div>
-        </div>
-        
-        <div class="relative z-10">
+    <Teleport to="body" v-if="showConfirmation && isMobileDevice">
+      <div class="fixed inset-0 bg-black/70 flex items-center justify-center p-4" style="z-index: 99999;" @click="handleDialogBackgroundClick">
+        <div class="bg-slate-900 border border-purple-500/20 rounded-2xl p-6 max-w-sm w-full mx-auto shadow-2xl" style="z-index: 100000;" @click.stop>
+          
+          <!-- EMERGENCY DEBUG MESSAGE -->
+          <div class="bg-red-600 text-white p-3 mb-4 text-center font-bold rounded cursor-pointer" @click="testEmergencyClick">
+            🚨 TOUCH TO TEST: JavaScript Working!
+          </div>
+          
+          <!-- Debug Info -->
+          <div v-if="showDebugInfo" class="bg-yellow-900/50 text-yellow-200 p-3 mb-4 rounded text-xs">
+            <p><strong>Debug Info:</strong></p>
+            <p>Mobile: {{ isMobileDevice }}</p>
+            <p>Position: {{ selectedPosition }}</p>
+            <p>Show Dialog: {{ showConfirmation }}</p>
+            <p>Current Track: {{ !!currentTrack }}</p>
+            <p>Touch Support: {{ touchSupported }}</p>
+            <p>User Agent: {{ userAgent.substring(0, 50) }}...</p>
+            
+            <!-- Test Buttons -->
+            <div class="mt-2 flex space-x-2">
+              <button @click="ultraBasicTest" class="bg-blue-600 text-white px-2 py-1 rounded">Vue Test</button>
+              <button onclick="alert('Raw JS works!')" class="bg-green-600 text-white px-2 py-1 rounded">Raw Test</button>
+            </div>
+          </div>
+          
           <!-- Header -->
           <div class="flex items-center space-x-3 mb-4">
             <div class="w-10 h-10 bg-gradient-to-br from-green-500 to-blue-600 rounded-full flex items-center justify-center shadow-lg">
@@ -292,87 +291,51 @@
             </p>
           </div>
           
-          <!-- Debug Button Test -->
-          <div v-if="showDebugInfo" class="mb-4 p-2 bg-yellow-900/50 rounded text-xs text-yellow-200">
-            <p>Mobile Device: {{ isMobileDevice }}</p>
-            <p>Selected Position: {{ selectedPosition }}</p>
-            <p>Show Confirmation: {{ showConfirmation }}</p>
-            <p>Current Track: {{ !!currentTrack }}</p>
-            <p>Can Place: {{ canPlace }}</p>
-            <p>Touch Events Supported: {{ touchSupported }}</p>
-            <p>Max Touch Points: {{ maxTouchPoints }}</p>
-            <p>User Agent: {{ userAgent }}</p>
-            <p>Window Size: {{ windowSize }}</p>
-            <button @click="testDebugFunction" class="bg-red-500 text-white px-2 py-1 rounded mt-1">Test Debug</button>
-            
-            <!-- Ultra Basic Test Buttons for Debugging -->
-            <div class="mt-2 flex space-x-2">
-              <button 
-                onclick="console.log('RAW ONCLICK CANCEL'); alert('Cancel clicked');"
-                class="bg-red-600 text-white px-2 py-1 rounded text-xs"
-              >
-                Raw Cancel
-              </button>
-              <button 
-                onclick="console.log('RAW ONCLICK CONFIRM'); alert('Confirm clicked');"
-                class="bg-green-600 text-white px-2 py-1 rounded text-xs"
-              >
-                Raw Confirm
-              </button>
-              <button 
-                @click="ultraBasicTest"
-                class="bg-blue-600 text-white px-2 py-1 rounded text-xs"
-              >
-                Vue Test
-              </button>
-            </div>
-            
-          <!-- Debug Event Log -->
-          <div v-if="debugEvents.length > 0" class="mt-2 p-2 bg-black/30 rounded max-h-32 overflow-y-auto">
-            <p class="font-bold mb-1">Event Log:</p>
-            <div v-for="(event, index) in debugEvents.slice(0, 5)" :key="index" class="text-xs">
-              {{ event }}
-            </div>
-          </div>
-          
-          <!-- COMPLETELY UNSTYLED BUTTONS FOR TESTING -->
-          <div style="background: yellow; padding: 10px; margin: 10px 0; border: 2px solid red;">
-            <p style="color: black; font-weight: bold;">EMERGENCY BUTTONS (no CSS conflicts):</p>
-            <button onclick="console.log('RAW YELLOW CANCEL'); alert('Raw cancel worked!');" style="background: red; color: white; padding: 5px; margin: 5px; border: none;">
-              YELLOW CANCEL
-            </button>
-            <button onclick="console.log('RAW YELLOW CONFIRM'); alert('Raw confirm worked!');" style="background: green; color: white; padding: 5px; margin: 5px; border: none;">
-              YELLOW CONFIRM
-            </button>
-          </div>
-          
-          <!-- Action buttons - ULTRA SIMPLIFIED FOR DEBUGGING -->
-          <div class="flex space-x-3 mt-6">
+          <!-- Action buttons -->
+          <div class="flex space-x-3">
             <!-- Cancel Button -->
-            <button @click="simpleCancel" class="flex-1 bg-red-600 text-white p-4 rounded text-center font-bold">
-              Cancel
+            <button 
+              @click="handleCancelButton"
+              @touchstart="handleCancelTouch"
+              @touchend="handleCancelTouchEnd"
+              class="flex-1 bg-red-600 hover:bg-red-700 text-white p-4 rounded-xl text-center font-bold transition-colors text-lg shadow-lg"
+              style="min-height: 60px; touch-action: manipulation;"
+            >
+              ❌ Cancel
             </button>
             
             <!-- Confirm Button -->
-            <button @click="simpleConfirm" class="flex-1 bg-green-600 text-white p-4 rounded text-center font-bold">
-              Confirm
+            <button 
+              @click="handleConfirmButton"
+              @touchstart="handleConfirmTouch"
+              @touchend="handleConfirmTouchEnd"
+              class="flex-1 bg-green-600 hover:bg-green-700 text-white p-4 rounded-xl text-center font-bold transition-colors text-lg shadow-lg"
+              style="min-height: 60px; touch-action: manipulation;"
+            >
+              ✅ Confirm
             </button>
           </div>
           
-          <!-- Debug Toggle Button -->
+          <!-- Debug Toggle -->
           <div class="mt-4 text-center">
             <button 
               @click="toggleDebugInfo" 
-              class="text-xs text-gray-400 hover:text-gray-200 underline"
+              class="text-xs text-gray-400 hover:text-gray-200 underline p-2"
             >
               {{ showDebugInfo ? 'Hide Debug' : 'Show Debug' }}
             </button>
           </div>
+          
+          <!-- Event Log -->
+          <div v-if="showDebugInfo && debugEvents.length > 0" class="mt-4 p-3 bg-black/30 rounded max-h-32 overflow-y-auto">
+            <p class="font-bold mb-1 text-xs">Recent Events:</p>
+            <div v-for="(event, index) in debugEvents.slice(0, 8)" :key="index" class="text-xs mb-1">
+              {{ event }}
+            </div>
+          </div>
         </div>
       </div>
-    </div>
-    </div>
-    </div>
+    </Teleport>
   </div>
 </template>
 
@@ -431,8 +394,6 @@ function toggleDebugInfo() {
 function testDebugFunction() {
   addDebugEvent('Debug button clicked - system working')
 }
-
-// Touch state for mobile drag and drop (removed on mobile devices)
 
 // Detect if user is on mobile/touch device
 const isMobileDevice = computed(() => {
@@ -919,4 +880,234 @@ function testEmergencyClick() {
   alert('Emergency click worked!')
   addDebugEvent('Emergency click button works')
 }
+
+// Enhanced debug logging
+function logEvent(message: string, data?: any) {
+  const timestamp = new Date().toLocaleTimeString()
+  const fullMessage = `[${timestamp}] ${message}`
+  
+  console.log('🎵 TIMELINE_DEBUG:', fullMessage, data || '')
+  addDebugEvent(fullMessage)
+}
+
+// Initialize logging
+logEvent('PlayerTimeline component initialized', { 
+  isMobile: isMobileDevice.value, 
+  touchSupport: touchSupported.value 
+})
+
+// Touch-to-select methods for mobile
+function handleTimelineSlotTouch(position: number) {
+  logEvent(`Timeline slot touched: position ${position}`)
+  
+  if (!props.currentTrack || !props.canPlace) {
+    logEvent(`Cannot place track`, { 
+      hasCurrentTrack: !!props.currentTrack, 
+      canPlace: props.canPlace 
+    })
+    return
+  }
+  
+  // Select this position and show dialog
+  selectedPosition.value = position
+  showConfirmation.value = true
+  
+  logEvent(`Dialog should open`, { 
+    position: selectedPosition.value, 
+    showConfirmation: showConfirmation.value 
+  })
+  
+  // Add haptic feedback
+  if ('vibrate' in navigator) {
+    navigator.vibrate(50)
+    logEvent('Haptic feedback triggered')
+  }
+  
+  // Force a DOM update check
+  setTimeout(() => {
+    const dialog = document.querySelector('[style*="z-index: 99999"]')
+    logEvent('Dialog element check', { 
+      found: !!dialog, 
+      visible: dialog ? getComputedStyle(dialog).display : 'not found' 
+    })
+  }, 100)
+}
+
+// Button handlers with extensive logging
+function handleCancelButton(event: Event) {
+  logEvent('Cancel button clicked (main handler)', { 
+    eventType: event.type, 
+    target: (event.target as HTMLElement)?.tagName 
+  })
+  
+  event.preventDefault()
+  event.stopPropagation()
+  
+  performCancel()
+}
+
+function handleConfirmButton(event: Event) {
+  logEvent('Confirm button clicked (main handler)', { 
+    eventType: event.type, 
+    target: (event.target as HTMLElement)?.tagName 
+  })
+  
+  event.preventDefault()
+  event.stopPropagation()
+  
+  performConfirm()
+}
+
+function handleCancelTouch(event: TouchEvent) {
+  logEvent('Cancel touch start', { 
+    touches: event.touches.length, 
+    target: (event.target as HTMLElement)?.tagName 
+  })
+  
+  event.preventDefault()
+  
+  // Visual feedback
+  const target = event.target as HTMLElement
+  target.style.transform = 'scale(0.95)'
+  target.style.opacity = '0.8'
+  
+  logEvent('Cancel touch visual feedback applied')
+}
+
+function handleCancelTouchEnd(event: TouchEvent) {
+  logEvent('Cancel touch end')
+  
+  event.preventDefault()
+  
+  // Reset visual feedback
+  const target = event.target as HTMLElement
+  target.style.transform = ''
+  target.style.opacity = ''
+  
+  // Execute cancel
+  setTimeout(() => performCancel(), 50)
+}
+
+function handleConfirmTouch(event: TouchEvent) {
+  logEvent('Confirm touch start', { 
+    touches: event.touches.length, 
+    target: (event.target as HTMLElement)?.tagName 
+  })
+  
+  event.preventDefault()
+  
+  // Visual feedback
+  const target = event.target as HTMLElement
+  target.style.transform = 'scale(0.95)'
+  target.style.opacity = '0.8'
+  
+  logEvent('Confirm touch visual feedback applied')
+}
+
+function handleConfirmTouchEnd(event: TouchEvent) {
+  logEvent('Confirm touch end')
+  
+  event.preventDefault()
+  
+  // Reset visual feedback
+  const target = event.target as HTMLElement
+  target.style.transform = ''
+  target.style.opacity = ''
+  
+  // Execute confirm
+  setTimeout(() => performConfirm(), 50)
+}
+
+// Simplified core actions
+function performCancel() {
+  logEvent('Performing cancel action', { 
+    currentPosition: selectedPosition.value, 
+    dialogShown: showConfirmation.value 
+  })
+  
+  if ('vibrate' in navigator) {
+    navigator.vibrate(50)
+  }
+  
+  selectedPosition.value = null
+  showConfirmation.value = false
+  
+  logEvent('Cancel completed', { 
+    position: selectedPosition.value, 
+    dialogShown: showConfirmation.value 
+  })
+}
+
+function performConfirm() {
+  logEvent('Performing confirm action', { 
+    position: selectedPosition.value, 
+    hasTrack: !!props.currentTrack, 
+    trackName: props.currentTrack?.name 
+  })
+  
+  if ('vibrate' in navigator) {
+    navigator.vibrate(100)
+  }
+  
+  if (selectedPosition.value !== null && props.currentTrack) {
+    logEvent('Emitting placeTrack event', { 
+      position: selectedPosition.value, 
+      trackName: props.currentTrack.name 
+    })
+    
+    emit('placeTrack', props.currentTrack, selectedPosition.value)
+    
+    selectedPosition.value = null
+    showConfirmation.value = false
+    
+    logEvent('Confirm completed successfully')
+  } else {
+    logEvent('Confirm failed - missing data', { 
+      position: selectedPosition.value, 
+      hasTrack: !!props.currentTrack 
+    })
+  }
+}
+
+function handleDialogBackgroundClick() {
+  logEvent('Dialog background clicked - ignoring to prevent accidental dismissal')
+  // Don't close on background click to prevent accidents
+}
+
+// Test functions
+function ultraBasicTest() {
+  logEvent('Ultra basic test clicked')
+  alert('Vue click handler works!')
+}
+
+function testEmergencyClick() {
+  logEvent('Emergency test clicked')
+  alert('Emergency click worked! JS is functional!')
+}
+
+// Enhanced toggle function
+function toggleDebugInfo() {
+  showDebugInfo.value = !showDebugInfo.value
+  logEvent(`Debug info ${showDebugInfo.value ? 'enabled' : 'disabled'}`)
+}
+
+// Watch for dialog state changes with logging
+watch(showConfirmation, (newValue, oldValue) => {
+  logEvent(`Dialog state changed: ${oldValue} → ${newValue}`, {
+    position: selectedPosition.value,
+    mobile: isMobileDevice.value,
+    timestamp: Date.now()
+  })
+  
+  if (newValue) {
+    // Check if dialog is actually rendered
+    setTimeout(() => {
+      const dialogs = document.querySelectorAll('[style*="z-index: 99999"]')
+      logEvent('Dialog render check', { 
+        dialogCount: dialogs.length,
+        bodyChildren: document.body.children.length
+      })
+    }, 50)
+  }
+})
 </script>
