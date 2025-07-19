@@ -246,7 +246,6 @@
         <span v-if="timelineSpan" class="font-mono">{{ timelineSpan }}</span>
       </div>
     </div>
-    </div>
 
     <!-- Mobile Touch Confirmation Dialog -->
     <div v-if="showConfirmation && isMobileDevice" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4" style="z-index: 9999;">
@@ -346,7 +345,8 @@
               YELLOW CONFIRM
             </button>
           </div>
-        </div>          <!-- Action buttons - ULTRA SIMPLIFIED FOR DEBUGGING -->
+          
+          <!-- Action buttons - ULTRA SIMPLIFIED FOR DEBUGGING -->
           <div class="flex space-x-3 mt-6">
             <!-- Cancel Button -->
             <button @click="simpleCancel" class="flex-1 bg-red-600 text-white p-4 rounded text-center font-bold">
@@ -370,6 +370,8 @@
           </div>
         </div>
       </div>
+    </div>
+    </div>
     </div>
   </div>
 </template>
