@@ -254,8 +254,8 @@
     </div>
 
     <!-- Mobile Touch Confirmation Dialog -->
-    <div v-if="showConfirmation && isMobileDevice" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div class="bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 border border-purple-500/20 shadow-2xl shadow-purple-500/10 rounded-2xl p-6 max-w-sm w-full mx-auto relative overflow-hidden">
+    <div v-if="showConfirmation && isMobileDevice" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" @click="handleDialogBackgroundClick">
+      <div class="bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 border border-purple-500/20 shadow-2xl shadow-purple-500/10 rounded-2xl p-6 max-w-sm w-full mx-auto relative overflow-hidden" @click.stop>
         <!-- Animated background patterns -->
         <div class="absolute inset-0 opacity-10">
           <div class="absolute top-0 left-0 w-24 h-24 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-full blur-3xl animate-pulse"></div>
@@ -283,20 +283,22 @@
           <!-- Action buttons -->
           <div class="flex space-x-3">
             <button 
-              @click="cancelSelection"
-              @touchend.prevent="cancelSelection"
-              @touchstart.stop
+              @click="handleCancelClick"
+              @touchstart="handleCancelTouchStart"
+              @touchend="handleCancelTouchEnd"
+              @touchcancel="handleTouchCancel"
               class="flex-1 px-4 py-3 bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-500 hover:to-gray-600 active:from-gray-500 active:to-gray-600 text-white font-medium rounded-xl transition-all duration-300 hover:scale-105 active:scale-95 shadow-lg select-none"
-              style="touch-action: manipulation;"
+              style="touch-action: manipulation; -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none;"
             >
               {{ $t('game.timeline.cancelSelection') }}
             </button>
             <button 
-              @click="confirmPlacement"
-              @touchend.prevent="confirmPlacement"
-              @touchstart.stop
+              @click="handleConfirmClick"
+              @touchstart="handleConfirmTouchStart"
+              @touchend="handleConfirmTouchEnd"
+              @touchcancel="handleTouchCancel"
               class="flex-1 px-4 py-3 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-500 hover:to-blue-500 active:from-green-500 active:to-blue-500 text-white font-bold rounded-xl transition-all duration-300 hover:scale-105 active:scale-95 shadow-lg hover:shadow-green-500/25 select-none"
-              style="touch-action: manipulation;"
+              style="touch-action: manipulation; -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none;"
             >
               {{ $t('game.timeline.confirmPlacement') }}
             </button>
@@ -707,4 +709,71 @@ watch(
   },
   { immediate: true }
 )
+
+// Button event handlers for mobile confirmation dialog
+function handleCancelClick() {
+  cancelSelection()
+}
+
+function handleConfirmClick() {
+  confirmPlacement()
+}
+
+function handleCancelTouchStart(event: TouchEvent) {
+  event.stopPropagation()
+  // Add visual feedback
+  const target = event.target as HTMLElement
+  target.style.transform = 'scale(0.95)'
+}
+
+function handleCancelTouchEnd(event: TouchEvent) {
+  event.preventDefault()
+  event.stopPropagation()
+  
+  // Reset visual feedback
+  const target = event.target as HTMLElement
+  target.style.transform = ''
+  
+  // Add haptic feedback
+  if ('vibrate' in navigator) {
+    navigator.vibrate(50)
+  }
+  
+  cancelSelection()
+}
+
+function handleConfirmTouchStart(event: TouchEvent) {
+  event.stopPropagation()
+  // Add visual feedback
+  const target = event.target as HTMLElement
+  target.style.transform = 'scale(0.95)'
+}
+
+function handleConfirmTouchEnd(event: TouchEvent) {
+  event.preventDefault()
+  event.stopPropagation()
+  
+  // Reset visual feedback
+  const target = event.target as HTMLElement
+  target.style.transform = ''
+  
+  // Add haptic feedback
+  if ('vibrate' in navigator) {
+    navigator.vibrate(50)
+  }
+  
+  confirmPlacement()
+}
+
+function handleDialogBackgroundClick() {
+  // Optional: close dialog when clicking background
+  // For better UX, we might want to keep this disabled to prevent accidental dismissal
+  // cancelSelection()
+}
+
+function handleTouchCancel(event: TouchEvent) {
+  // Reset visual feedback when touch is cancelled
+  const target = event.target as HTMLElement
+  target.style.transform = ''
+}
 </script>
