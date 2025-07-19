@@ -282,26 +282,22 @@
           
           <!-- Action buttons -->
           <div class="flex space-x-3">
-            <button 
-              @click="handleCancelClick"
-              @touchstart="handleCancelTouchStart"
-              @touchend="handleCancelTouchEnd"
-              @touchcancel="handleTouchCancel"
-              class="flex-1 px-4 py-3 bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-500 hover:to-gray-600 active:from-gray-500 active:to-gray-600 text-white font-medium rounded-xl transition-all duration-300 hover:scale-105 active:scale-95 shadow-lg select-none"
+            <div 
+              @click="performCancel"
+              @touchend.prevent.stop="performCancel"
+              class="flex-1 px-4 py-3 bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-500 hover:to-gray-600 active:from-gray-500 active:to-gray-600 text-white font-medium rounded-xl transition-all duration-300 hover:scale-105 active:scale-95 shadow-lg select-none cursor-pointer"
               style="touch-action: manipulation; -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none;"
             >
               {{ $t('game.timeline.cancelSelection') }}
-            </button>
-            <button 
-              @click="handleConfirmClick"
-              @touchstart="handleConfirmTouchStart"
-              @touchend="handleConfirmTouchEnd"
-              @touchcancel="handleTouchCancel"
-              class="flex-1 px-4 py-3 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-500 hover:to-blue-500 active:from-green-500 active:to-blue-500 text-white font-bold rounded-xl transition-all duration-300 hover:scale-105 active:scale-95 shadow-lg hover:shadow-green-500/25 select-none"
+            </div>
+            <div 
+              @click="performConfirm"
+              @touchend.prevent.stop="performConfirm"
+              class="flex-1 px-4 py-3 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-500 hover:to-blue-500 active:from-green-500 active:to-blue-500 text-white font-bold rounded-xl transition-all duration-300 hover:scale-105 active:scale-95 shadow-lg hover:shadow-green-500/25 select-none cursor-pointer"
               style="touch-action: manipulation; -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none;"
             >
               {{ $t('game.timeline.confirmPlacement') }}
-            </button>
+            </div>
           </div>
         </div>
       </div>
@@ -334,6 +330,7 @@ const dragOverPositions = ref<boolean[]>([])
 // Touch-to-select state for mobile
 const selectedPosition = ref<number | null>(null)
 const showConfirmation = ref(false)
+const buttonTouchState = ref({ isPressed: false, action: '' })
 
 // Touch state for mobile drag and drop
 const isDragging = ref(false)
@@ -711,58 +708,96 @@ watch(
 )
 
 // Button event handlers for mobile confirmation dialog
-function handleCancelClick() {
+function handleCancelClick(event: Event) {
+  console.log('Cancel click triggered')
+  event.preventDefault()
+  event.stopPropagation()
   cancelSelection()
 }
 
-function handleConfirmClick() {
+function handleConfirmClick(event: Event) {
+  console.log('Confirm click triggered')
+  event.preventDefault()
+  event.stopPropagation()
   confirmPlacement()
 }
 
 function handleCancelTouchStart(event: TouchEvent) {
+  console.log('Cancel touch start')
+  event.preventDefault()
   event.stopPropagation()
+  
+  buttonTouchState.value = { isPressed: true, action: 'cancel' }
+  
   // Add visual feedback
   const target = event.target as HTMLElement
   target.style.transform = 'scale(0.95)'
+  target.style.opacity = '0.8'
 }
 
 function handleCancelTouchEnd(event: TouchEvent) {
+  console.log('Cancel touch end')
   event.preventDefault()
   event.stopPropagation()
   
   // Reset visual feedback
   const target = event.target as HTMLElement
   target.style.transform = ''
+  target.style.opacity = ''
   
-  // Add haptic feedback
-  if ('vibrate' in navigator) {
-    navigator.vibrate(50)
+  // Only execute if this was the button being pressed
+  if (buttonTouchState.value.isPressed && buttonTouchState.value.action === 'cancel') {
+    // Add haptic feedback
+    if ('vibrate' in navigator) {
+      navigator.vibrate(50)
+    }
+    
+    buttonTouchState.value = { isPressed: false, action: '' }
+    
+    // Small delay to ensure visual feedback is seen
+    setTimeout(() => {
+      cancelSelection()
+    }, 50)
   }
-  
-  cancelSelection()
 }
 
 function handleConfirmTouchStart(event: TouchEvent) {
+  console.log('Confirm touch start')
+  event.preventDefault()
   event.stopPropagation()
+  
+  buttonTouchState.value = { isPressed: true, action: 'confirm' }
+  
   // Add visual feedback
   const target = event.target as HTMLElement
   target.style.transform = 'scale(0.95)'
+  target.style.opacity = '0.8'
 }
 
 function handleConfirmTouchEnd(event: TouchEvent) {
+  console.log('Confirm touch end')
   event.preventDefault()
   event.stopPropagation()
   
   // Reset visual feedback
   const target = event.target as HTMLElement
   target.style.transform = ''
+  target.style.opacity = ''
   
-  // Add haptic feedback
-  if ('vibrate' in navigator) {
-    navigator.vibrate(50)
+  // Only execute if this was the button being pressed
+  if (buttonTouchState.value.isPressed && buttonTouchState.value.action === 'confirm') {
+    // Add haptic feedback
+    if ('vibrate' in navigator) {
+      navigator.vibrate(50)
+    }
+    
+    buttonTouchState.value = { isPressed: false, action: '' }
+    
+    // Small delay to ensure visual feedback is seen
+    setTimeout(() => {
+      confirmPlacement()
+    }, 50)
   }
-  
-  confirmPlacement()
 }
 
 function handleDialogBackgroundClick() {
@@ -772,8 +807,47 @@ function handleDialogBackgroundClick() {
 }
 
 function handleTouchCancel(event: TouchEvent) {
+  console.log('Touch cancelled')
   // Reset visual feedback when touch is cancelled
   const target = event.target as HTMLElement
   target.style.transform = ''
+  target.style.opacity = ''
+  buttonTouchState.value = { isPressed: false, action: '' }
+}
+
+// Simplified button handlers that should always work
+function performCancel(event?: Event) {
+  console.log('performCancel called')
+  if (event) {
+    event.preventDefault()
+    event.stopPropagation()
+  }
+  
+  // Add haptic feedback
+  if ('vibrate' in navigator) {
+    navigator.vibrate(50)
+  }
+  
+  selectedPosition.value = null
+  showConfirmation.value = false
+}
+
+function performConfirm(event?: Event) {
+  console.log('performConfirm called')
+  if (event) {
+    event.preventDefault()
+    event.stopPropagation()
+  }
+  
+  // Add haptic feedback
+  if ('vibrate' in navigator) {
+    navigator.vibrate(100)
+  }
+  
+  if (selectedPosition.value !== null && props.currentTrack) {
+    emit('placeTrack', props.currentTrack, selectedPosition.value)
+    selectedPosition.value = null
+    showConfirmation.value = false
+  }
 }
 </script>
