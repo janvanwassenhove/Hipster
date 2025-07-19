@@ -251,6 +251,12 @@
     <!-- Mobile Touch Confirmation Dialog -->
     <div v-if="showConfirmation && isMobileDevice" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" @click="handleDialogBackgroundClick">
       <div class="bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 border border-purple-500/20 shadow-2xl shadow-purple-500/10 rounded-2xl p-6 max-w-sm w-full mx-auto relative overflow-hidden" @click.stop>
+        
+        <!-- EMERGENCY DEBUG MESSAGE -->
+        <div class="bg-red-600 text-white p-2 mb-4 text-center font-bold">
+          TOUCH TO TEST: If you see this, JavaScript is working!
+        </div>
+        
         <!-- Debug Info for Mobile -->
         <div v-if="showDebugInfo" class="absolute top-2 right-2 bg-red-500 text-white text-xs p-1 rounded z-50">
           DEBUG: {{ debugMessage }}
@@ -293,32 +299,47 @@
             <p>Window Size: {{ windowSize }}</p>
             <button @click="testDebugFunction" class="bg-red-500 text-white px-2 py-1 rounded mt-1">Test Debug</button>
             
-            <!-- Simple Test Buttons for Debugging -->
+            <!-- Ultra Basic Test Buttons for Debugging -->
             <div class="mt-2 flex space-x-2">
               <button 
-                @click="simpleCancel"
+                onclick="console.log('RAW ONCLICK CANCEL'); alert('Cancel clicked');"
                 class="bg-red-600 text-white px-2 py-1 rounded text-xs"
               >
-                Simple Cancel
+                Raw Cancel
               </button>
               <button 
-                @click="simpleConfirm"
+                onclick="console.log('RAW ONCLICK CONFIRM'); alert('Confirm clicked');"
                 class="bg-green-600 text-white px-2 py-1 rounded text-xs"
               >
-                Simple Confirm
+                Raw Confirm
+              </button>
+              <button 
+                @click="ultraBasicTest"
+                class="bg-blue-600 text-white px-2 py-1 rounded text-xs"
+              >
+                Vue Test
               </button>
             </div>
             
-            <!-- Debug Event Log -->
-            <div v-if="debugEvents.length > 0" class="mt-2 p-2 bg-black/30 rounded max-h-32 overflow-y-auto">
-              <p class="font-bold mb-1">Event Log:</p>
-              <div v-for="(event, index) in debugEvents.slice(0, 5)" :key="index" class="text-xs">
-                {{ event }}
-              </div>
+          <!-- Debug Event Log -->
+          <div v-if="debugEvents.length > 0" class="mt-2 p-2 bg-black/30 rounded max-h-32 overflow-y-auto">
+            <p class="font-bold mb-1">Event Log:</p>
+            <div v-for="(event, index) in debugEvents.slice(0, 5)" :key="index" class="text-xs">
+              {{ event }}
             </div>
           </div>
           
-          <!-- Action buttons -->
+          <!-- COMPLETELY UNSTYLED BUTTONS FOR TESTING -->
+          <div style="background: yellow; padding: 10px; margin: 10px 0; border: 2px solid red;">
+            <p style="color: black; font-weight: bold;">EMERGENCY BUTTONS (no CSS conflicts):</p>
+            <button onclick="console.log('RAW YELLOW CANCEL'); alert('Raw cancel worked!');" style="background: red; color: white; padding: 5px; margin: 5px; border: none;">
+              YELLOW CANCEL
+            </button>
+            <button onclick="console.log('RAW YELLOW CONFIRM'); alert('Raw confirm worked!');" style="background: green; color: white; padding: 5px; margin: 5px; border: none;">
+              YELLOW CONFIRM
+            </button>
+          </div>
+        </div>          <!-- Action buttons -->
           <div class="flex space-x-3">
             <!-- Cancel Button -->
             <button 
@@ -432,6 +453,12 @@ const windowSize = computed(() => `${window.innerWidth}x${window.innerHeight}`)
 // Initialize debug logging
 addDebugEvent('PlayerTimeline component initialized')
 addDebugEvent(`Environment: ${isMobileDevice.value ? 'Mobile' : 'Desktop'}, Touch: ${touchSupported.value}`)
+
+// IMMEDIATE BASIC TEST - Run as soon as component loads
+console.log('COMPONENT MOUNTED - JS DEFINITELY WORKING')
+if (isMobileDevice.value) {
+  console.log('MOBILE DEVICE DETECTED - Touch events should work')
+}
 
 // Computed
 const timelineSpan = computed(() => {
@@ -583,8 +610,14 @@ watch(
 // Watch for confirmation dialog state changes
 watch(showConfirmation, (newValue, oldValue) => {
   if (newValue && !oldValue) {
+    console.log('DIALOG OPENED - JS IS WORKING!')
     addDebugEvent(`Confirmation dialog opened - position: ${selectedPosition.value}`)
     addDebugEvent(`Device info - Mobile: ${isMobileDevice.value}, Touch: ${touchSupported.value}, MaxTouch: ${maxTouchPoints.value}`)
+    
+    // Test immediate alert to verify JS execution
+    setTimeout(() => {
+      console.log('DELAYED TEST - Still working after 1 second')
+    }, 1000)
   } else if (!newValue && oldValue) {
     addDebugEvent('Confirmation dialog closed')
   }
@@ -878,5 +911,11 @@ function simpleConfirm() {
     selectedPosition.value = null
     showConfirmation.value = false
   }
+}
+
+function ultraBasicTest() {
+  console.log('ULTRA_BASIC_TEST called')
+  alert('Vue click handler works!')
+  addDebugEvent('Ultra basic test clicked')
 }
 </script>
