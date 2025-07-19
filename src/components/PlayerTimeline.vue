@@ -293,6 +293,22 @@
             <p>Window Size: {{ windowSize }}</p>
             <button @click="testDebugFunction" class="bg-red-500 text-white px-2 py-1 rounded mt-1">Test Debug</button>
             
+            <!-- Simple Test Buttons for Debugging -->
+            <div class="mt-2 flex space-x-2">
+              <button 
+                @click="simpleCancel"
+                class="bg-red-600 text-white px-2 py-1 rounded text-xs"
+              >
+                Simple Cancel
+              </button>
+              <button 
+                @click="simpleConfirm"
+                class="bg-green-600 text-white px-2 py-1 rounded text-xs"
+              >
+                Simple Confirm
+              </button>
+            </div>
+            
             <!-- Debug Event Log -->
             <div v-if="debugEvents.length > 0" class="mt-2 p-2 bg-black/30 rounded max-h-32 overflow-y-auto">
               <p class="font-bold mb-1">Event Log:</p>
@@ -304,32 +320,29 @@
           
           <!-- Action buttons -->
           <div class="flex space-x-3">
-            <div 
-              ref="cancelButton"
-              @click="performCancel"
-              @touchstart="handleTouchStart('cancel', $event)"
-              @touchend="handleTouchEnd('cancel', $event)"
-              @touchcancel="handleTouchCancel"
-              @mousedown="handleMouseDown('cancel', $event)"
-              @mouseup="handleMouseUp('cancel', $event)"
-              class="flex-1 px-4 py-3 bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-500 hover:to-gray-600 active:from-gray-500 active:to-gray-600 text-white font-medium rounded-xl transition-all duration-300 hover:scale-105 active:scale-95 shadow-lg select-none cursor-pointer"
+            <!-- Cancel Button -->
+            <button 
+              type="button"
+              @click="handleButtonClick('cancel')"
+              @touchstart="handleButtonTouch('cancel', 'start', $event)"
+              @touchend="handleButtonTouch('cancel', 'end', $event)"
+              class="flex-1 px-4 py-3 bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-500 hover:to-gray-600 active:from-gray-500 active:to-gray-600 text-white font-medium rounded-xl transition-all duration-300 hover:scale-105 active:scale-95 shadow-lg select-none cursor-pointer border-0 outline-none"
               style="touch-action: manipulation; -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none;"
             >
               {{ $t('game.timeline.cancelSelection') }}
-            </div>
-            <div 
-              ref="confirmButton"
-              @click="performConfirm"
-              @touchstart="handleTouchStart('confirm', $event)"
-              @touchend="handleTouchEnd('confirm', $event)"
-              @touchcancel="handleTouchCancel"
-              @mousedown="handleMouseDown('confirm', $event)"
-              @mouseup="handleMouseUp('confirm', $event)"
-              class="flex-1 px-4 py-3 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-500 hover:to-blue-500 active:from-green-500 active:to-blue-500 text-white font-bold rounded-xl transition-all duration-300 hover:scale-105 active:scale-95 shadow-lg hover:shadow-green-500/25 select-none cursor-pointer"
+            </button>
+            
+            <!-- Confirm Button -->
+            <button 
+              type="button"
+              @click="handleButtonClick('confirm')"
+              @touchstart="handleButtonTouch('confirm', 'start', $event)"
+              @touchend="handleButtonTouch('confirm', 'end', $event)"
+              class="flex-1 px-4 py-3 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-500 hover:to-blue-500 active:from-green-500 active:to-blue-500 text-white font-bold rounded-xl transition-all duration-300 hover:scale-105 active:scale-95 shadow-lg hover:shadow-green-500/25 select-none cursor-pointer border-0 outline-none"
               style="touch-action: manipulation; -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none;"
             >
               {{ $t('game.timeline.confirmPlacement') }}
-            </div>
+            </button>
           </div>
           
           <!-- Debug Toggle Button -->
@@ -813,5 +826,57 @@ function handleMouseUp(action: string, event: MouseEvent) {
   addDebugEvent(`MouseUp ${action}`)
   event.preventDefault()
   event.stopPropagation()
+}
+
+// Simplified button handlers - single point of entry
+function handleButtonClick(action: string) {
+  addDebugEvent(`Button CLICK: ${action}`)
+  
+  if (action === 'cancel') {
+    performCancel()
+  } else if (action === 'confirm') {
+    performConfirm()
+  }
+}
+
+function handleButtonTouch(action: string, phase: string, event: TouchEvent) {
+  addDebugEvent(`Button TOUCH ${phase.toUpperCase()}: ${action}`)
+  
+  if (phase === 'start') {
+    // Visual feedback
+    const target = event.target as HTMLElement
+    target.style.transform = 'scale(0.95)'
+    target.style.opacity = '0.8'
+    addDebugEvent(`Visual feedback applied to ${action}`)
+  } else if (phase === 'end') {
+    // Reset visual feedback and execute action
+    const target = event.target as HTMLElement
+    target.style.transform = ''
+    target.style.opacity = ''
+    
+    addDebugEvent(`Executing ${action} from touch end`)
+    
+    if (action === 'cancel') {
+      performCancel()
+    } else if (action === 'confirm') {
+      performConfirm()
+    }
+  }
+}
+
+// Simple test functions for debugging
+function simpleCancel() {
+  addDebugEvent('SIMPLE CANCEL clicked')
+  selectedPosition.value = null
+  showConfirmation.value = false
+}
+
+function simpleConfirm() {
+  addDebugEvent('SIMPLE CONFIRM clicked')
+  if (selectedPosition.value !== null && props.currentTrack) {
+    emit('placeTrack', props.currentTrack, selectedPosition.value)
+    selectedPosition.value = null
+    showConfirmation.value = false
+  }
 }
 </script>
