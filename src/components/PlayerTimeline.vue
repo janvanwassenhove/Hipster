@@ -251,6 +251,11 @@
     <!-- Mobile Touch Confirmation Dialog -->
     <div v-if="showConfirmation && isMobileDevice" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" @click="handleDialogBackgroundClick">
       <div class="bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 border border-purple-500/20 shadow-2xl shadow-purple-500/10 rounded-2xl p-6 max-w-sm w-full mx-auto relative overflow-hidden" @click.stop>
+        <!-- Debug Info for Mobile -->
+        <div v-if="showDebugInfo" class="absolute top-2 right-2 bg-red-500 text-white text-xs p-1 rounded z-50">
+          DEBUG: {{ debugMessage }}
+        </div>
+        
         <!-- Animated background patterns -->
         <div class="absolute inset-0 opacity-10">
           <div class="absolute top-0 left-0 w-24 h-24 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-full blur-3xl animate-pulse"></div>
@@ -275,24 +280,63 @@
             </p>
           </div>
           
+          <!-- Debug Button Test -->
+          <div v-if="showDebugInfo" class="mb-4 p-2 bg-yellow-900/50 rounded text-xs text-yellow-200">
+            <p>Mobile Device: {{ isMobileDevice }}</p>
+            <p>Selected Position: {{ selectedPosition }}</p>
+            <p>Show Confirmation: {{ showConfirmation }}</p>
+            <p>Current Track: {{ !!currentTrack }}</p>
+            <p>Touch Events Supported: {{ touchSupported }}</p>
+            <p>Max Touch Points: {{ maxTouchPoints }}</p>
+            <button @click="testDebugFunction" class="bg-red-500 text-white px-2 py-1 rounded mt-1">Test Debug</button>
+            
+            <!-- Debug Event Log -->
+            <div v-if="debugEvents.length > 0" class="mt-2 p-2 bg-black/30 rounded max-h-32 overflow-y-auto">
+              <p class="font-bold mb-1">Event Log:</p>
+              <div v-for="(event, index) in debugEvents.slice(0, 5)" :key="index" class="text-xs">
+                {{ event }}
+              </div>
+            </div>
+          </div>
+          
           <!-- Action buttons -->
           <div class="flex space-x-3">
             <div 
+              ref="cancelButton"
               @click="performCancel"
-              @touchend.prevent.stop="performCancel"
+              @touchstart="handleTouchStart('cancel', $event)"
+              @touchend="handleTouchEnd('cancel', $event)"
+              @touchcancel="handleTouchCancel"
+              @mousedown="handleMouseDown('cancel', $event)"
+              @mouseup="handleMouseUp('cancel', $event)"
               class="flex-1 px-4 py-3 bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-500 hover:to-gray-600 active:from-gray-500 active:to-gray-600 text-white font-medium rounded-xl transition-all duration-300 hover:scale-105 active:scale-95 shadow-lg select-none cursor-pointer"
               style="touch-action: manipulation; -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none;"
             >
               {{ $t('game.timeline.cancelSelection') }}
             </div>
             <div 
+              ref="confirmButton"
               @click="performConfirm"
-              @touchend.prevent.stop="performConfirm"
+              @touchstart="handleTouchStart('confirm', $event)"
+              @touchend="handleTouchEnd('confirm', $event)"
+              @touchcancel="handleTouchCancel"
+              @mousedown="handleMouseDown('confirm', $event)"
+              @mouseup="handleMouseUp('confirm', $event)"
               class="flex-1 px-4 py-3 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-500 hover:to-blue-500 active:from-green-500 active:to-blue-500 text-white font-bold rounded-xl transition-all duration-300 hover:scale-105 active:scale-95 shadow-lg hover:shadow-green-500/25 select-none cursor-pointer"
               style="touch-action: manipulation; -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none;"
             >
               {{ $t('game.timeline.confirmPlacement') }}
             </div>
+          </div>
+          
+          <!-- Debug Toggle Button -->
+          <div class="mt-4 text-center">
+            <button 
+              @click="toggleDebugInfo" 
+              class="text-xs text-gray-400 hover:text-gray-200 underline"
+            >
+              {{ showDebugInfo ? 'Hide Debug' : 'Show Debug' }}
+            </button>
           </div>
         </div>
       </div>
@@ -327,10 +371,22 @@ const selectedPosition = ref<number | null>(null)
 const showConfirmation = ref(false)
 const buttonTouchState = ref({ isPressed: false, action: '' })
 
+// Debug state for mobile
+const showDebugInfo = ref(false)
+const debugMessage = ref('')
+const debugEvents = ref<string[]>([])
+
+// Touch event tracking for debugging
+const touchEventCounter = ref(0)
+
 // Detect if user is on mobile/touch device
 const isMobileDevice = computed(() => {
   return 'ontouchstart' in window || navigator.maxTouchPoints > 0
 })
+
+// Debug computed properties for template access
+const touchSupported = computed(() => 'ontouchstart' in window)
+const maxTouchPoints = computed(() => navigator.maxTouchPoints || 0)
 
 // Computed
 const timelineSpan = computed(() => {
@@ -582,6 +638,8 @@ function handleTouchCancel(event: TouchEvent) {
 // Simplified button handlers that should always work
 function performCancel(event?: Event) {
   console.log('performCancel called')
+  logDebugEvent('performCancel called')
+  
   if (event) {
     event.preventDefault()
     event.stopPropagation()
@@ -594,10 +652,13 @@ function performCancel(event?: Event) {
   
   selectedPosition.value = null
   showConfirmation.value = false
+  logDebugEvent('Dialog closed via cancel')
 }
 
 function performConfirm(event?: Event) {
   console.log('performConfirm called')
+  logDebugEvent('performConfirm called')
+  
   if (event) {
     event.preventDefault()
     event.stopPropagation()
@@ -612,6 +673,103 @@ function performConfirm(event?: Event) {
     emit('placeTrack', props.currentTrack, selectedPosition.value)
     selectedPosition.value = null
     showConfirmation.value = false
+    logDebugEvent('Track placed successfully')
+  } else {
+    logDebugEvent('Cannot confirm - missing track or position')
   }
+}
+
+// Debug functions for mobile testing
+function toggleDebugInfo() {
+  showDebugInfo.value = !showDebugInfo.value
+  debugMessage.value = `Debug toggled: ${showDebugInfo.value}`
+}
+
+function testDebugFunction() {
+  debugMessage.value = `Test clicked at ${new Date().toLocaleTimeString()}`
+  console.log('Test debug function called')
+  
+  // Add haptic feedback
+  if ('vibrate' in navigator) {
+    navigator.vibrate([50, 100, 50])
+  }
+}
+
+function logDebugEvent(event: string) {
+  const timestamp = new Date().toLocaleTimeString()
+  const logMessage = `${timestamp}: ${event}`
+  
+  debugEvents.value.unshift(logMessage)
+  if (debugEvents.value.length > 10) {
+    debugEvents.value = debugEvents.value.slice(0, 10)
+  }
+  
+  debugMessage.value = logMessage
+  console.log(`[MOBILE DEBUG] ${logMessage}`)
+}
+
+// Enhanced touch event handlers with debugging
+function handleTouchStart(action: string, event: TouchEvent) {
+  touchEventCounter.value++
+  logDebugEvent(`TouchStart ${action} (#${touchEventCounter.value})`)
+  
+  event.preventDefault()
+  event.stopPropagation()
+  
+  buttonTouchState.value = { isPressed: true, action }
+  
+  // Add visual feedback
+  const target = event.target as HTMLElement
+  target.style.transform = 'scale(0.95)'
+  target.style.opacity = '0.8'
+  target.style.backgroundColor = action === 'cancel' ? '#ef4444' : '#10b981'
+}
+
+function handleTouchEnd(action: string, event: TouchEvent) {
+  logDebugEvent(`TouchEnd ${action} (#${touchEventCounter.value})`)
+  
+  event.preventDefault()
+  event.stopPropagation()
+  
+  // Reset visual feedback
+  const target = event.target as HTMLElement
+  target.style.transform = ''
+  target.style.opacity = ''
+  target.style.backgroundColor = ''
+  
+  // Only execute if this was the button being pressed
+  if (buttonTouchState.value.isPressed && buttonTouchState.value.action === action) {
+    logDebugEvent(`Executing ${action} action`)
+    
+    // Add haptic feedback
+    if ('vibrate' in navigator) {
+      navigator.vibrate(action === 'cancel' ? 50 : 100)
+    }
+    
+    buttonTouchState.value = { isPressed: false, action: '' }
+    
+    // Execute the action
+    if (action === 'cancel') {
+      logDebugEvent('Calling cancelSelection')
+      cancelSelection()
+    } else if (action === 'confirm') {
+      logDebugEvent('Calling confirmPlacement')
+      confirmPlacement()
+    }
+  } else {
+    logDebugEvent(`TouchEnd ignored - state mismatch: ${JSON.stringify(buttonTouchState.value)}`)
+  }
+}
+
+function handleMouseDown(action: string, event: MouseEvent) {
+  logDebugEvent(`MouseDown ${action}`)
+  event.preventDefault()
+  event.stopPropagation()
+}
+
+function handleMouseUp(action: string, event: MouseEvent) {
+  logDebugEvent(`MouseUp ${action}`)
+  event.preventDefault()
+  event.stopPropagation()
 }
 </script>
