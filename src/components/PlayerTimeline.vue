@@ -183,30 +183,31 @@
             </div>
           </div>
 
-        <!-- After last track -->
-        <div
-          v-if="canPlace"
-          class="timeline-slot h-20 group"
-          :class="{ 
-            'drag-over': !isMobileDevice && dragOverPositions[player.timeline?.length || 0],
-            'selected': selectedPosition === (player.timeline?.length || 0) && isMobileDevice
-          }"
-          @dragover.prevent="!isMobileDevice ? (dragOverPositions[player.timeline?.length || 0] = true) : null"
-          @dragleave.prevent="!isMobileDevice ? (dragOverPositions[player.timeline?.length || 0] = false) : null"
-          @drop.prevent="!isMobileDevice ? handleDrop(player.timeline?.length || 0) : null"
-          @touchstart.prevent="isMobileDevice ? handleTimelineSlotTouch(player.timeline?.length || 0) : null"
-          @click="isMobileDevice ? handleTimelineSlotTouch(player.timeline?.length || 0) : null"
-          :data-drop-zone="player.timeline?.length || 0"
-        >
-          <div 
-            class="h-full border-2 border-dashed border-gray-600 rounded-xl group-hover:border-cyan-400 transition-colors duration-300 bg-gradient-to-r from-gray-800/20 to-gray-700/20 backdrop-blur-sm flex items-center justify-center"
+          <!-- After last track -->
+          <div
+            v-if="canPlace"
+            class="timeline-slot h-20 group"
             :class="{ 
-              'border-green-400 bg-green-500/20': selectedPosition === (player.timeline?.length || 0) && isMobileDevice 
+              'drag-over': !isMobileDevice && dragOverPositions[player.timeline?.length || 0],
+              'selected': selectedPosition === (player.timeline?.length || 0) && isMobileDevice
             }"
+            @dragover.prevent="!isMobileDevice ? (dragOverPositions[player.timeline?.length || 0] = true) : null"
+            @dragleave.prevent="!isMobileDevice ? (dragOverPositions[player.timeline?.length || 0] = false) : null"
+            @drop.prevent="!isMobileDevice ? handleDrop(player.timeline?.length || 0) : null"
+            @touchstart.prevent="isMobileDevice ? handleTimelineSlotTouch(player.timeline?.length || 0) : null"
+            @click="isMobileDevice ? handleTimelineSlotTouch(player.timeline?.length || 0) : null"
+            :data-drop-zone="player.timeline?.length || 0"
           >
-            <p class="text-center text-gray-400 text-sm font-medium">
-              {{ isMobileDevice ? $t('game.timeline.tapToSelect') : $t('game.placeLater') }}
-            </p>
+            <div 
+              class="h-full border-2 border-dashed border-gray-600 rounded-xl group-hover:border-cyan-400 transition-colors duration-300 bg-gradient-to-r from-gray-800/20 to-gray-700/20 backdrop-blur-sm flex items-center justify-center"
+              :class="{ 
+                'border-green-400 bg-green-500/20': selectedPosition === (player.timeline?.length || 0) && isMobileDevice 
+              }"
+            >
+              <p class="text-center text-gray-400 text-sm font-medium">
+                {{ isMobileDevice ? $t('game.timeline.tapToSelect') : $t('game.placeLater') }}
+              </p>
+            </div>
           </div>
         </div>
       </div>
