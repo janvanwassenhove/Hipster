@@ -113,6 +113,16 @@ This project is open source and available under the [MIT License](LICENSE).
 - Music data and previews provided by Spotify Web API
 - Built with modern web technologies
 
+## 📚 Documentation
+
+Comprehensive project documentation is available in the [`docs/`](./docs/) directory:
+
+- **[Architecture](./docs/architecture.md)** - System design and component structure
+- **[Sequence Diagrams](./docs/sequence-diagrams.md)** - User flows and system interactions  
+- **[Use Cases](./docs/use-cases.md)** - Functional requirements and user stories
+- **[API Reference](./docs/api-reference.md)** - Spotify integration and service APIs
+- **[Development Guide](./docs/development.md)** - Setup, building, and deployment
+
 ## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
@@ -122,6 +132,8 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
+
+For detailed development instructions, see the [Development Guide](./docs/development.md).
 
 ## 📞 Support
 
