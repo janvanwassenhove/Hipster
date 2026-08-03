@@ -113,6 +113,11 @@ export default {
       description: 'Music will play through your Spotify app'
     },
     deviceHelp: {
+      openInSpotify: {
+        title: 'Play this song in Spotify:',
+        button: 'Open in Spotify',
+        hint: 'Then switch back to the game - playback keeps working from here.'
+      },
       sessionExpired: {
         title: 'Spotify Session Expired',
         message: 'Spotify rejected the connection. Please reconnect your account.',
