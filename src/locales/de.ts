@@ -152,6 +152,16 @@ export default {
     changeLanguage: 'Sprache Ändern',
     about: 'Über',
     aboutText: 'Ein Musik-Zeitstrahl-Ratespiel.',
-    madeWith: 'Mit viel Freude und Liebe zur Musik und zu Spielen gemacht!'
+    madeWith: 'Mit viel Freude und Liebe zur Musik und zu Spielen gemacht!',
+    diagnostics: {
+      title: 'Spotify-Sitzungsdiagnose',
+      hint: 'Wenn Spotify erneut nach einer Anmeldung fragt, steht hier der Grund.',
+      empty: 'Keine Sitzungsprobleme aufgezeichnet.',
+      lastEnd: 'Letzte Sitzung beendet',
+      recentEvents: 'Letzte Ereignisse',
+      copy: 'Kopieren',
+      copied: 'Kopiert!',
+      clear: 'Löschen'
+    }
   }
 }

@@ -141,6 +141,16 @@ export default {
     changeLanguage: 'Taal Wijzigen',
     about: 'Over',
     aboutText: 'Een muziek tijdlijn raadspel.',
-    madeWith: 'Gemaakt veel plezier en liefde voor muziek en spelletjes!'
+    madeWith: 'Gemaakt veel plezier en liefde voor muziek en spelletjes!',
+    diagnostics: {
+      title: 'Spotify-sessiediagnose',
+      hint: 'Als Spotify opnieuw om een login vraagt, zie je hier waarom.',
+      empty: 'Geen sessieproblemen geregistreerd.',
+      lastEnd: 'Laatste sessie beëindigd',
+      recentEvents: 'Recente gebeurtenissen',
+      copy: 'Kopiëren',
+      copied: 'Gekopieerd!',
+      clear: 'Wissen'
+    }
   }
 }

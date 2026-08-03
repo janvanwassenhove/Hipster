@@ -15,6 +15,24 @@ const REFRESH_TOKEN_STORAGE_KEY = 'spotify_refresh_token'
 // Refresh the access token this long before it actually expires
 const TOKEN_REFRESH_MARGIN_MS = 5 * 60 * 1000
 
+// Session diagnostics. Records *why* a session ended plus a short trail of the
+// auth events leading up to it, so a re-login report from a phone or tablet can
+// be diagnosed from the Settings screen instead of guessed at. Never contains
+// tokens - only event names, HTTP statuses and Spotify's own error codes.
+const DIAGNOSTICS_STORAGE_KEY = 'spotify_diagnostics'
+const MAX_DIAGNOSTIC_EVENTS = 25
+
+export interface SpotifyDiagnosticEvent {
+  at: string
+  event: string
+  detail?: string
+}
+
+export interface SpotifyDiagnostics {
+  lastSessionEnd: SpotifyDiagnosticEvent | null
+  events: SpotifyDiagnosticEvent[]
+}
+
 interface SongData {
   jaar: number
   uitvoerder: string
@@ -124,6 +142,15 @@ class SpotifyService {
 
       console.log('🔄 App resumed - restoring Spotify session...')
 
+      // Only worth recording when the resume actually had work to do - a
+      // resume with a healthy token would just crowd out the useful entries.
+      const tokenNeedsWork = !this.authState.accessToken ||
+        !this.authState.expiresAt ||
+        Date.now() >= this.authState.expiresAt - TOKEN_REFRESH_MARGIN_MS
+      if (tokenNeedsWork) {
+        this.record('app_resume_needed_refresh')
+      }
+
       // Timers were frozen while hidden: refresh now and reschedule.
       await this.ensureValidToken()
       this.startTokenRefreshTimer()
@@ -154,6 +181,56 @@ class SpotifyService {
 
   private isMobileDevice(): boolean {
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|CriOS/i.test(navigator.userAgent)
+  }
+
+  // --- Session diagnostics -------------------------------------------------
+
+  private readDiagnostics(): SpotifyDiagnostics {
+    const empty: SpotifyDiagnostics = { lastSessionEnd: null, events: [] }
+    const stored = localStorage.getItem(DIAGNOSTICS_STORAGE_KEY)
+    if (!stored) {
+      return empty
+    }
+
+    try {
+      const parsed = JSON.parse(stored)
+      return {
+        lastSessionEnd: parsed?.lastSessionEnd ?? null,
+        events: Array.isArray(parsed?.events) ? parsed.events : []
+      }
+    } catch {
+      return empty
+    }
+  }
+
+  private record(event: string, detail?: string): void {
+    try {
+      const diagnostics = this.readDiagnostics()
+      const entry: SpotifyDiagnosticEvent = {
+        at: new Date().toISOString(),
+        event,
+        ...(detail ? { detail: detail.slice(0, 200) } : {})
+      }
+
+      diagnostics.events = [...diagnostics.events, entry].slice(-MAX_DIAGNOSTIC_EVENTS)
+      if (event === 'session_end') {
+        diagnostics.lastSessionEnd = entry
+      }
+
+      localStorage.setItem(DIAGNOSTICS_STORAGE_KEY, JSON.stringify(diagnostics))
+    } catch (error) {
+      // Diagnostics must never break playback (e.g. storage full or disabled)
+      console.warn('Could not record Spotify diagnostic:', error)
+    }
+  }
+
+  // Everything the app knows about why the Spotify session ended, for support.
+  getDiagnostics(): SpotifyDiagnostics {
+    return this.readDiagnostics()
+  }
+
+  clearDiagnostics(): void {
+    localStorage.removeItem(DIAGNOSTICS_STORAGE_KEY)
   }
 
   // Generate PKCE code verifier and challenge
@@ -289,6 +366,7 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
       this.saveAuthState()
       localStorage.removeItem('spotify_code_verifier')
       this.refreshFailureCount = 0
+      this.record('login_complete')
       this.startTokenRefreshTimer()
 
       // Initialize player now that we're authenticated
@@ -361,6 +439,7 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
       // Network error: the refresh token is still perfectly valid, so keep it
       // and try again later. Never log the user out over a dropped connection.
       this.refreshFailureCount++
+      this.record('refresh_failed_network', `attempt ${this.refreshFailureCount}`)
       console.warn('⚠️ Token refresh failed (network) - keeping session, will retry:', error)
       return false
     }
@@ -370,12 +449,13 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
 
       if (this.isPermanentRefreshFailure(response.status, errorText)) {
         console.error('❌ Refresh token was rejected by Spotify, re-authentication required:', errorText)
-        this.clearSession()
+        this.clearSession('refresh_token_rejected', `${response.status} ${errorText}`)
         return false
       }
 
       // 429 / 5xx / anything else transient: keep the refresh token.
       this.refreshFailureCount++
+      this.record('refresh_failed_http', `${response.status}, attempt ${this.refreshFailureCount}`)
       console.warn(`⚠️ Token refresh failed (${response.status}) - keeping session, will retry`)
       return false
     }
@@ -393,12 +473,15 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
       }
 
       this.saveAuthState()
+      const hadFailures = this.refreshFailureCount
       this.refreshFailureCount = 0
+      this.record('refresh_ok', hadFailures ? `after ${hadFailures} failed attempt(s)` : undefined)
       console.log('✅ Token refreshed successfully')
       this.startTokenRefreshTimer()
       return true
     } catch (error) {
       this.refreshFailureCount++
+      this.record('refresh_response_unreadable')
       console.warn('⚠️ Could not parse token refresh response - keeping session:', error)
       return false
     }
@@ -460,8 +543,10 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
     if (response.status === 401 && allowRetry && this.authState.refreshToken) {
       console.log('🔄 Got 401 from Spotify - refreshing token and retrying once')
       if (await this.refreshAccessToken()) {
+        this.record('api_401_recovered', this.endpointLabel(url))
         return this.authFetch(url, init, false)
       }
+      this.record('api_401_not_recovered', this.endpointLabel(url))
     }
 
     // A missing scope is the only case where re-running the OAuth flow actually
@@ -470,11 +555,20 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
       const body = await response.clone().text().catch(() => '')
       if (/insufficient client scope/i.test(body)) {
         console.warn('⚠️ Spotify reported insufficient scope - re-authorization required')
+        if (!this.permissionErrorDetected) {
+          this.record('scope_error', this.endpointLabel(url))
+        }
         this.permissionErrorDetected = true
       }
     }
 
     return response
+  }
+
+  // Endpoint path only - never the query string, which can carry identifiers.
+  private endpointLabel(url: string): string {
+    const path = url.split('?')[0]
+    return path.replace('https://api.spotify.com/v1', '')
   }
 
   // True only when Spotify explicitly rejected a request for missing scopes.
@@ -914,8 +1008,11 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
     }
   }
 
-  // Clear the session because Spotify definitively rejected our credentials.
-  private clearSession(): void {
+  // Clear the session. Every call records why, so a forced re-login is always
+  // traceable afterwards instead of having to be reproduced.
+  private clearSession(reason: string, detail?: string): void {
+    this.record('session_end', detail ? `${reason}: ${detail}` : reason)
+
     this.stopSessionMaintenance()
     this.stopTokenRefreshTimer()
 
@@ -949,7 +1046,7 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
   logout(): void {
     console.log('Logging out and clearing Spotify authentication')
 
-    this.clearSession()
+    this.clearSession('user_logout')
     localStorage.removeItem('spotify_code_verifier')
 
     console.log('✅ Successfully logged out')
@@ -987,7 +1084,8 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
     console.log('🔄 Forcing re-authentication with updated scopes')
     // Set a flag to prevent automatic re-login during logout
     const wasAuthenticating = this.isAuthenticating
-    this.logout()
+    this.clearSession('forced_reauth')
+    localStorage.removeItem('spotify_code_verifier')
     this.isAuthenticating = wasAuthenticating
     await this.initiateLogin()
   }
@@ -1042,7 +1140,7 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
         this.authState.isAuthenticated = true
       } else {
         console.log('Stored access token expired and no refresh token available')
-        this.clearSession()
+        this.clearSession('expired_without_refresh_token')
         return
       }
     }

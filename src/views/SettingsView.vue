@@ -71,6 +71,54 @@
                 🎵 {{ $t('game.spotify.login') }}
               </button>
             </div>
+
+            <!-- Session diagnostics: why a re-login was required, if it was -->
+            <details class="mt-4 rounded-lg border border-white/20 bg-white/5">
+              <summary class="cursor-pointer select-none p-3 text-sm font-medium text-white">
+                🩺 {{ $t('settings.diagnostics.title') }}
+                <span v-if="lastSessionEnd" class="ml-1 text-amber-300">•</span>
+              </summary>
+
+              <div class="px-3 pb-3 text-sm text-white/80">
+                <p class="mb-3 text-xs text-white/60">{{ $t('settings.diagnostics.hint') }}</p>
+
+                <p v-if="!lastSessionEnd && !diagnosticEvents.length" class="text-white/70">
+                  {{ $t('settings.diagnostics.empty') }}
+                </p>
+
+                <template v-else>
+                  <div v-if="lastSessionEnd" class="mb-3 rounded-md bg-amber-500/10 border border-amber-400/30 p-3">
+                    <p class="text-xs uppercase tracking-wide text-amber-200/80">
+                      {{ $t('settings.diagnostics.lastEnd') }}
+                    </p>
+                    <p class="font-mono text-white break-words">{{ lastSessionEnd.detail || lastSessionEnd.event }}</p>
+                    <p class="text-xs text-white/60">{{ formatTime(lastSessionEnd.at) }}</p>
+                  </div>
+
+                  <div v-if="diagnosticEvents.length">
+                    <p class="mb-1 text-xs uppercase tracking-wide text-white/60">
+                      {{ $t('settings.diagnostics.recentEvents') }}
+                    </p>
+                    <ul class="max-h-48 overflow-y-auto space-y-1 font-mono text-xs">
+                      <li v-for="(entry, index) in reversedEvents" :key="index" class="break-words">
+                        <span class="text-white/50">{{ formatTime(entry.at) }}</span>
+                        <span class="ml-2 text-white">{{ entry.event }}</span>
+                        <span v-if="entry.detail" class="ml-1 text-white/60">({{ entry.detail }})</span>
+                      </li>
+                    </ul>
+                  </div>
+                </template>
+
+                <div class="mt-3 flex space-x-2">
+                  <button @click="copyDiagnostics" class="btn btn-secondary text-xs">
+                    {{ justCopied ? $t('settings.diagnostics.copied') : $t('settings.diagnostics.copy') }}
+                  </button>
+                  <button @click="clearDiagnostics" class="btn btn-secondary text-xs">
+                    {{ $t('settings.diagnostics.clear') }}
+                  </button>
+                </div>
+              </div>
+            </details>
           </div>
 
           <!-- App Info -->
@@ -93,16 +141,21 @@
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { setLanguage, type Language } from '@/locales'
-import { spotifyService } from '@/services/spotify'
+import { spotifyService, type SpotifyDiagnostics } from '@/services/spotify'
 
 const { locale } = useI18n()
 
 // Reactive state
 const isSpotifyAuthenticated = ref(false)
 const userProfile = ref<any>(null)
+const diagnostics = ref<SpotifyDiagnostics>({ lastSessionEnd: null, events: [] })
+const justCopied = ref(false)
 
 // Computed
 const currentLanguage = computed(() => locale.value)
+const lastSessionEnd = computed(() => diagnostics.value.lastSessionEnd)
+const diagnosticEvents = computed(() => diagnostics.value.events)
+const reversedEvents = computed(() => [...diagnostics.value.events].reverse())
 
 const availableLanguages = [
   { code: 'en' as Language, name: 'English', nativeName: 'English', flag: '🇺🇸' },
@@ -128,6 +181,46 @@ function logoutFromSpotify() {
   spotifyService.logout()
   isSpotifyAuthenticated.value = false
   userProfile.value = null
+  refreshDiagnostics()
+}
+
+function refreshDiagnostics() {
+  diagnostics.value = spotifyService.getDiagnostics()
+}
+
+function formatTime(iso: string): string {
+  const date = new Date(iso)
+  return Number.isNaN(date.getTime()) ? iso : date.toLocaleString(locale.value)
+}
+
+async function copyDiagnostics() {
+  const report = [
+    `Spotify diagnostics (${new Date().toISOString()})`,
+    `userAgent: ${navigator.userAgent}`,
+    `authenticated: ${spotifyService.isAuthenticated()}`,
+    `lastSessionEnd: ${diagnostics.value.lastSessionEnd
+      ? `${diagnostics.value.lastSessionEnd.at} ${diagnostics.value.lastSessionEnd.detail || diagnostics.value.lastSessionEnd.event}`
+      : 'none'}`,
+    '',
+    ...diagnostics.value.events.map(e => `${e.at}  ${e.event}${e.detail ? `  (${e.detail})` : ''}`)
+  ].join('\n')
+
+  try {
+    await navigator.clipboard.writeText(report)
+    justCopied.value = true
+    setTimeout(() => (justCopied.value = false), 2000)
+  } catch (error) {
+    // Clipboard is unavailable on some mobile browsers without a secure
+    // context - fall back to something the user can select manually.
+    console.warn('Clipboard unavailable, logging diagnostics instead:', error)
+    console.log(report)
+    window.prompt('Spotify diagnostics', report)
+  }
+}
+
+function clearDiagnostics() {
+  spotifyService.clearDiagnostics()
+  refreshDiagnostics()
 }
 
 async function loadUserProfile() {
@@ -143,6 +236,7 @@ async function loadUserProfile() {
 // Lifecycle
 onMounted(async () => {
   isSpotifyAuthenticated.value = spotifyService.isAuthenticated()
+  refreshDiagnostics()
   await loadUserProfile()
 })
 </script>

@@ -67,12 +67,26 @@ const freshTokenResponse = () =>
 let tokenCalls = 0
 let apiCalls = []
 let tokenResponder = freshTokenResponse
+let refreshesInFlight = 0
+let maxRefreshesInFlight = 0
+
+// The token endpoint takes a tick to answer, so overlapping refreshes are
+// observable — that is what breaks a rotating refresh token in production.
+async function callTokenEndpoint() {
+  tokenCalls++
+  refreshesInFlight++
+  maxRefreshesInFlight = Math.max(maxRefreshesInFlight, refreshesInFlight)
+  try {
+    const response = tokenResponder()
+    await new Promise(r => setTimeout(r, 10))
+    return response
+  } finally {
+    refreshesInFlight--
+  }
+}
 
 globalThis.fetch = async (url, init = {}) => {
-  if (String(url).includes('accounts.spotify.com/api/token')) {
-    tokenCalls++
-    return tokenResponder()
-  }
+  if (String(url).includes('accounts.spotify.com/api/token')) return callTokenEndpoint()
   apiCalls.push({ url: String(url), auth: new Headers(init.headers).get('Authorization') })
   return new Response(JSON.stringify({ devices: [] }), { status: 200 })
 }
@@ -88,6 +102,8 @@ async function freshService(storedAuth) {
   store.clear()
   tokenCalls = 0
   apiCalls = []
+  refreshesInFlight = 0
+  maxRefreshesInFlight = 0
   for (const key of Object.keys(listeners)) delete listeners[key]
   if (storedAuth) store.set('spotify_auth', JSON.stringify(storedAuth))
   const module = await import(`${outfile}?${results.length}-${Math.random()}`)
@@ -114,15 +130,17 @@ const expiredSession = {
 // 2. Spotify invalidates the old refresh token on every PKCE refresh, so
 //    parallel refreshes would kill the session. They must be coalesced.
 {
+  // No settle() first: the burst deliberately overlaps the refresh the
+  // constructor kicks off, which is exactly the resume-from-Spotify pattern.
   const spotify = await freshService(expiredSession)
-  tokenCalls = 0
   await Promise.all([
     spotify.getAvailableDevices(),
     spotify.getAvailableDevices(),
     spotify.getSpotifyConnectState(),
     spotify.maintainActiveSession()
   ])
-  check('concurrent calls share a single refresh', tokenCalls <= 1, `calls=${tokenCalls}`)
+  check('a refresh actually ran during the burst', tokenCalls > 0, `calls=${tokenCalls}`)
+  check('  never two refreshes in flight at once', maxRefreshesInFlight === 1, `max=${maxRefreshesInFlight}`)
   check(
     '  every request carries the fresh token',
     apiCalls.length > 0 && apiCalls.every(c => c.auth === 'Bearer fresh-token')
@@ -130,16 +148,19 @@ const expiredSession = {
 }
 
 // 3. A dropped mobile connection must not log the player out.
+//    The failing responder is installed *before* the service is constructed,
+//    otherwise the constructor refreshes successfully and the later call has
+//    a valid token, so nothing exercises the failure path.
 {
-  const spotify = await freshService(expiredSession)
-  await settle()
   tokenResponder = () => {
     throw new TypeError('Failed to fetch')
   }
-  store.set('spotify_auth', JSON.stringify({ ...expiredSession, refreshToken: 'rotated-refresh' }))
+  const spotify = await freshService(expiredSession)
+  await settle()
   await spotify.getAvailableDevices()
   check('network failure during refresh keeps the session', spotify.isAuthenticated())
-  check('  refresh token survives the failure', !!store.get('spotify_refresh_token'))
+  check('  refresh token survives the failure', store.get('spotify_refresh_token') === 'r1')
+  check('  the failed refresh really happened', tokenCalls > 0, `calls=${tokenCalls}`)
   tokenResponder = freshTokenResponse
 }
 
@@ -190,6 +211,31 @@ const expiredSession = {
   check('401 is recovered by refresh + retry', devices.length === 1, `devices=${devices.length}`)
   check('  retry used the new token', apiCalls.at(-1).auth === 'Bearer fresh-token')
   check('  session intact', spotify.isAuthenticated())
+}
+
+// 7. A forced re-login must leave a breadcrumb saying why; a survivable
+//    failure must not claim the session ended.
+{
+  tokenResponder = () => new Response(JSON.stringify({ error: 'invalid_grant' }), { status: 400 })
+  const spotify = await freshService(expiredSession)
+  await settle()
+  const ended = spotify.getDiagnostics().lastSessionEnd
+  check('session end is recorded with a reason', !!ended && /refresh_token_rejected/.test(ended.detail || ''),
+        ended ? ended.detail : 'nothing recorded')
+  check('  breadcrumb carries no token material',
+        !JSON.stringify(spotify.getDiagnostics()).includes('rotated-refresh'))
+  tokenResponder = freshTokenResponse
+
+  tokenResponder = () => {
+    throw new TypeError('Failed to fetch')
+  }
+  const survivor = await freshService(expiredSession)
+  await settle()
+  await survivor.getAvailableDevices()
+  const diagnostics = survivor.getDiagnostics()
+  check('a survivable failure is logged but not as a session end',
+        !diagnostics.lastSessionEnd && diagnostics.events.some(e => e.event === 'refresh_failed_network'))
+  tokenResponder = freshTokenResponse
 }
 
 await rm(outDir, { recursive: true, force: true })

@@ -183,6 +183,16 @@ export default {
     changeLanguage: 'Change Language',
     about: 'About',
     aboutText: 'A music timeline guessing game.',
-    madeWith: 'Made with lots of fun and love for music and games!'
+    madeWith: 'Made with lots of fun and love for music and games!',
+    diagnostics: {
+      title: 'Spotify session diagnostics',
+      hint: 'If Spotify asks you to log in again, this shows why.',
+      empty: 'No session problems recorded.',
+      lastEnd: 'Last session ended',
+      recentEvents: 'Recent events',
+      copy: 'Copy',
+      copied: 'Copied!',
+      clear: 'Clear'
+    }
   }
 }
