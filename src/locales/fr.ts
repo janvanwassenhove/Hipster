@@ -91,6 +91,38 @@ export default {
         description: 'Aperçu de la prochaine piste avant placement'
       }
     },
+    deviceHelp: {
+      sessionExpired: {
+        title: 'Session Spotify expirée',
+        message: 'Spotify a refusé la connexion. Reconnectez votre compte.',
+        action: 'Reconnectez-vous pour continuer à jouer :'
+      },
+      noDevices: {
+        title: 'Aucune app Spotify trouvée',
+        message: 'Aucun appareil Spotify détecté.'
+      },
+      inactive: {
+        title: 'App Spotify inactive',
+        message: 'Votre app Spotify est devenue inactive.'
+      },
+      activationFailed: {
+        title: 'Activation de l\'appareil échouée',
+        message: 'Impossible d\'activer votre appareil Spotify.'
+      },
+      generic: {
+        title: 'Problème de lecture',
+        message: 'Un problème de lecture est survenu.'
+      },
+      steps: {
+        title: 'Solution rapide :',
+        step1: 'Ouvrez l\'app Spotify sur votre appareil',
+        step2: 'Lancez une chanson (vous pouvez la mettre en pause aussitôt)',
+        step3: 'Revenez à ce jeu et réessayez'
+      },
+      retry: 'Réessayer',
+      retrying: 'Nouvel essai...',
+      dismiss: 'Fermer'
+    },
     spotify: {
       login: 'Se connecter avec Spotify',
       required: 'Connexion Spotify requise pour jouer',

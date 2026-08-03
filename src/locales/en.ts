@@ -113,6 +113,11 @@ export default {
       description: 'Music will play through your Spotify app'
     },
     deviceHelp: {
+      sessionExpired: {
+        title: 'Spotify Session Expired',
+        message: 'Spotify rejected the connection. Please reconnect your account.',
+        action: 'Reconnect to keep playing:'
+      },
       noDevices: {
         title: 'No Spotify App Found',
         message: 'No Spotify devices detected.'

@@ -56,7 +56,8 @@
                   </svg>
                 </div>
                 <h3 class="text-sm font-bold bg-gradient-to-r from-amber-300 to-orange-300 bg-clip-text text-transparent">
-                  {{ deviceError === 'NO_DEVICES' ? $t('game.deviceHelp.noDevices.title', 'No Spotify App Found') : 
+                  {{ deviceError === 'NO_DEVICES' ? $t('game.deviceHelp.noDevices.title', 'No Spotify App Found') :
+                     deviceError === 'SESSION_EXPIRED' ? $t('game.deviceHelp.sessionExpired.title', 'Spotify Session Expired') :
                      deviceError === 'DEVICE_INACTIVE' ? $t('game.deviceHelp.inactive.title', 'Spotify App Inactive') :
                      deviceError === 'ACTIVATION_FAILED' ? $t('game.deviceHelp.activationFailed.title', 'Device Activation Failed') :
                      $t('game.deviceHelp.generic.title', 'Playback Issue') }}
@@ -72,12 +73,22 @@
             <div class="text-left space-y-2">
               <p class="text-amber-200 text-xs font-medium">
                 {{ deviceError === 'NO_DEVICES' ? $t('game.deviceHelp.noDevices.message', 'No Spotify devices detected.') :
+                   deviceError === 'SESSION_EXPIRED' ? $t('game.deviceHelp.sessionExpired.message', 'Spotify rejected the connection. Please reconnect your account.') :
                    deviceError === 'DEVICE_INACTIVE' ? $t('game.deviceHelp.inactive.message', 'Your Spotify app became inactive after being idle.') :
                    deviceError === 'ACTIVATION_FAILED' ? $t('game.deviceHelp.activationFailed.message', 'Could not activate your Spotify device.') :
                    $t('game.deviceHelp.generic.message', 'There was a problem with playback.') }}
               </p>
-              
-              <div class="bg-amber-800/30 rounded-lg p-3 text-xs">
+
+              <!-- A rejected session needs a reconnect, not "open your Spotify app" -->
+              <div v-if="deviceError === 'SESSION_EXPIRED'" class="bg-amber-800/30 rounded-lg p-3 text-xs">
+                <p class="text-amber-100 font-medium mb-2">{{ $t('game.deviceHelp.sessionExpired.action', 'Reconnect to keep playing:') }}</p>
+                <button @click="reconnectSpotify"
+                        class="px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg text-xs font-medium hover:from-green-600 hover:to-green-700 transition-all">
+                  🎵 {{ $t('game.spotify.login') }}
+                </button>
+              </div>
+
+              <div v-else class="bg-amber-800/30 rounded-lg p-3 text-xs">
                 <p class="text-amber-100 font-medium mb-2">{{ $t('game.deviceHelp.steps.title', 'Quick Fix:') }}</p>
                 <ol class="text-amber-200 space-y-1 list-decimal list-inside">
                   <li>{{ $t('game.deviceHelp.steps.step1', 'Open the Spotify app on your device') }}</li>
@@ -358,7 +369,10 @@ async function togglePlayback() {
     
     // Handle different error types
     if (error.message === 'NO_DEVICES_AVAILABLE') {
-      deviceError.value = 'NO_DEVICES'
+      // "Open your Spotify app" is the wrong advice when the device lookup was
+      // rejected rather than empty - say what actually happened.
+      const isSessionProblem = spotifyService.sessionNeedsLogin() || spotifyService.deviceLookupFailedOnAuth()
+      deviceError.value = isSessionProblem ? 'SESSION_EXPIRED' : 'NO_DEVICES'
       showDeviceHelp.value = true
     } else if (error.message === 'DEVICE_NOT_FOUND' || error.message === 'DEVICE_BECAME_INACTIVE') {
       deviceError.value = 'DEVICE_INACTIVE'
@@ -383,6 +397,14 @@ async function togglePlayback() {
 function dismissDeviceHelp() {
   showDeviceHelp.value = false
   deviceError.value = null
+}
+
+// Send the user through a real Spotify login again when the session is dead
+async function reconnectSpotify() {
+  showDeviceHelp.value = false
+  deviceError.value = null
+  spotifyService.logout()
+  await spotifyService.initiateLogin()
 }
 
 // Add method to retry playback
