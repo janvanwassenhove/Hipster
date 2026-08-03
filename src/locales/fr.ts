@@ -92,6 +92,13 @@ export default {
       }
     },
     deviceHelp: {
+      wakeTimeout: {
+        title: 'Spotify s\'est rendormi',
+        message: 'Votre téléphone disparaît de Spotify Connect en quelques secondes tant que rien ne joue.',
+        action: 'Gardez Spotify actif :',
+        step1: 'Ouvrez Spotify et lancez un morceau de votre choix',
+        step2: 'Revenez ici - le jeu prend le relais et lance la manche'
+      },
       wakeSpotify: {
         title: 'Réveillez Spotify :',
         button: 'Ouvrir Spotify',

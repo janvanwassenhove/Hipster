@@ -1010,6 +1010,66 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
     this.record('spotify_app_wake_requested')
   }
 
+  // Start a track as soon as the woken Spotify app registers itself.
+  //
+  // Measured on an iPhone: the app appears as a Connect device 5-11s after
+  // being opened, and deregisters again about 2s after it is backgrounded
+  // without playing anything. That window is far too small for the normal
+  // path (lookup -> transfer -> wait -> play). So poll tightly and, the
+  // moment a device exists, issue play against that device id directly - no
+  // second lookup, no transfer round-trip. Once audio is actually playing the
+  // app stays registered, so later tracks can use the normal path.
+  async playAfterWake(trackUri: string, timeoutMs = 20000): Promise<boolean> {
+    const deadline = Date.now() + timeoutMs
+    let checks = 0
+
+    while (Date.now() < deadline) {
+      checks++
+      const devices = await this.getAvailableDevices()
+      const device = devices.find(d => !d.is_restricted) || devices[0]
+
+      if (device) {
+        if (await this.playOnDeviceDirectly(trackUri, device.id)) {
+          this.record('wake_play_started', `${device.type} after ${checks} checks`)
+          return true
+        }
+        // Device vanished between the lookup and the play - keep watching.
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 500))
+    }
+
+    this.record('wake_play_timeout', `${checks} checks`)
+    return false
+  }
+
+  // Single request: activates the device and starts the track in one go.
+  private async playOnDeviceDirectly(trackUri: string, deviceId: string): Promise<boolean> {
+    try {
+      const response = await this.authFetch(
+        `https://api.spotify.com/v1/me/player/play?device_id=${encodeURIComponent(deviceId)}`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ uris: [trackUri] })
+        }
+      )
+
+      if (response.ok || response.status === 204) {
+        this.currentTrackUri = trackUri
+        return true
+      }
+
+      if (response.status === 403) {
+        this.record('wake_play_forbidden', 'premium required?')
+      }
+      return false
+    } catch (error) {
+      console.warn('Direct play on woken device failed:', error)
+      return false
+    }
+  }
+
   // Start automatic token refresh timer.
   //
   // Note: on mobile this timer is throttled or frozen entirely while the tab is

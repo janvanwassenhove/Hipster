@@ -99,6 +99,13 @@ export default {
       }
     },
     deviceHelp: {
+      wakeTimeout: {
+        title: 'Spotify ist wieder eingeschlafen',
+        message: 'Dein Handy verschwindet innerhalb von Sekunden aus Spotify Connect, solange nichts läuft.',
+        action: 'Spotify wach halten:',
+        step1: 'Öffne Spotify und starte irgendeinen eigenen Song',
+        step2: 'Komm zurück - das Spiel übernimmt und spielt die Runde'
+      },
       wakeSpotify: {
         title: 'Spotify aufwecken:',
         button: 'Spotify öffnen',
