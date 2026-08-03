@@ -309,24 +309,17 @@ const isSpotifyConnected = computed(() => spotifyAuthState.value)
 const isMobileDevice = computed(() => 
   /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|CriOS/i.test(navigator.userAgent)
 )
+const permissionErrorDetected = ref(false)
 const needsReauth = computed(() => {
-  // Only show reauth warning if:
-  // 1. User is connected 
-  // 2. Player initialization was attempted but failed after reasonable time
-  // 3. Or if there's a specific permission error
-  
+  // Only ask the user to re-authorize when Spotify actually told us a scope is
+  // missing. On mobile the Web Playback SDK is intentionally never initialized
+  // (playback runs through Spotify Connect), so "player not ready" is normal
+  // there and must not trigger a re-login prompt.
   if (!isSpotifyConnected.value) return false
-  
-  // Give the player some time to initialize (30 seconds)
-  const playerNotReadyForLongTime = !spotifyService.isPlayerReady()
-  
-  // Only show warning if we're confident there's an issue
-  return playerNotReadyForLongTime && timeSpentInGame.value > 30000
+
+  return permissionErrorDetected.value
 })
 
-// Track time spent in game to avoid premature reauth warnings
-const gameStartTime = ref(Date.now())
-const timeSpentInGame = computed(() => Date.now() - gameStartTime.value)
 const sortedPlayers = computed(() => 
   [...players.value].sort((a, b) => {
     // Sort by timeline length first (main winning condition)
@@ -474,6 +467,7 @@ function goToLogin() {
 
 function refreshSpotifyAuth() {
   const isAuth = spotifyService.isAuthenticated()
+  permissionErrorDetected.value = spotifyService.needsPermissionUpgrade()
   console.log('Spotify auth check in GameView:', {
     isAuthenticated: isAuth,
     previousState: isSpotifyConnected.value
@@ -516,6 +510,7 @@ onMounted(() => {
   
   // Check auth state much less frequently to prevent multiple login prompts
   const authCheckInterval = setInterval(() => {
+    permissionErrorDetected.value = spotifyService.needsPermissionUpgrade()
     // Only check if user isn't already authenticated to avoid unnecessary calls
     if (!spotifyAuthState.value) {
       refreshSpotifyAuth()
