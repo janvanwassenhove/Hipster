@@ -90,26 +90,17 @@
 
               <div v-else class="bg-amber-800/30 rounded-lg p-3 text-xs">
                 <!-- On a phone, Spotify only shows up as a Connect device while
-                     its app is awake. Opening the track directly both plays it
-                     and registers the device, so the game can drive the rest. -->
-                <template v-if="hasSpotifyUri">
-                  <p class="text-amber-100 font-medium mb-2">{{ $t('game.deviceHelp.openInSpotify.title', 'Play this song in Spotify:') }}</p>
-                  <a :href="track.uri"
-                     @click="onOpenInSpotify"
-                     class="inline-block px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg text-xs font-medium hover:from-green-600 hover:to-green-700 transition-all">
-                    ▶️ {{ $t('game.deviceHelp.openInSpotify.button', 'Open in Spotify') }}
-                  </a>
-                  <p class="text-amber-200 mt-2">{{ $t('game.deviceHelp.openInSpotify.hint', 'Then switch back to the game - playback keeps working from here.') }}</p>
-                </template>
-
-                <template v-else>
-                  <p class="text-amber-100 font-medium mb-2">{{ $t('game.deviceHelp.steps.title', 'Quick Fix:') }}</p>
-                  <ol class="text-amber-200 space-y-1 list-decimal list-inside">
-                    <li>{{ $t('game.deviceHelp.steps.step1', 'Open the Spotify app on your device') }}</li>
-                    <li>{{ $t('game.deviceHelp.steps.step2', 'Play any song (you can pause it right away)') }}</li>
-                    <li>{{ $t('game.deviceHelp.steps.step3', 'Come back to this game and try again') }}</li>
-                  </ol>
-                </template>
+                     its app is awake. Open the app on its own home screen -
+                     never on the track - so waking it cannot give away the
+                     artist or title. The game starts the song itself once a
+                     device exists, which is what keeps the answer hidden. -->
+                <p class="text-amber-100 font-medium mb-2">{{ $t('game.deviceHelp.wakeSpotify.title', 'Wake up Spotify:') }}</p>
+                <a href="spotify://"
+                   @click="onWakeSpotify"
+                   class="inline-block px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg text-xs font-medium hover:from-green-600 hover:to-green-700 transition-all">
+                  🎵 {{ $t('game.deviceHelp.wakeSpotify.button', 'Open Spotify') }}
+                </a>
+                <p class="text-amber-200 mt-2">{{ $t('game.deviceHelp.wakeSpotify.hint', 'Come straight back - the game starts the song itself, so nothing is given away.') }}</p>
               </div>
               
               <div class="flex justify-center space-x-3 mt-4">
@@ -414,17 +405,27 @@ function dismissDeviceHelp() {
   deviceError.value = null
 }
 
-// Handing off to the Spotify app wakes it as a Connect device, so when the
-// player comes back the game can control playback again. Mark the track as
-// playing and start watching, otherwise the UI would sit there looking idle.
-function onOpenInSpotify() {
-  spotifyService.noteHandoffToSpotifyApp()
-  showDeviceHelp.value = false
-  deviceError.value = null
-  isPlaying.value = true
+// Opening the Spotify app registers the phone as a Connect device. We only
+// wake it - the song is still started by the game over the Web API, so the
+// player never sees the artist or title they are supposed to guess.
+function onWakeSpotify() {
+  spotifyService.noteSpotifyAppWake()
+  awaitingSpotifyWake = true
+}
 
-  if (isMobileDevice.value) {
-    monitorSpotifyConnectPlayback()
+// When the player comes back, the device should exist: retry for them rather
+// than leaving them on an error dialog to work it out.
+let awaitingSpotifyWake = false
+
+async function handleReturnFromSpotify() {
+  if (!awaitingSpotifyWake || document.hidden) return
+  awaitingSpotifyWake = false
+
+  // Give Spotify Connect a moment to register the freshly woken app
+  await new Promise(resolve => setTimeout(resolve, 1200))
+
+  if (await spotifyService.hasAvailableDevices()) {
+    await togglePlayback()
   }
 }
 
@@ -539,9 +540,15 @@ async function checkPlaybackState() {
 onMounted(() => {
   // Check playback state every 2 seconds
   const interval = setInterval(checkPlaybackState, 2000)
-  
+
+  // Pick the song back up when the player returns from waking Spotify
+  document.addEventListener('visibilitychange', handleReturnFromSpotify)
+  window.addEventListener('focus', handleReturnFromSpotify)
+
   onUnmounted(() => {
     clearInterval(interval)
+    document.removeEventListener('visibilitychange', handleReturnFromSpotify)
+    window.removeEventListener('focus', handleReturnFromSpotify)
   })
 })
 

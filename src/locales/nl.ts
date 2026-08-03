@@ -88,10 +88,10 @@ export default {
       }
     },
     deviceHelp: {
-      openInSpotify: {
-        title: 'Speel dit nummer in Spotify:',
-        button: 'Openen in Spotify',
-        hint: 'Schakel daarna terug naar het spel - afspelen werkt vanaf dan gewoon verder.'
+      wakeSpotify: {
+        title: 'Maak Spotify wakker:',
+        button: 'Spotify openen',
+        hint: 'Kom meteen terug - het spel start het nummer zelf, dus je ziet niets wat je moet raden.'
       },
       sessionExpired: {
         title: 'Spotify-sessie verlopen',

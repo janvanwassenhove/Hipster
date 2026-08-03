@@ -1002,12 +1002,12 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
     return this.deviceLookupAuthFailure
   }
 
-  // The user is being handed off to the Spotify app to start a track there.
-  // On a phone that is also how the device becomes visible to Spotify Connect,
-  // so the game can take over again once they come back.
-  noteHandoffToSpotifyApp(): void {
-    this.record('handoff_to_spotify_app')
-    this.currentTrackUri = null
+  // The user is opening the Spotify app purely to wake it, so the phone shows
+  // up as a Spotify Connect device. The track itself is still started by the
+  // game over the Web API - the app is never sent to the track, because that
+  // would reveal the artist and title the player has to guess.
+  noteSpotifyAppWake(): void {
+    this.record('spotify_app_wake_requested')
   }
 
   // Start automatic token refresh timer.

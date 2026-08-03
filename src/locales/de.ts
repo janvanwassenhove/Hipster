@@ -99,10 +99,10 @@ export default {
       }
     },
     deviceHelp: {
-      openInSpotify: {
-        title: 'Diesen Song in Spotify abspielen:',
-        button: 'In Spotify öffnen',
-        hint: 'Wechsle danach zurück zum Spiel - die Wiedergabe funktioniert ab dann weiter.'
+      wakeSpotify: {
+        title: 'Spotify aufwecken:',
+        button: 'Spotify öffnen',
+        hint: 'Komm gleich zurück - das Spiel startet den Song selbst, es wird nichts verraten.'
       },
       sessionExpired: {
         title: 'Spotify-Sitzung abgelaufen',

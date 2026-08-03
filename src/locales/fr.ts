@@ -92,10 +92,10 @@ export default {
       }
     },
     deviceHelp: {
-      openInSpotify: {
-        title: 'Lancez ce morceau dans Spotify :',
-        button: 'Ouvrir dans Spotify',
-        hint: 'Revenez ensuite au jeu - la lecture continue de fonctionner.'
+      wakeSpotify: {
+        title: 'Réveillez Spotify :',
+        button: 'Ouvrir Spotify',
+        hint: 'Revenez aussitôt - le jeu lance le morceau lui-même, rien n\'est dévoilé.'
       },
       sessionExpired: {
         title: 'Session Spotify expirée',
