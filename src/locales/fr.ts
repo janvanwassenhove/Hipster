@@ -143,6 +143,16 @@ export default {
     language: 'Langue',
     changeLanguage: 'Changer de Langue',
     aboutText: 'Un jeu de devinette de chronologie musicale.',
-    madeWith: 'Fait avec beaucoup de plaisir et d\'amour pour la musique et les jeux!'
+    madeWith: 'Fait avec beaucoup de plaisir et d\'amour pour la musique et les jeux!',
+    diagnostics: {
+      title: 'Diagnostic de session Spotify',
+      hint: 'Si Spotify redemande une connexion, vous verrez ici pourquoi.',
+      empty: 'Aucun problème de session enregistré.',
+      lastEnd: 'Fin de la dernière session',
+      recentEvents: 'Événements récents',
+      copy: 'Copier',
+      copied: 'Copié !',
+      clear: 'Effacer'
+    }
   }
 }
