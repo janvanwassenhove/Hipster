@@ -99,6 +99,11 @@ export default {
       }
     },
     deviceHelp: {
+      openInSpotify: {
+        title: 'Diesen Song in Spotify abspielen:',
+        button: 'In Spotify öffnen',
+        hint: 'Wechsle danach zurück zum Spiel - die Wiedergabe funktioniert ab dann weiter.'
+      },
       sessionExpired: {
         title: 'Spotify-Sitzung abgelaufen',
         message: 'Spotify hat die Verbindung abgelehnt. Bitte verbinde dein Konto erneut.',

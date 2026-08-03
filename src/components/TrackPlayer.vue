@@ -89,12 +89,27 @@
               </div>
 
               <div v-else class="bg-amber-800/30 rounded-lg p-3 text-xs">
-                <p class="text-amber-100 font-medium mb-2">{{ $t('game.deviceHelp.steps.title', 'Quick Fix:') }}</p>
-                <ol class="text-amber-200 space-y-1 list-decimal list-inside">
-                  <li>{{ $t('game.deviceHelp.steps.step1', 'Open the Spotify app on your device') }}</li>
-                  <li>{{ $t('game.deviceHelp.steps.step2', 'Play any song (you can pause it right away)') }}</li>
-                  <li>{{ $t('game.deviceHelp.steps.step3', 'Come back to this game and try again') }}</li>
-                </ol>
+                <!-- On a phone, Spotify only shows up as a Connect device while
+                     its app is awake. Opening the track directly both plays it
+                     and registers the device, so the game can drive the rest. -->
+                <template v-if="hasSpotifyUri">
+                  <p class="text-amber-100 font-medium mb-2">{{ $t('game.deviceHelp.openInSpotify.title', 'Play this song in Spotify:') }}</p>
+                  <a :href="track.uri"
+                     @click="onOpenInSpotify"
+                     class="inline-block px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg text-xs font-medium hover:from-green-600 hover:to-green-700 transition-all">
+                    ▶️ {{ $t('game.deviceHelp.openInSpotify.button', 'Open in Spotify') }}
+                  </a>
+                  <p class="text-amber-200 mt-2">{{ $t('game.deviceHelp.openInSpotify.hint', 'Then switch back to the game - playback keeps working from here.') }}</p>
+                </template>
+
+                <template v-else>
+                  <p class="text-amber-100 font-medium mb-2">{{ $t('game.deviceHelp.steps.title', 'Quick Fix:') }}</p>
+                  <ol class="text-amber-200 space-y-1 list-decimal list-inside">
+                    <li>{{ $t('game.deviceHelp.steps.step1', 'Open the Spotify app on your device') }}</li>
+                    <li>{{ $t('game.deviceHelp.steps.step2', 'Play any song (you can pause it right away)') }}</li>
+                    <li>{{ $t('game.deviceHelp.steps.step3', 'Come back to this game and try again') }}</li>
+                  </ol>
+                </template>
               </div>
               
               <div class="flex justify-center space-x-3 mt-4">
@@ -397,6 +412,20 @@ async function togglePlayback() {
 function dismissDeviceHelp() {
   showDeviceHelp.value = false
   deviceError.value = null
+}
+
+// Handing off to the Spotify app wakes it as a Connect device, so when the
+// player comes back the game can control playback again. Mark the track as
+// playing and start watching, otherwise the UI would sit there looking idle.
+function onOpenInSpotify() {
+  spotifyService.noteHandoffToSpotifyApp()
+  showDeviceHelp.value = false
+  deviceError.value = null
+  isPlaying.value = true
+
+  if (isMobileDevice.value) {
+    monitorSpotifyConnectPlayback()
+  }
 }
 
 // Send the user through a real Spotify login again when the session is dead

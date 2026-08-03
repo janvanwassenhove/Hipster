@@ -91,6 +91,7 @@ class SpotifyService {
   private permissionErrorDetected = false // Set when Spotify reports a missing scope
   private unrecoveredAuthFailures = 0 // 401s a token refresh could not fix
   private deviceLookupAuthFailure = false // Last device lookup failed on auth, not on "no devices"
+  private lastDeviceCount = -1 // Only log device-count changes, not every poll
   private sessionMaintenanceInterval: number | null = null // For mobile session maintenance
   private tokenRefreshTimeout: number | null = null // For automatic token refresh
 
@@ -1001,6 +1002,14 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
     return this.deviceLookupAuthFailure
   }
 
+  // The user is being handed off to the Spotify app to start a track there.
+  // On a phone that is also how the device becomes visible to Spotify Connect,
+  // so the game can take over again once they come back.
+  noteHandoffToSpotifyApp(): void {
+    this.record('handoff_to_spotify_app')
+    this.currentTrackUri = null
+  }
+
   // Start automatic token refresh timer.
   //
   // Note: on mobile this timer is throttled or frozen entirely while the tab is
@@ -1796,7 +1805,21 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
         const data = await response.json()
         console.log('Available Spotify devices:', data.devices)
         this.deviceLookupAuthFailure = false
-        return data.devices || []
+        const devices = data.devices || []
+
+        // A healthy session with zero devices is the normal phone situation:
+        // Spotify only registers as a Connect target while its app is awake.
+        // Record it so it is distinguishable from an auth problem afterwards -
+        // but only on a change, since this runs every few seconds and would
+        // otherwise push everything else out of the event trail.
+        if (devices.length !== this.lastDeviceCount) {
+          this.lastDeviceCount = devices.length
+          this.record(
+            devices.length === 0 ? 'no_devices_found' : 'devices_found',
+            devices.length ? devices.map((d: any) => `${d.type}${d.is_active ? '*' : ''}`).join(',') : undefined
+          )
+        }
+        return devices
       }
 
       // An empty list and a rejected request are very different problems:

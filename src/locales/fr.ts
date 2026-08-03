@@ -92,6 +92,11 @@ export default {
       }
     },
     deviceHelp: {
+      openInSpotify: {
+        title: 'Lancez ce morceau dans Spotify :',
+        button: 'Ouvrir dans Spotify',
+        hint: 'Revenez ensuite au jeu - la lecture continue de fonctionner.'
+      },
       sessionExpired: {
         title: 'Session Spotify expirée',
         message: 'Spotify a refusé la connexion. Reconnectez votre compte.',
