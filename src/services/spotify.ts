@@ -7,6 +7,14 @@ const SPOTIFY_CLIENT_ID = '67125c0389b247c1b3b221ff4a5fb2ef' // Replace with you
 const SPOTIFY_REDIRECT_URI = `${window.location.origin}/Hipster/`
 const SPOTIFY_SCOPES = 'user-read-private user-read-email user-top-read user-library-read streaming user-read-playback-state user-modify-playback-state user-read-currently-playing'
 
+// Storage keys. The refresh token is stored separately from the rest of the auth
+// state so it survives even if the access token part is cleared or corrupted.
+const AUTH_STORAGE_KEY = 'spotify_auth'
+const REFRESH_TOKEN_STORAGE_KEY = 'spotify_refresh_token'
+
+// Refresh the access token this long before it actually expires
+const TOKEN_REFRESH_MARGIN_MS = 5 * 60 * 1000
+
 interface SongData {
   jaar: number
   uitvoerder: string
@@ -58,15 +66,17 @@ class SpotifyService {
   private currentTrackUri: string | null = null
   private isAuthenticating = false
   private playerInitializationAttempted = false
-  private lastAuthCheck = 0
-  private authCheckInProgress = false // Prevent concurrent auth checks
-  private lastTokenRefresh = 0 // Prevent excessive token refresh attempts
+  private lastTokenRefresh = 0 // Timestamp of the last refresh attempt
+  private refreshPromise: Promise<boolean> | null = null // Single-flight guard for token refresh
+  private refreshFailureCount = 0 // Backoff counter for transient refresh failures
+  private lastResumeHandled = 0 // Debounce for visibilitychange/focus firing together
+  private permissionErrorDetected = false // Set when Spotify reports a missing scope
   private sessionMaintenanceInterval: number | null = null // For mobile session maintenance
-  private tokenRefreshInterval: number | null = null // For automatic token refresh
+  private tokenRefreshTimeout: number | null = null // For automatic token refresh
 
   constructor() {
     this.loadAuthState()
-    
+
     // Set up SDK ready callback
     window.onSpotifyWebPlaybackSDKReady = () => {
       console.log('✅ Spotify Web Playback SDK loaded and ready')
@@ -79,42 +89,71 @@ class SpotifyService {
       this.initializeWebPlaybackSDK()
     }
 
-    // Start automatic token refresh if authenticated
+    // Restore the session (refresh the access token if needed) and keep it fresh
     if (this.isAuthenticated()) {
+      void this.ensureValidToken()
       this.startTokenRefreshTimer()
     }
-    
-    // Set up visibility change handler for mobile session management
+
+    // Set up visibility change handler for session management
     this.setupVisibilityChangeHandler()
   }
 
-  // Set up visibility change handler to help maintain mobile sessions
+  // Set up visibility/focus handlers.
+  //
+  // This matters most on mobile: as soon as the browser tab is backgrounded
+  // (e.g. the user switches to the Spotify app), timers are throttled or frozen
+  // entirely, so the scheduled token refresh never fires. When the user comes
+  // back we therefore refresh the token immediately instead of relying on the
+  // timer, and we reschedule it.
   private setupVisibilityChangeHandler(): void {
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|CriOS/i.test(navigator.userAgent)
-    
-    if (!isMobile) {
-      return // Only needed for mobile
+    const isMobile = this.isMobileDevice()
+
+    const handleResume = async () => {
+      // visibilitychange and focus both fire when returning to the tab; make
+      // sure we only run one recovery pass (concurrent refreshes would race).
+      const now = Date.now()
+      if (now - this.lastResumeHandled < 3000) {
+        return
+      }
+      this.lastResumeHandled = now
+
+      if (!this.isAuthenticated()) {
+        return
+      }
+
+      console.log('🔄 App resumed - restoring Spotify session...')
+
+      // Timers were frozen while hidden: refresh now and reschedule.
+      await this.ensureValidToken()
+      this.startTokenRefreshTimer()
+
+      if (isMobile) {
+        await this.maintainActiveSession()
+      }
     }
-    
+
     document.addEventListener('visibilitychange', () => {
-      if (!document.hidden && this.isAuthenticated()) {
-        console.log('📱 Mobile: App became visible - checking session status...')
-        // When app becomes visible again, immediately check session
-        setTimeout(async () => {
-          await this.maintainActiveSession()
-        }, 1000)
+      if (!document.hidden) {
+        void handleResume()
       }
     })
-    
-    // Also handle page focus events
+
     window.addEventListener('focus', () => {
-      if (this.isAuthenticated()) {
-        console.log('📱 Mobile: App gained focus - refreshing session...')
-        setTimeout(async () => {
-          await this.maintainActiveSession()
-        }, 500)
+      void handleResume()
+    })
+
+    // Persist state before the page is frozen/unloaded so a mobile tab eviction
+    // never loses the refresh token.
+    window.addEventListener('pagehide', () => {
+      if (this.authState.refreshToken || this.authState.accessToken) {
+        this.saveAuthState()
       }
     })
+  }
+
+  private isMobileDevice(): boolean {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|CriOS/i.test(navigator.userAgent)
   }
 
   // Generate PKCE code verifier and challenge
@@ -141,11 +180,25 @@ class SpotifyService {
     }
     
     // Check if already authenticated with sufficient token time remaining
-    if (this.isAuthenticated() && this.authState.expiresAt && Date.now() < this.authState.expiresAt - 600000) {
+    if (this.authState.accessToken && this.authState.expiresAt && Date.now() < this.authState.expiresAt - 600000) {
       console.log('Already authenticated with valid token, skipping login...')
       return
     }
-    
+
+    // We may still hold a refresh token (e.g. the access token simply expired
+    // while the app was in the background). Recover silently instead of sending
+    // the user through the whole OAuth redirect again.
+    if (this.authState.refreshToken) {
+      console.log('🔄 Refresh token available - attempting silent re-authentication...')
+      if (await this.refreshAccessToken()) {
+        console.log('✅ Silent re-authentication successful, no login needed')
+        this.startTokenRefreshTimer()
+        await this.initializePlayerAfterAuth()
+        return
+      }
+      console.log('⚠️ Silent re-authentication failed, falling back to full login')
+    }
+
     this.isAuthenticating = true
     
     try {
@@ -227,13 +280,16 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
       
       this.authState = {
         accessToken: data.access_token,
-        refreshToken: data.refresh_token,
+        // Keep the previous refresh token if Spotify does not return a new one
+        refreshToken: data.refresh_token ?? this.authState.refreshToken,
         expiresAt: Date.now() + (data.expires_in * 1000),
         isAuthenticated: true
       }
 
       this.saveAuthState()
       localStorage.removeItem('spotify_code_verifier')
+      this.refreshFailureCount = 0
+      this.startTokenRefreshTimer()
 
       // Initialize player now that we're authenticated
       await this.initializePlayerAfterAuth()
@@ -248,80 +304,190 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
     }
   }
 
-  // Refresh access token
+  // Refresh access token.
+  //
+  // Spotify rotates refresh tokens on every PKCE refresh: the old token is
+  // invalidated as soon as a new one is issued. Two concurrent refreshes would
+  // therefore make the loser fail with invalid_grant and kill the session, so
+  // all callers share a single in-flight request.
   private async refreshAccessToken(): Promise<boolean> {
     if (!this.authState.refreshToken) {
       return false
     }
 
+    if (this.refreshPromise) {
+      return this.refreshPromise
+    }
+
+    // Back off after transient failures (offline, flaky mobile network) instead
+    // of hammering the token endpoint on every API call.
+    if (this.refreshFailureCount > 0) {
+      const backoff = Math.min(30000, 2000 * Math.pow(2, this.refreshFailureCount - 1))
+      if (Date.now() - this.lastTokenRefresh < backoff) {
+        return false
+      }
+    }
+
+    this.refreshPromise = this.performTokenRefresh()
+    try {
+      return await this.refreshPromise
+    } finally {
+      this.refreshPromise = null
+    }
+  }
+
+  private async performTokenRefresh(): Promise<boolean> {
+    const refreshToken = this.authState.refreshToken
+    if (!refreshToken) {
+      return false
+    }
+
     this.lastTokenRefresh = Date.now()
 
+    let response: Response
     try {
-      const response = await fetch('https://accounts.spotify.com/api/token', {
+      response = await fetch('https://accounts.spotify.com/api/token', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
         body: new URLSearchParams({
           grant_type: 'refresh_token',
-          refresh_token: this.authState.refreshToken,
+          refresh_token: refreshToken,
           client_id: SPOTIFY_CLIENT_ID,
         }),
       })
+    } catch (error) {
+      // Network error: the refresh token is still perfectly valid, so keep it
+      // and try again later. Never log the user out over a dropped connection.
+      this.refreshFailureCount++
+      console.warn('⚠️ Token refresh failed (network) - keeping session, will retry:', error)
+      return false
+    }
 
-      if (!response.ok) {
-        throw new Error('Failed to refresh token')
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => '')
+
+      if (this.isPermanentRefreshFailure(response.status, errorText)) {
+        console.error('❌ Refresh token was rejected by Spotify, re-authentication required:', errorText)
+        this.clearSession()
+        return false
       }
 
+      // 429 / 5xx / anything else transient: keep the refresh token.
+      this.refreshFailureCount++
+      console.warn(`⚠️ Token refresh failed (${response.status}) - keeping session, will retry`)
+      return false
+    }
+
+    try {
       const data = await response.json()
-      
+
       this.authState.accessToken = data.access_token
       this.authState.expiresAt = Date.now() + (data.expires_in * 1000)
-      
+      this.authState.isAuthenticated = true
+
+      // Spotify usually returns a rotated refresh token - persist it right away.
       if (data.refresh_token) {
         this.authState.refreshToken = data.refresh_token
       }
 
       this.saveAuthState()
+      this.refreshFailureCount = 0
       console.log('✅ Token refreshed successfully')
+      this.startTokenRefreshTimer()
       return true
     } catch (error) {
-      console.error('Error refreshing token:', error)
-      this.logout()
+      this.refreshFailureCount++
+      console.warn('⚠️ Could not parse token refresh response - keeping session:', error)
       return false
+    }
+  }
+
+  // Only a definitive rejection of the refresh token itself should end the
+  // session. Everything else is retryable.
+  private isPermanentRefreshFailure(status: number, body: string): boolean {
+    if (status !== 400 && status !== 401) {
+      return false
+    }
+
+    try {
+      const parsed = JSON.parse(body)
+      const error = parsed?.error
+      return error === 'invalid_grant' || error === 'invalid_client' || error === 'unauthorized_client'
+    } catch {
+      return /invalid_grant|invalid_client|unauthorized_client/.test(body)
     }
   }
 
   // Check if token is valid and refresh if needed
   private async ensureValidToken(): Promise<boolean> {
-    if (!this.authState.accessToken) {
-      return false
+    const hasUsableToken = !!this.authState.accessToken &&
+      !!this.authState.expiresAt &&
+      Date.now() < this.authState.expiresAt - TOKEN_REFRESH_MARGIN_MS
+
+    if (hasUsableToken) {
+      return true
     }
 
-    // Check if token expires in the next 5 minutes
-    if (this.authState.expiresAt && Date.now() >= this.authState.expiresAt - 300000) {
-      // Prevent excessive refresh attempts (max once per minute)
-      if (Date.now() - this.lastTokenRefresh < 60000) {
-        console.log('Token refresh attempted recently, skipping...')
-        return true // Assume it's still valid
+    if (this.authState.refreshToken) {
+      const refreshed = await this.refreshAccessToken()
+      if (refreshed) {
+        return true
       }
-      return await this.refreshAccessToken()
+      // Refresh did not go through (transient failure or backoff): the current
+      // access token may still work for a while, so let the caller try it.
+      return !!this.authState.accessToken &&
+        (!this.authState.expiresAt || Date.now() < this.authState.expiresAt)
     }
 
-    return true
+    return !!this.authState.accessToken
+  }
+
+  // Authenticated fetch against the Spotify Web API.
+  //
+  // Every authenticated request goes through here so the token is always
+  // guaranteed fresh and a 401 transparently triggers one refresh + retry
+  // instead of bubbling up as "please log in again".
+  private async authFetch(url: string, init: RequestInit = {}, allowRetry = true): Promise<Response> {
+    await this.ensureValidToken()
+
+    const headers = new Headers(init.headers || {})
+    headers.set('Authorization', `Bearer ${this.authState.accessToken ?? ''}`)
+
+    const response = await fetch(url, { ...init, headers })
+
+    if (response.status === 401 && allowRetry && this.authState.refreshToken) {
+      console.log('🔄 Got 401 from Spotify - refreshing token and retrying once')
+      if (await this.refreshAccessToken()) {
+        return this.authFetch(url, init, false)
+      }
+    }
+
+    // A missing scope is the only case where re-running the OAuth flow actually
+    // helps; remember it so the UI can ask instead of guessing.
+    if (response.status === 403) {
+      const body = await response.clone().text().catch(() => '')
+      if (/insufficient client scope/i.test(body)) {
+        console.warn('⚠️ Spotify reported insufficient scope - re-authorization required')
+        this.permissionErrorDetected = true
+      }
+    }
+
+    return response
+  }
+
+  // True only when Spotify explicitly rejected a request for missing scopes.
+  needsPermissionUpgrade(): boolean {
+    return this.permissionErrorDetected
   }
 
   // Make authenticated API request
   private async apiRequest(endpoint: string): Promise<any> {
-    if (!await this.ensureValidToken()) {
-      throw new Error('No valid access token')
-    }
-
     console.log('Making Spotify API request to:', endpoint)
 
-    const response = await fetch(`https://api.spotify.com/v1${endpoint}`, {
+    const response = await this.authFetch(`https://api.spotify.com/v1${endpoint}`, {
       headers: {
-        'Authorization': `Bearer ${this.authState.accessToken}`,
         'Content-Type': 'application/json',
       },
     })
@@ -329,16 +495,10 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
     if (!response.ok) {
       const errorText = await response.text()
       console.error('Spotify API error:', response.status, errorText)
-      
+
       if (response.status === 401) {
-        // Only try refresh once to prevent infinite loops
-        if (!this.isAuthenticating && await this.refreshAccessToken()) {
-          console.log('Token refreshed, retrying API request')
-          return this.apiRequest(endpoint)
-        } else {
-          console.error('Token refresh failed or already refreshing, requiring full re-authentication')
-          throw new Error('Authentication required')
-        }
+        // authFetch already refreshed and retried once.
+        throw new Error('Authentication required')
       }
       throw new Error(`Spotify API error: ${response.status} - ${errorText}`)
     }
@@ -349,18 +509,12 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
   }
 
   private async searchSpotifyForTrack(song: SongData): Promise<any> {
-    if (!this.authState.accessToken) return null
+    if (!this.isAuthenticated()) return null
     
     try {
       const query = `track:"${song.titel}" artist:"${song.uitvoerder}"`
-      const response = await fetch(
-        `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=1`,
-        {
-          headers: {
-            'Authorization': `Bearer ${this.authState.accessToken}`
-          }
-        }
-      )
+      const response = await this.authFetch(
+        `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=1`)
       
       if (response.ok) {
         const data = await response.json()
@@ -704,130 +858,100 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
     }
   }
 
-  // Auth state management
+  // Auth state management.
+  //
+  // This is a pure check with no side effects: it is called from render paths
+  // and polling loops. A session counts as authenticated as long as we hold a
+  // refresh token, even when the access token has already expired - the token
+  // is transparently refreshed by ensureValidToken()/authFetch() on first use.
   isAuthenticated(): boolean {
-    // Prevent concurrent authentication checks
-    if (this.authCheckInProgress) {
-      return this.authState.isAuthenticated && !!this.authState.accessToken
+    if (this.authState.refreshToken) {
+      return true
     }
-    
-    // Cache authentication check for 30 seconds to prevent excessive checking
-    const now = Date.now()
-    if (now - this.lastAuthCheck < 30000) {
-      return this.authState.isAuthenticated && !!this.authState.accessToken
-    }
-    
-    this.authCheckInProgress = true
-    this.lastAuthCheck = now
-    
-    try {
-      // Check if token will expire soon (within 5 minutes) and refresh it
-      if (this.authState.expiresAt && now >= (this.authState.expiresAt - 300000)) {
-        console.log('Token is expiring soon or has expired, attempting refresh...')
-        // Don't block on refresh, but trigger it in background
-        this.refreshTokenInBackground()
-        
-        // If token is already expired, return false
-        if (now >= this.authState.expiresAt) {
-          console.log('Token has expired, logging out')
-          this.logout()
-          return false
-        }
-      }
-      
-      const isAuth = this.authState.isAuthenticated && !!this.authState.accessToken
-      console.log('Authentication check result:', isAuth)
-      return isAuth
-    } finally {
-      this.authCheckInProgress = false
-    }
+
+    return !!this.authState.accessToken &&
+      (!this.authState.expiresAt || Date.now() < this.authState.expiresAt)
   }
 
-  // Background token refresh to avoid blocking operations
-  private async refreshTokenInBackground(): Promise<void> {
-    try {
-      await this.refreshAccessToken()
-      console.log('✅ Background token refresh successful')
-    } catch (error) {
-      console.error('❌ Background token refresh failed:', error)
-    }
-  }
-
-  // Start automatic token refresh timer
+  // Start automatic token refresh timer.
+  //
+  // Note: on mobile this timer is throttled or frozen entirely while the tab is
+  // in the background, so it is only a best-effort mechanism - the resume
+  // handler is what actually keeps the session alive there.
   private startTokenRefreshTimer(): void {
-    if (this.tokenRefreshInterval) {
-      clearInterval(this.tokenRefreshInterval)
-    }
+    this.stopTokenRefreshTimer()
 
     if (!this.authState.expiresAt) {
+      // No known expiry: refresh right away if we can, which also schedules the
+      // next refresh once the new expiry is known.
+      if (this.authState.refreshToken) {
+        void this.refreshAccessToken()
+      }
       return
     }
 
-    // Calculate time until token expires (minus 5 minutes buffer)
-    const expiresIn = this.authState.expiresAt - Date.now() - 300000 // 5 minutes before expiry
-    
+    const expiresIn = this.authState.expiresAt - Date.now() - TOKEN_REFRESH_MARGIN_MS
+
     if (expiresIn <= 0) {
       // Token is already expired or about to expire, refresh immediately
-      this.refreshTokenInBackground()
+      void this.refreshAccessToken()
       return
     }
 
     console.log(`⏰ Token refresh scheduled in ${Math.round(expiresIn / 1000 / 60)} minutes`)
 
-    this.tokenRefreshInterval = setTimeout(async () => {
+    this.tokenRefreshTimeout = setTimeout(() => {
       console.log('⏰ Automatic token refresh triggered')
-      await this.refreshTokenInBackground()
-      
-      // Schedule next refresh
-      if (this.isAuthenticated()) {
-        this.startTokenRefreshTimer()
-      }
+      void this.refreshAccessToken()
     }, expiresIn)
   }
 
   // Stop automatic token refresh timer
   private stopTokenRefreshTimer(): void {
-    if (this.tokenRefreshInterval) {
-      clearTimeout(this.tokenRefreshInterval)
-      this.tokenRefreshInterval = null
-      console.log('⏰ Stopped automatic token refresh')
+    if (this.tokenRefreshTimeout) {
+      clearTimeout(this.tokenRefreshTimeout)
+      this.tokenRefreshTimeout = null
     }
   }
 
-  // Force logout and clear authentication
-  logout(): void {
-    console.log('Logging out and clearing Spotify authentication')
-    
-    // Stop session maintenance
+  // Clear the session because Spotify definitively rejected our credentials.
+  private clearSession(): void {
     this.stopSessionMaintenance()
-    
-    // Disconnect the player if it exists
+    this.stopTokenRefreshTimer()
+
     if (this.player) {
       this.player.disconnect()
       this.player = null
     }
-    
-    // Clear auth state
+
     this.authState = {
       accessToken: null,
       refreshToken: null,
       expiresAt: null,
       isAuthenticated: false
     }
-    
-    // Clear stored data
-    localStorage.removeItem('spotify_auth')
-    localStorage.removeItem('spotify_code_verifier')
-    
+
+    localStorage.removeItem(AUTH_STORAGE_KEY)
+    localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY)
+
     this.deviceId = null
     this.currentTrackUri = null
     this.playerReady = false
     this.playerInitializationAttempted = false
     this.isAuthenticating = false
-    this.lastAuthCheck = 0
-    this.authCheckInProgress = false
     this.lastTokenRefresh = 0
-    
+    this.refreshFailureCount = 0
+    this.refreshPromise = null
+    this.permissionErrorDetected = false
+  }
+
+  // Force logout and clear authentication (user initiated)
+  logout(): void {
+    console.log('Logging out and clearing Spotify authentication')
+
+    this.clearSession()
+    localStorage.removeItem('spotify_code_verifier')
+
     console.log('✅ Successfully logged out')
   }
 
@@ -869,24 +993,62 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
   }
 
   private saveAuthState(): void {
-    localStorage.setItem('spotify_auth', JSON.stringify(this.authState))
+    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(this.authState))
+
+    // Mirror the refresh token separately: it is the only credential that
+    // really matters for staying logged in, and it must survive an unexpected
+    // reload, a corrupted auth blob, or a cleared access token.
+    if (this.authState.refreshToken) {
+      localStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, this.authState.refreshToken)
+    }
   }
 
   private loadAuthState(): void {
-    const saved = localStorage.getItem('spotify_auth')
+    const storedRefreshToken = localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY)
+    const saved = localStorage.getItem(AUTH_STORAGE_KEY)
+
     if (saved) {
       try {
-        this.authState = JSON.parse(saved)
-        
-        // Check if token has expired
-        if (this.authState.expiresAt && Date.now() >= this.authState.expiresAt) {
-          this.logout()
+        const parsed = JSON.parse(saved)
+        this.authState = {
+          accessToken: parsed?.accessToken ?? null,
+          refreshToken: parsed?.refreshToken ?? null,
+          expiresAt: parsed?.expiresAt ?? null,
+          isAuthenticated: !!parsed?.isAuthenticated
         }
       } catch (error) {
         console.error('Error loading auth state:', error)
-        this.logout()
       }
     }
+
+    // Fall back to the standalone copy of the refresh token
+    if (!this.authState.refreshToken && storedRefreshToken) {
+      this.authState.refreshToken = storedRefreshToken
+    }
+
+    if (!this.authState.refreshToken && !this.authState.accessToken) {
+      return
+    }
+
+    // An expired access token is NOT a reason to log out: refresh tokens are
+    // long lived, so we simply drop the stale access token and let the next
+    // request (or the resume handler) refresh it. This is what used to force a
+    // new Spotify login every time a mobile browser reloaded the page.
+    if (this.authState.expiresAt && Date.now() >= this.authState.expiresAt) {
+      if (this.authState.refreshToken) {
+        console.log('🔄 Stored access token expired - will refresh with stored refresh token')
+        this.authState.accessToken = null
+        this.authState.expiresAt = null
+        this.authState.isAuthenticated = true
+      } else {
+        console.log('Stored access token expired and no refresh token available')
+        this.clearSession()
+        return
+      }
+    }
+
+    this.authState.isAuthenticated = true
+    this.saveAuthState()
   }
 
   initializePlayerIfReady(): void {
@@ -1001,7 +1163,7 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
     console.log('User Agent:', navigator.userAgent)
     
     // Check if this is a mobile device and skip initialization
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|CriOS/i.test(navigator.userAgent)
+    const isMobile = this.isMobileDevice()
     if (isMobile) {
       console.log('📱 Mobile device detected - skipping Web Playback SDK, will use Spotify Connect API only')
       return
@@ -1022,12 +1184,16 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
       this.player = new window.Spotify.Player({
         name: 'Hipster Music Game',
         getOAuthToken: (cb: (token: string) => void) => {
-          const token = this.authState.accessToken
-          if (token) {
-            cb(token)
-          } else {
-            console.error('No valid access token available')
-          }
+          // The SDK asks for a token whenever it (re)connects - make sure we
+          // hand it a fresh one instead of an expired token.
+          void this.ensureValidToken().then(() => {
+            const token = this.authState.accessToken
+            if (token) {
+              cb(token)
+            } else {
+              console.error('No valid access token available')
+            }
+          })
         },
         volume: 0.5
       })
@@ -1115,10 +1281,9 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
 
       // First, ensure this device is the active device
       console.log('Setting device as active...')
-      const transferResponse = await fetch('https://api.spotify.com/v1/me/player', {
+      const transferResponse = await this.authFetch('https://api.spotify.com/v1/me/player', {
         method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${this.authState.accessToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -1144,10 +1309,9 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
       
       // Now try to play the track
       console.log('Starting playback...')
-      const response = await fetch('https://api.spotify.com/v1/me/player/play', {
+      const response = await this.authFetch('https://api.spotify.com/v1/me/player/play', {
         method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${this.authState.accessToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -1201,10 +1365,9 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
       console.log('Trying direct playback through Web Playback SDK...')
       
       // Use the Web API to start playback on our specific device
-      const response = await fetch('https://api.spotify.com/v1/me/player/play', {
+      const response = await this.authFetch('https://api.spotify.com/v1/me/player/play', {
         method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${this.authState.accessToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -1269,7 +1432,7 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
 
   // Pause playback (mobile-aware)
   async pausePlayback(): Promise<boolean> {
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|CriOS/i.test(navigator.userAgent)
+    const isMobile = this.isMobileDevice()
     
     if (isMobile) {
       console.log('� Mobile: Pausing via Spotify Connect...')
@@ -1313,11 +1476,8 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
     if (!this.isAuthenticated()) return false
 
     try {
-      const response = await fetch('https://api.spotify.com/v1/me/player/pause', {
+      const response = await this.authFetch('https://api.spotify.com/v1/me/player/pause', {
         method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${this.authState.accessToken}`,
-        }
       })
 
       this.currentTrackUri = null
@@ -1378,7 +1538,7 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
       return false
     }
 
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|CriOS/i.test(navigator.userAgent)
+    const isMobile = this.isMobileDevice()
     
     if (isMobile) {
       // For mobile, always use Spotify Connect - check if we have any available devices
@@ -1468,10 +1628,9 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
     try {
       console.log('Setting device as active:', deviceId)
       
-      const response = await fetch('https://api.spotify.com/v1/me/player', {
+      const response = await this.authFetch('https://api.spotify.com/v1/me/player', {
         method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${this.authState.accessToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -1497,11 +1656,7 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
   // Add method to get user's available devices
   async getAvailableDevices(): Promise<any[]> {
     try {
-      const response = await fetch('https://api.spotify.com/v1/me/player/devices', {
-        headers: {
-          'Authorization': `Bearer ${this.authState.accessToken}`
-        }
-      })
+      const response = await this.authFetch('https://api.spotify.com/v1/me/player/devices')
       
       if (response.ok) {
         const data = await response.json()
@@ -1565,10 +1720,9 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
         console.log('🔄 No active device found. Attempting to activate:', availableDevice.name, `(${availableDevice.type})`)
         
         // Try to transfer playback to activate the device
-        const transferResponse = await fetch('https://api.spotify.com/v1/me/player', {
+        const transferResponse = await this.authFetch('https://api.spotify.com/v1/me/player', {
           method: 'PUT',
           headers: {
-            'Authorization': `Bearer ${this.authState.accessToken}`,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
@@ -1599,10 +1753,9 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
       console.log('🎵 Using device for playback:', activeDevice.name, `(${activeDevice.type})`)
       
       // Now try to play the track
-      const response = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${activeDevice.id}`, {
+      const response = await this.authFetch(`https://api.spotify.com/v1/me/player/play?device_id=${activeDevice.id}`, {
         method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${this.authState.accessToken}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
@@ -1666,11 +1819,8 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
   // Add method to pause via Spotify Connect
   async pauseSpotifyConnect(): Promise<boolean> {
     try {
-      const response = await fetch('https://api.spotify.com/v1/me/player/pause', {
+      const response = await this.authFetch('https://api.spotify.com/v1/me/player/pause', {
         method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${this.authState.accessToken}`
-        }
       })
 
       if (response.ok || response.status === 204) {
@@ -1689,11 +1839,7 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
   // Add method to get current playback state via Web API
   async getSpotifyConnectState(): Promise<any> {
     try {
-      const response = await fetch('https://api.spotify.com/v1/me/player', {
-        headers: {
-          'Authorization': `Bearer ${this.authState.accessToken}`
-        }
-      })
+      const response = await this.authFetch('https://api.spotify.com/v1/me/player')
 
       if (response.ok) {
         return await response.json()
@@ -1711,15 +1857,11 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
   // Method to maintain active Spotify Connect session (especially for mobile)
   async maintainActiveSession(): Promise<boolean> {
     try {
-      // First, check if we need to refresh the access token
-      if (this.authState.expiresAt && Date.now() >= (this.authState.expiresAt - 300000)) {
-        console.log('📱 Mobile: Refreshing token as part of session maintenance...')
-        try {
-          await this.refreshAccessToken()
-        } catch (error) {
-          console.error('📱 Mobile: Token refresh failed during session maintenance:', error)
-          return false
-        }
+      // Make sure the access token is fresh (single-flight, so this is safe to
+      // call from the maintenance loop and the resume handler at the same time)
+      if (!await this.ensureValidToken()) {
+        console.warn('📱 Mobile: No usable access token for session maintenance')
+        return false
       }
 
       // Check current playback state
@@ -1731,22 +1873,14 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
         // Instead of just pinging, send a more meaningful request to keep session alive
         // Use the "currently playing" endpoint which is lighter but keeps the session active
         try {
-          const response = await fetch('https://api.spotify.com/v1/me/player/currently-playing', {
-            headers: {
-              'Authorization': `Bearer ${this.authState.accessToken}`
-            }
-          })
+          const response = await this.authFetch('https://api.spotify.com/v1/me/player/currently-playing')
           
           if (response.ok || response.status === 204) {
             console.log('📱 Mobile: Successfully maintained session via currently-playing check')
             
             // Additionally, send a volume check to the specific device to keep it warm
             try {
-              await fetch(`https://api.spotify.com/v1/me/player?device_id=${state.device.id}`, {
-                headers: {
-                  'Authorization': `Bearer ${this.authState.accessToken}`
-                }
-              })
+              await this.authFetch(`https://api.spotify.com/v1/me/player?device_id=${state.device.id}`)
               console.log('📱 Mobile: Device-specific ping successful')
             } catch (error) {
               console.warn('📱 Mobile: Device-specific ping failed (but session maintained):', error)
@@ -1773,10 +1907,9 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
         }
         
         // Transfer playbook to activate the device (without starting playback)
-        const transferResponse = await fetch('https://api.spotify.com/v1/me/player', {
+        const transferResponse = await this.authFetch('https://api.spotify.com/v1/me/player', {
           method: 'PUT',
           headers: {
-            'Authorization': `Bearer ${this.authState.accessToken}`,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
@@ -1815,23 +1948,29 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
 
   // Start periodic session maintenance (for mobile devices)
   startSessionMaintenance(): void {
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|CriOS/i.test(navigator.userAgent)
-    
+    const isMobile = this.isMobileDevice()
+
     if (!isMobile || !this.isAuthenticated()) {
       console.log('Session maintenance not needed for desktop or unauthenticated users')
       return
     }
-    
+
     // Clear any existing interval
     if (this.sessionMaintenanceInterval) {
       clearInterval(this.sessionMaintenanceInterval)
     }
-    
+
     console.log('📱 Starting enhanced Spotify session maintenance for mobile device...')
-    
+
     // More aggressive session maintenance every 15 seconds to prevent 30-second timeout
     // This is crucial for mobile devices where Spotify Connect sessions are more fragile
     this.sessionMaintenanceInterval = setInterval(async () => {
+      // While the tab is hidden the browser throttles us anyway, and firing
+      // requests there only risks racing with the resume handler.
+      if (document.hidden) {
+        return
+      }
+
       if (this.isAuthenticated()) {
         console.log('🔄 Running session maintenance check...')
         const success = await this.maintainActiveSession()
@@ -1864,7 +2003,7 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
 
   // Keep Spotify Connect session active (for mobile devices)
   async keepSpotifyConnectActive(): Promise<void> {
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|CriOS/i.test(navigator.userAgent)
+    const isMobile = this.isMobileDevice()
     
     if (!isMobile || !this.isAuthenticated()) {
       return
@@ -1879,11 +2018,7 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
         
         // Send a light keepalive request to maintain connection
         try {
-          await fetch('https://api.spotify.com/v1/me/player/queue', {
-            headers: {
-              'Authorization': `Bearer ${this.authState.accessToken}`
-            }
-          })
+          await this.authFetch('https://api.spotify.com/v1/me/player/queue')
           console.log('📱 Mobile: Queue check successful - session maintained')
         } catch (error) {
           console.warn('📱 Mobile: Queue check failed:', error)
@@ -1903,10 +2038,9 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
           
           if (preferredDevice) {
             try {
-              const response = await fetch('https://api.spotify.com/v1/me/player', {
+              const response = await this.authFetch('https://api.spotify.com/v1/me/player', {
                 method: 'PUT',
                 headers: {
-                  'Authorization': `Bearer ${this.authState.accessToken}`,
                   'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
@@ -1933,7 +2067,7 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
 
   // Update your existing methods to use Spotify Connect on mobile (with retry logic)
   async startPlayback(trackUri: string): Promise<boolean> {
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|CriOS/i.test(navigator.userAgent)
+    const isMobile = this.isMobileDevice()
     
     if (isMobile) {
       console.log('📱 Mobile: Using Spotify Connect exclusively for playback...')
