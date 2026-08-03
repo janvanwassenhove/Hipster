@@ -113,6 +113,13 @@ export default {
       description: 'Music will play through your Spotify app'
     },
     deviceHelp: {
+      wakeTimeout: {
+        title: 'Spotify Fell Asleep Again',
+        message: 'Your phone disappears from Spotify Connect within seconds unless something is playing.',
+        action: 'Keep Spotify awake:',
+        step1: 'Open Spotify and press play on any song of your own',
+        step2: 'Come back here - the game takes over and plays the round'
+      },
       wakeSpotify: {
         title: 'Wake up Spotify:',
         button: 'Open Spotify',

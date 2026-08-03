@@ -57,6 +57,7 @@
                 </div>
                 <h3 class="text-sm font-bold bg-gradient-to-r from-amber-300 to-orange-300 bg-clip-text text-transparent">
                   {{ deviceError === 'NO_DEVICES' ? $t('game.deviceHelp.noDevices.title', 'No Spotify App Found') :
+                     deviceError === 'WAKE_TIMEOUT' ? $t('game.deviceHelp.wakeTimeout.title', 'Spotify Fell Asleep Again') :
                      deviceError === 'SESSION_EXPIRED' ? $t('game.deviceHelp.sessionExpired.title', 'Spotify Session Expired') :
                      deviceError === 'DEVICE_INACTIVE' ? $t('game.deviceHelp.inactive.title', 'Spotify App Inactive') :
                      deviceError === 'ACTIVATION_FAILED' ? $t('game.deviceHelp.activationFailed.title', 'Device Activation Failed') :
@@ -73,6 +74,7 @@
             <div class="text-left space-y-2">
               <p class="text-amber-200 text-xs font-medium">
                 {{ deviceError === 'NO_DEVICES' ? $t('game.deviceHelp.noDevices.message', 'No Spotify devices detected.') :
+                   deviceError === 'WAKE_TIMEOUT' ? $t('game.deviceHelp.wakeTimeout.message', 'Your phone disappears from Spotify Connect within seconds unless something is playing.') :
                    deviceError === 'SESSION_EXPIRED' ? $t('game.deviceHelp.sessionExpired.message', 'Spotify rejected the connection. Please reconnect your account.') :
                    deviceError === 'DEVICE_INACTIVE' ? $t('game.deviceHelp.inactive.message', 'Your Spotify app became inactive after being idle.') :
                    deviceError === 'ACTIVATION_FAILED' ? $t('game.deviceHelp.activationFailed.message', 'Could not activate your Spotify device.') :
@@ -86,6 +88,22 @@
                         class="px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg text-xs font-medium hover:from-green-600 hover:to-green-700 transition-all">
                   🎵 {{ $t('game.spotify.login') }}
                 </button>
+              </div>
+
+              <!-- The wake window was missed. Playing something in Spotify
+                   keeps the device registered, and the player picks the song
+                   themselves so nothing about this round is revealed. -->
+              <div v-else-if="deviceError === 'WAKE_TIMEOUT'" class="bg-amber-800/30 rounded-lg p-3 text-xs">
+                <p class="text-amber-100 font-medium mb-2">{{ $t('game.deviceHelp.wakeTimeout.action', 'Keep Spotify awake:') }}</p>
+                <ol class="text-amber-200 space-y-1 list-decimal list-inside">
+                  <li>{{ $t('game.deviceHelp.wakeTimeout.step1', 'Open Spotify and press play on any song of your own') }}</li>
+                  <li>{{ $t('game.deviceHelp.wakeTimeout.step2', 'Come back here - the game takes over and plays the round') }}</li>
+                </ol>
+                <a href="spotify://"
+                   @click="onWakeSpotify"
+                   class="inline-block mt-3 px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg text-xs font-medium hover:from-green-600 hover:to-green-700 transition-all">
+                  🎵 {{ $t('game.deviceHelp.wakeSpotify.button', 'Open Spotify') }}
+                </a>
               </div>
 
               <div v-else class="bg-amber-800/30 rounded-lg p-3 text-xs">
@@ -421,11 +439,28 @@ async function handleReturnFromSpotify() {
   if (!awaitingSpotifyWake || document.hidden) return
   awaitingSpotifyWake = false
 
-  // Give Spotify Connect a moment to register the freshly woken app
-  await new Promise(resolve => setTimeout(resolve, 1200))
+  const trackUri = props.track.uri
+  if (!trackUri) return
 
-  if (await spotifyService.hasAvailableDevices()) {
-    await togglePlayback()
+  // Do not check for a device and then start playback separately: the woken
+  // app deregisters within seconds, and the gap between the two calls is
+  // exactly where it used to disappear. playAfterWake watches and plays in
+  // one motion.
+  isLoading.value = true
+  try {
+    const started = await spotifyService.playAfterWake(trackUri)
+
+    if (started) {
+      showDeviceHelp.value = false
+      deviceError.value = null
+      isPlaying.value = true
+      monitorSpotifyConnectPlayback()
+    } else {
+      deviceError.value = 'WAKE_TIMEOUT'
+      showDeviceHelp.value = true
+    }
+  } finally {
+    isLoading.value = false
   }
 }
 

@@ -88,6 +88,13 @@ export default {
       }
     },
     deviceHelp: {
+      wakeTimeout: {
+        title: 'Spotify viel weer in slaap',
+        message: 'Je telefoon verdwijnt binnen enkele seconden uit Spotify Connect zolang er niets speelt.',
+        action: 'Spotify wakker houden:',
+        step1: 'Open Spotify en druk op play bij een eigen nummer',
+        step2: 'Kom terug - het spel neemt het over en speelt de ronde'
+      },
       wakeSpotify: {
         title: 'Maak Spotify wakker:',
         button: 'Spotify openen',
