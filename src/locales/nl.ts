@@ -87,6 +87,38 @@ export default {
         description: 'Daag een andere speler uit'
       }
     },
+    deviceHelp: {
+      sessionExpired: {
+        title: 'Spotify-sessie verlopen',
+        message: 'Spotify heeft de verbinding geweigerd. Verbind je account opnieuw.',
+        action: 'Opnieuw verbinden om verder te spelen:'
+      },
+      noDevices: {
+        title: 'Geen Spotify-app gevonden',
+        message: 'Geen Spotify-apparaten gevonden.'
+      },
+      inactive: {
+        title: 'Spotify-app inactief',
+        message: 'Je Spotify-app is inactief geworden.'
+      },
+      activationFailed: {
+        title: 'Apparaat activeren mislukt',
+        message: 'Je Spotify-apparaat kon niet geactiveerd worden.'
+      },
+      generic: {
+        title: 'Afspeelprobleem',
+        message: 'Er was een probleem met het afspelen.'
+      },
+      steps: {
+        title: 'Snelle oplossing:',
+        step1: 'Open de Spotify-app op je toestel',
+        step2: 'Speel een nummer af (je mag het meteen pauzeren)',
+        step3: 'Kom terug naar dit spel en probeer opnieuw'
+      },
+      retry: 'Opnieuw proberen',
+      retrying: 'Bezig...',
+      dismiss: 'Sluiten'
+    },
     spotify: {
       login: 'Inloggen met Spotify',
       required: 'Spotify inloggen vereist om te spelen',

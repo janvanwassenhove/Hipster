@@ -98,6 +98,38 @@ export default {
         description: 'Den nächsten Track vor der Platzierung ansehen'
       }
     },
+    deviceHelp: {
+      sessionExpired: {
+        title: 'Spotify-Sitzung abgelaufen',
+        message: 'Spotify hat die Verbindung abgelehnt. Bitte verbinde dein Konto erneut.',
+        action: 'Erneut verbinden, um weiterzuspielen:'
+      },
+      noDevices: {
+        title: 'Keine Spotify-App gefunden',
+        message: 'Keine Spotify-Geräte erkannt.'
+      },
+      inactive: {
+        title: 'Spotify-App inaktiv',
+        message: 'Deine Spotify-App wurde inaktiv.'
+      },
+      activationFailed: {
+        title: 'Geräteaktivierung fehlgeschlagen',
+        message: 'Dein Spotify-Gerät konnte nicht aktiviert werden.'
+      },
+      generic: {
+        title: 'Wiedergabeproblem',
+        message: 'Bei der Wiedergabe ist ein Problem aufgetreten.'
+      },
+      steps: {
+        title: 'Schnelle Lösung:',
+        step1: 'Öffne die Spotify-App auf deinem Gerät',
+        step2: 'Spiele einen Song ab (du kannst ihn sofort pausieren)',
+        step3: 'Komm zurück zum Spiel und versuche es erneut'
+      },
+      retry: 'Erneut versuchen',
+      retrying: 'Versuche erneut...',
+      dismiss: 'Schließen'
+    },
     spotify: {
       login: 'Mit Spotify anmelden',
       required: 'Spotify-Anmeldung erforderlich',

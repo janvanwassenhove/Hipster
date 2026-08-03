@@ -89,6 +89,8 @@ class SpotifyService {
   private refreshFailureCount = 0 // Backoff counter for transient refresh failures
   private lastResumeHandled = 0 // Debounce for visibilitychange/focus firing together
   private permissionErrorDetected = false // Set when Spotify reports a missing scope
+  private unrecoveredAuthFailures = 0 // 401s a token refresh could not fix
+  private deviceLookupAuthFailure = false // Last device lookup failed on auth, not on "no devices"
   private sessionMaintenanceInterval: number | null = null // For mobile session maintenance
   private tokenRefreshTimeout: number | null = null // For automatic token refresh
 
@@ -475,6 +477,9 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
       this.saveAuthState()
       const hadFailures = this.refreshFailureCount
       this.refreshFailureCount = 0
+      // Deliberately not clearing unrecoveredAuthFailures here: a refresh that
+      // returns a token the API still rejects is precisely the broken state we
+      // need to detect. Only a successful API response proves the session works.
       this.record('refresh_ok', hadFailures ? `after ${hadFailures} failed attempt(s)` : undefined)
       console.log('✅ Token refreshed successfully')
       this.startTokenRefreshTimer()
@@ -547,6 +552,16 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
         return this.authFetch(url, init, false)
       }
       this.record('api_401_not_recovered', this.endpointLabel(url))
+    }
+
+    // Track whether the credentials still work at all. A session that keeps
+    // getting 401s after a refresh attempt is unusable, and must not keep
+    // presenting itself as connected - otherwise the failure surfaces as a
+    // misleading "no Spotify devices" and the user has no way back to a login.
+    if (response.status === 401) {
+      this.unrecoveredAuthFailures++
+    } else if (response.ok) {
+      this.unrecoveredAuthFailures = 0
     }
 
     // A missing scope is the only case where re-running the OAuth flow actually
@@ -959,12 +974,31 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
   // refresh token, even when the access token has already expired - the token
   // is transparently refreshed by ensureValidToken()/authFetch() on first use.
   isAuthenticated(): boolean {
+    // Holding a refresh token is not enough if Spotify keeps rejecting us:
+    // claiming to be connected in that state hides the login button and leaves
+    // the user stuck.
+    if (this.sessionNeedsLogin()) {
+      return false
+    }
+
     if (this.authState.refreshToken) {
       return true
     }
 
     return !!this.authState.accessToken &&
       (!this.authState.expiresAt || Date.now() < this.authState.expiresAt)
+  }
+
+  // True when the stored credentials have provably stopped working: repeated
+  // 401s that a token refresh could not recover.
+  sessionNeedsLogin(): boolean {
+    return this.unrecoveredAuthFailures >= 2
+  }
+
+  // True when the last device lookup failed for authentication reasons rather
+  // than genuinely finding no devices - the two used to be indistinguishable.
+  deviceLookupFailedOnAuth(): boolean {
+    return this.deviceLookupAuthFailure
   }
 
   // Start automatic token refresh timer.
@@ -1040,6 +1074,8 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
     this.refreshFailureCount = 0
     this.refreshPromise = null
     this.permissionErrorDetected = false
+    this.unrecoveredAuthFailures = 0
+    this.deviceLookupAuthFailure = false
   }
 
   // Force logout and clear authentication (user initiated)
@@ -1755,11 +1791,23 @@ Please make sure ${SPOTIFY_REDIRECT_URI} is added to your Spotify app settings.`
   async getAvailableDevices(): Promise<any[]> {
     try {
       const response = await this.authFetch('https://api.spotify.com/v1/me/player/devices')
-      
+
       if (response.ok) {
         const data = await response.json()
         console.log('Available Spotify devices:', data.devices)
+        this.deviceLookupAuthFailure = false
         return data.devices || []
+      }
+
+      // An empty list and a rejected request are very different problems:
+      // "open your Spotify app" is useless advice when the real issue is the
+      // session. Remember which one it was.
+      this.deviceLookupAuthFailure = response.status === 401 || response.status === 403
+      if (this.deviceLookupAuthFailure) {
+        this.record('device_lookup_auth_failed', String(response.status))
+        console.error('❌ Device lookup rejected by Spotify:', response.status)
+      } else {
+        console.warn('Device lookup failed:', response.status)
       }
       return []
     } catch (error) {

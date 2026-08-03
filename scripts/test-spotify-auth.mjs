@@ -238,6 +238,33 @@ const expiredSession = {
   tokenResponder = freshTokenResponse
 }
 
+// 8. A session whose 401s cannot be refreshed away must stop claiming to be
+//    connected, and must not disguise itself as "no Spotify devices".
+{
+  const spotify = await freshService({
+    accessToken: 'stale',
+    refreshToken: 'r1',
+    expiresAt: Date.now() + 3_600_000,
+    isAuthenticated: true
+  })
+  // Refresh "succeeds" but the API keeps rejecting the token.
+  globalThis.fetch = async (url, init = {}) => {
+    if (String(url).includes('accounts.spotify.com/api/token')) return callTokenEndpoint()
+    apiCalls.push({ url: String(url), auth: new Headers(init.headers).get('Authorization') })
+    return new Response('{"error":{"status":401,"message":"Invalid access token"}}', { status: 401 })
+  }
+
+  const devices = await spotify.getAvailableDevices()
+  check('a rejected device lookup returns no devices', devices.length === 0)
+  check('  and is flagged as an auth failure, not an empty device list',
+        spotify.deviceLookupFailedOnAuth())
+
+  await spotify.getAvailableDevices()
+  check('  repeated unrecoverable 401s mark the session as needing login',
+        spotify.sessionNeedsLogin())
+  check('  so the app stops claiming to be connected', !spotify.isAuthenticated())
+}
+
 await rm(outDir, { recursive: true, force: true })
 
 const failed = results.filter(r => !r.pass)
